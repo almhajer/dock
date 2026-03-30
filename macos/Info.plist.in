@@ -5,17 +5,17 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Duck</string>
+    <string>@MACOS_APP_DISPLAY_NAME@</string>
     <key>CFBundleExecutable</key>
     <string>${PROJECT_NAME}</string>
     <key>CFBundleIconFile</key>
-    <string>DuckHunterStarter.icns</string>
+    <string>@MACOS_APP_ICON_FILE@</string>
     <key>CFBundleIdentifier</key>
-    <string>com.duck</string>
+    <string>@MACOS_APP_BUNDLE_ID@</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Duck</string>
+    <string>@MACOS_APP_DISPLAY_NAME@</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

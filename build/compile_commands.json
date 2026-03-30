@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/Users/abdulkafi/Desktop/dock/build",
-  "command": "/usr/bin/c++  -I/Users/abdulkafi/Desktop/dock/src -isystem /usr/local/glfw/include -g -std=c++20 -arch arm64 -Wall -Wextra -Wpedantic -o CMakeFiles/DuckH.dir/src/main.cpp.o -c /Users/abdulkafi/Desktop/dock/src/main.cpp",
-  "file": "/Users/abdulkafi/Desktop/dock/src/main.cpp",
-  "output": "CMakeFiles/DuckH.dir/src/main.cpp.o"
-}
-]

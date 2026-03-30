@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
 project(DuckH VERSION 0.1.0 LANGUAGES CXX)
 
+set(MACOS_APP_DISPLAY_NAME "DuckH")
+set(MACOS_APP_BUNDLE_ID "com.duckh.app")
+set(MACOS_APP_ICON_FILE "DuckHunterStarter.icns")
+
 include(GNUInstallDirs)
 
 # تفعيل ++C الحديثة مع تعطيل الامتدادات الخاصة بالمترجم.
@@ -49,11 +53,11 @@ if(APPLE)
     endif()
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${MACOS_BUNDLE_INFO_PLIST_FILE}"
-        MACOSX_BUNDLE_BUNDLE_NAME "Duck Hunter Starter"
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.duckhunter.starter"
+        MACOSX_BUNDLE_BUNDLE_NAME "${MACOS_APP_DISPLAY_NAME}"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${MACOS_APP_BUNDLE_ID}"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-        MACOSX_BUNDLE_ICON_FILE "DuckHunterStarter.icns"
+        MACOSX_BUNDLE_ICON_FILE "${MACOS_APP_ICON_FILE}"
     )
 endif()
 
@@ -207,15 +211,15 @@ if(APPLE)
     endif()
 
     # بعد التثبيت ننسخ المكتبات الديناميكية المطلوبة إلى داخل الحزمة ونعدّل المسارات.
-    install(CODE [[
+    install(CODE "
         include(BundleUtilities)
         set(BU_CHMOD_BUNDLE_ITEMS ON)
         fixup_bundle(
-            "${CMAKE_INSTALL_PREFIX}/Duck.app"
-            ""
-            "/usr/local/lib;/usr/local/glfw/lib-arm64;/usr/local/glfw/lib-universal;/usr/local/glfw/lib-x86_64"
+            \"\${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app\"
+            \"\"
+            \"/usr/local/lib;/usr/local/glfw/lib-arm64;/usr/local/glfw/lib-universal;/usr/local/glfw/lib-x86_64\"
         )
-    ]])
+    ")
 else()
     install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
