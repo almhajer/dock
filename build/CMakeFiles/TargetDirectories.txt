@@ -1,0 +1,7 @@
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/DuckH.dir
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/edit_cache.dir
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/rebuild_cache.dir
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/list_install_components.dir
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/install.dir
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/install/local.dir
+/Users/abdulkafi/Desktop/dock/build/CMakeFiles/install/strip.dir
