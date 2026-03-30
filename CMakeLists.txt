@@ -30,7 +30,7 @@ set(MACOS_BUNDLE_INFO_PLIST_FILE "")
 set(MACOS_BUNDLE_ICON_SOURCE "")
 if(APPLE)
     # إعداد ملف Info.plist وأيقونة التطبيق داخل حزمة macOS.
-    set(MACOS_BUNDLE_ICON_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/macos/DuckHunterStarter.icns")
+    set(MACOS_BUNDLE_ICON_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/assets/macos/DuckHunterStarter.icns")
     set(MACOS_BUNDLE_INFO_PLIST_FILE "${CMAKE_CURRENT_BINARY_DIR}/DuckHunterStarter-Info.plist")
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist.in"

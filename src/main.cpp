@@ -1,8 +1,20 @@
-#include<iostream>
+#include "core/App.h"
 
-
+#include <iostream>
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    try {
+        core::App::Config config;
+        config.window.title = "DuckH - صيد البط";
+        config.window.width = 1280;
+        config.window.height = 720;
+
+        core::App app(config);
+        app.run();
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ فادح: " << e.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }
