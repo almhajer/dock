@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AtmosphereRenderer.h"
 #include "RenderTypes.h"
 
 #include <array>
@@ -126,6 +127,11 @@ namespace gfx
         void createSyncObjects();
         void createDescriptorSetLayout();
         void createSpritePipeline();
+        void createAtmosphereUniformBuffers();
+        void createAtmosphereVertexBuffer();
+        void createAtmosphereMaskTexture();
+        void createAtmosphereDescriptorSets();
+        void createAtmospherePipelines();
         void createWindUniformBuffers();
         void createWindTextureResources();
         void createLayerTextureImageFromPixels(SpriteLayerResources &layer,
@@ -142,6 +148,10 @@ namespace gfx
                                                     int texH,
                                                     std::size_t maxQuads);
         void destroyLayerResources(SpriteLayerResources &layer);
+        void destroyAtmosphereUniformBuffers();
+        void destroyAtmosphereVertexBuffer();
+        void destroyAtmosphereDescriptorSets();
+        void destroyAtmosphereMaskTexture();
         void destroyWindUniformBuffers();
         void destroyWindTextureResources();
 
@@ -165,6 +175,7 @@ namespace gfx
         void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
         void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
         void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t texWidth, uint32_t texHeight);
+        void cleanupAtmospherePipelines();
         void cleanupSpritePipeline();
         void waitForValidFramebufferSize();
         [[nodiscard]] bool hasSpriteResources() const;
@@ -200,11 +211,27 @@ namespace gfx
         VkPipelineLayout mSpritePipelineLayout = VK_NULL_HANDLE;
         VkPipeline mSpritePipeline = VK_NULL_HANDLE;
         VkDescriptorSetLayout mDescriptorSetLayout = VK_NULL_HANDLE;
+        VkPipeline mAtmosphereSunPipeline = VK_NULL_HANDLE;
+        VkPipeline mAtmosphereGodRayPipeline = VK_NULL_HANDLE;
         std::vector<SpriteLayerResources> mSpriteLayers;
+        std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mSunUniformBuffers{};
+        std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mSunUniformBuffersMemory{};
+        std::array<void *, MAX_FRAMES_IN_FLIGHT> mSunUniformBuffersMapped{};
+        std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mGodRayUniformBuffers{};
+        std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mGodRayUniformBuffersMemory{};
+        std::array<void *, MAX_FRAMES_IN_FLIGHT> mGodRayUniformBuffersMapped{};
+        VkBuffer mAtmosphereVertexBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory mAtmosphereVertexBufferMemory = VK_NULL_HANDLE;
+        VkDescriptorPool mAtmosphereSunDescriptorPool = VK_NULL_HANDLE;
+        VkDescriptorPool mAtmosphereGodRayDescriptorPool = VK_NULL_HANDLE;
+        std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> mAtmosphereSunDescriptorSets{};
+        std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> mAtmosphereGodRayDescriptorSets{};
         std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffers{};
         std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMemory{};
         std::array<void *, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMapped{};
         SpriteLayerResources mWindTexture;
+        SpriteLayerResources mSunMaskTexture;
+        AtmosphereRenderer mAtmosphereRenderer;
         std::array<float, 4> mGroundInteractionA{0.0f, 0.0f, 0.0f, 0.0f};
         std::array<float, 4> mGroundInteractionB{0.0f, 0.0f, 0.0f, 0.0f};
 

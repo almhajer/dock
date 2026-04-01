@@ -1,10 +1,9 @@
 #version 450
 layout(early_fragment_tests) in;
 
-// --- Specialization Constants (Vulkan IDs) ---
-layout(constant_id = 0) const float kSpecGrassDensity = 1.0; // معامل كثافة العشب
-layout(constant_id = 1) const int   kSpecMaxLayers = 3;      // عدد طبقات العشب (1-3)
-layout(constant_id = 2) const float kSpecDetailScale = 1.0;  // دقة التفاصيل العرضية
+const float kGrassDensity = 1.5;
+const int kMaxGrassLayers = 2;
+const float kGrassDetailScale = 1.0;
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in float fragAlpha;
@@ -28,7 +27,7 @@ float fastNoise(vec2 uv) {
 }
 
 float getBlade(vec2 uv, float id, float density, float widthBias) {
-    float x = uv.x * (density * kSpecGrassDensity);
+    float x = uv.x * (density * kGrassDensity);
     float cell = floor(x);
     float lX = fract(x) - 0.5;
     float seed = id + cell * 13.0;
@@ -36,8 +35,7 @@ float getBlade(vec2 uv, float id, float density, float widthBias) {
     float h = mix(0.52, 1.08, hash(seed + 0.4));
     float p = clamp(uv.y / max(h, 0.01), 0.0, 1.0);
 
-    // العرض المتأثر بالـ Specialization Constant
-    float baseWidth = mix(0.018, 0.082, hash(seed + 2.0)) * mix(0.82, 1.28, widthBias) * kSpecDetailScale;
+    float baseWidth = mix(0.018, 0.082, hash(seed + 2.0)) * mix(0.82, 1.28, widthBias) * kGrassDetailScale;
     float bend = (hash(seed + 3.6) - 0.5) * 0.22 * p + sin(seed * 0.73 + p * 3.4) * 0.012 * p;
 
     float taper = mix(1.16, 0.02, pow(p, 1.35));
@@ -79,10 +77,9 @@ void main() {
     // الطبقة الأولى (دائمة)
     float s = getBlade(uv, fragWindPhase + 1.0, 10.0 + dNoise * 2.0, 0.18);
 
-    // طبقات إضافية مفعلة حسب kSpecMaxLayers
-    if (kSpecMaxLayers >= 2)
+    if (kMaxGrassLayers >= 2)
         s = max(s, getBlade(vec2(fract(uv.x + 0.19), uv.y * 0.97), fragWindPhase + 9.0, 13.0, 0.52) * 0.8);
-    if (kSpecMaxLayers >= 3)
+    if (kMaxGrassLayers >= 3)
         s = max(s, getBlade(vec2(fract(uv.x + 0.41), uv.y * 1.02), fragWindPhase + 17.0, 8.4, 0.86) * 0.68);
 
     if (s < 0.05) discard;

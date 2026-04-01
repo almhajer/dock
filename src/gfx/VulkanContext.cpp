@@ -33,11 +33,15 @@ struct WindUniformData
     alignas(16) std::array<float, 4> interactionB = {0.0f, 0.0f, 0.0f, 0.0f};
 };
 
-struct GrassFragmentSpecializationData
-{
-    float density = 1.5f;
-    int32_t maxLayers = 2;
-    float detailScale = 1.0f;
+constexpr gfx::SunDiskUniformData kDefaultSunDiskUniformData = {
+    {0.82f, 0.20f, 0.022f, 0.065f},
+    {1.0f, 1.0f, 1.0f, 2.2f},
+    {0.50f, 8.0f, 0.04f, 0.0f},
+};
+
+constexpr gfx::GodRayUniformData kDefaultGodRayUniformData = {
+    {0.82f, 0.20f, 0.92f, 0.018f},
+    {0.96f, 0.45f, 0.35f, 28.0f},
 };
 
 constexpr float PI = 3.14159265358979323846f;
@@ -83,6 +87,51 @@ std::vector<unsigned char> generateWindTexturePixels(int width, int height)
 
     return pixels;
 }
+
+std::vector<unsigned char> generateSunMaskPixels(int width, int height, const gfx::SunDiskUniformData& sunData)
+{
+    std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u, 0u);
+
+    const float sunX = sunData.sunDisk[0];
+    const float sunY = sunData.sunDisk[1];
+    const float diskRadius = sunData.sunDisk[2];
+    const float coronaRadius = sunData.sunDisk[3];
+    const float falloff = sunData.appearance[1];
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(width);
+            const float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(height);
+            const float dx = u - sunX;
+            const float dy = v - sunY;
+            const float distanceToSun = std::sqrt(dx * dx + dy * dy);
+            const float angle = std::atan2(dy, dx);
+
+            const float diskMask = 1.0f - std::clamp((distanceToSun - diskRadius * 0.92f) / std::max(diskRadius * 0.16f, 0.0001f), 0.0f, 1.0f);
+            const float coronaT = std::clamp((distanceToSun - diskRadius) / std::max(coronaRadius - diskRadius, 0.0001f), 0.0f, 1.0f);
+            const float corona = std::exp(-coronaT * falloff) * (distanceToSun >= diskRadius ? 1.0f : 0.0f);
+            const float primary = std::pow(std::max(0.0f, std::cos(angle * 6.0f)), 10.0f);
+            const float secondary = std::pow(std::max(0.0f, std::cos(angle * 12.0f + 0.25f)), 18.0f) * 0.5f;
+            const float diagonal = std::pow(std::max(0.0f, std::cos(angle * 4.0f - 0.18f)), 14.0f) * 0.35f;
+            const float burst = (primary + secondary + diagonal) *
+                                (1.0f - std::exp(-distanceToSun / std::max(coronaRadius * 0.18f, 0.0001f))) *
+                                std::exp(-distanceToSun / std::max(coronaRadius * 0.95f, 0.0001f));
+            const float value = std::clamp(std::max(std::max(diskMask, corona * 0.70f), burst), 0.0f, 1.0f);
+
+            const std::size_t index =
+                (static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x)) * 4u;
+            const unsigned char byteValue = static_cast<unsigned char>(value * 255.0f);
+            pixels[index + 0] = byteValue;
+            pixels[index + 1] = byteValue;
+            pixels[index + 2] = byteValue;
+            pixels[index + 3] = 255u;
+        }
+    }
+
+    return pixels;
+}
 } // namespace
 
 namespace gfx
@@ -115,6 +164,12 @@ void VulkanContext::init(GLFWwindow *window, uint32_t width, uint32_t height)
     createDescriptorSetLayout();
     createSpritePipeline();
     createSyncObjects();
+    mAtmosphereRenderer.init(mDevice, mSwapchainExtent);
+    createAtmosphereUniformBuffers();
+    createAtmosphereVertexBuffer();
+    createAtmosphereMaskTexture();
+    createAtmosphereDescriptorSets();
+    createAtmospherePipelines();
 
     mInitialized = true;
     std::cout << "[Vulkan] تمت التهيئة بنجاح" << std::endl;
@@ -139,8 +194,13 @@ void VulkanContext::cleanup()
         destroyLayerResources(layer);
     }
     mSpriteLayers.clear();
+    destroyAtmosphereDescriptorSets();
+    destroyAtmosphereMaskTexture();
+    destroyAtmosphereVertexBuffer();
+    destroyAtmosphereUniformBuffers();
     destroyWindTextureResources();
     destroyWindUniformBuffers();
+    mAtmosphereRenderer.cleanup();
 
     if (mDescriptorSetLayout != VK_NULL_HANDLE)
     {
@@ -206,6 +266,7 @@ void VulkanContext::cleanup()
 
 void VulkanContext::cleanupSwapchain()
 {
+    cleanupAtmospherePipelines();
     cleanupSpritePipeline();
 
     for (VkFramebuffer framebuffer : mSwapchainFramebuffers)
@@ -254,6 +315,8 @@ void VulkanContext::recreateSwapchain()
     createFramebuffers();
     createSpritePipeline();
     createSyncObjects();
+    mAtmosphereRenderer.onResize(mSwapchainExtent);
+    createAtmospherePipelines();
 
     mCurrentFrame = 0;
     mSwapchainDirty = false;
@@ -323,6 +386,27 @@ void VulkanContext::drawFrame()
 
     vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
     updateWindUniformBuffer(mCurrentFrame);
+
+    {
+        const float time = static_cast<float>(glfwGetTime());
+        const float sunOffsetX = std::sin(time * 0.07f) * 0.012f;
+        const float sunOffsetY = std::sin(time * 0.11f + 1.5f) * 0.006f;
+
+        if (mSunUniformBuffersMapped[mCurrentFrame] != nullptr)
+        {
+            gfx::SunDiskUniformData sunData = kDefaultSunDiskUniformData;
+            sunData.sunDisk[0] += sunOffsetX;
+            sunData.sunDisk[1] += sunOffsetY;
+            std::memcpy(mSunUniformBuffersMapped[mCurrentFrame], &sunData, sizeof(sunData));
+        }
+        if (mGodRayUniformBuffersMapped[mCurrentFrame] != nullptr)
+        {
+            gfx::GodRayUniformData godRayData = kDefaultGodRayUniformData;
+            godRayData.sunPosDensityWeight[0] += sunOffsetX;
+            godRayData.sunPosDensityWeight[1] += sunOffsetY;
+            std::memcpy(mGodRayUniformBuffersMapped[mCurrentFrame], &godRayData, sizeof(godRayData));
+        }
+    }
     vkResetCommandBuffer(mCommandBuffers[mCurrentFrame], 0);
 
     VkCommandBuffer cmd = mCommandBuffers[mCurrentFrame];
@@ -347,21 +431,65 @@ void VulkanContext::drawFrame()
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(mSwapchainExtent.width);
+    viewport.height = static_cast<float>(mSwapchainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor{{0, 0}, mSwapchainExtent};
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    if (mAtmosphereGodRayPipeline != VK_NULL_HANDLE &&
+        mAtmosphereRenderer.isInitialized() &&
+        mAtmosphereGodRayDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
+        mAtmosphereVertexBuffer != VK_NULL_HANDLE)
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mAtmosphereGodRayPipeline);
+        const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            layouts.godRayPipelineLayout,
+            0,
+            1,
+            &mAtmosphereGodRayDescriptorSets[mCurrentFrame],
+            0,
+            nullptr);
+        VkBuffer vertexBuffers[] = {mAtmosphereVertexBuffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+    }
+
+    if (mAtmosphereSunPipeline != VK_NULL_HANDLE &&
+        mAtmosphereRenderer.isInitialized() &&
+        mAtmosphereSunDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
+        mAtmosphereVertexBuffer != VK_NULL_HANDLE)
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mAtmosphereSunPipeline);
+        const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            layouts.sunPipelineLayout,
+            0,
+            1,
+            &mAtmosphereSunDescriptorSets[mCurrentFrame],
+            0,
+            nullptr);
+        VkBuffer vertexBuffers[] = {mAtmosphereVertexBuffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+    }
+
     if (mSpritePipeline != VK_NULL_HANDLE && hasSpriteResources())
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mSpritePipeline);
-
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(mSwapchainExtent.width);
-        viewport.height = static_cast<float>(mSwapchainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-        VkRect2D scissor{{0, 0}, mSwapchainExtent};
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         for (const auto &layer : mSpriteLayers)
         {
@@ -1090,6 +1218,219 @@ void VulkanContext::createWindUniformBuffers()
     }
 }
 
+void VulkanContext::createAtmosphereUniformBuffers()
+{
+    const VkDeviceSize sunBufferSize = sizeof(SunDiskUniformData);
+    const VkDeviceSize godRayBufferSize = sizeof(GodRayUniformData);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        createBuffer(
+            sunBufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            mSunUniformBuffers[i],
+            mSunUniformBuffersMemory[i]);
+        if (vkMapMemory(mDevice, mSunUniformBuffersMemory[i], 0, sunBufferSize, 0, &mSunUniformBuffersMapped[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل ربط Sun UBO");
+        }
+        std::memset(mSunUniformBuffersMapped[i], 0, static_cast<std::size_t>(sunBufferSize));
+
+        createBuffer(
+            godRayBufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            mGodRayUniformBuffers[i],
+            mGodRayUniformBuffersMemory[i]);
+        if (vkMapMemory(mDevice, mGodRayUniformBuffersMemory[i], 0, godRayBufferSize, 0, &mGodRayUniformBuffersMapped[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل ربط God Ray UBO");
+        }
+        std::memset(mGodRayUniformBuffersMapped[i], 0, static_cast<std::size_t>(godRayBufferSize));
+    }
+}
+
+void VulkanContext::createAtmosphereVertexBuffer()
+{
+    if (mAtmosphereVertexBuffer != VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    constexpr std::array<FullscreenVertex, 3> vertices{{
+        {-1.0f, -1.0f, 0.0f, 0.0f},
+        { 3.0f, -1.0f, 2.0f, 0.0f},
+        {-1.0f,  3.0f, 0.0f, 2.0f},
+    }};
+
+    const VkDeviceSize bufferSize = sizeof(vertices);
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        mAtmosphereVertexBuffer,
+        mAtmosphereVertexBufferMemory);
+
+    void* mappedData = nullptr;
+    if (vkMapMemory(mDevice, mAtmosphereVertexBufferMemory, 0, bufferSize, 0, &mappedData) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Atmosphere] فشل ربط Vertex Buffer للشاشة الكاملة");
+    }
+
+    std::memcpy(mappedData, vertices.data(), static_cast<std::size_t>(bufferSize));
+    vkUnmapMemory(mDevice, mAtmosphereVertexBufferMemory);
+}
+
+void VulkanContext::createAtmosphereMaskTexture()
+{
+    if (mSunMaskTexture.image != VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    constexpr int MASK_WIDTH = 256;
+    constexpr int MASK_HEIGHT = 256;
+    const std::vector<unsigned char> pixels = generateSunMaskPixels(MASK_WIDTH, MASK_HEIGHT, kDefaultSunDiskUniformData);
+
+    mSunMaskTexture.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+    createLayerTextureImageFromPixels(mSunMaskTexture, pixels.data(), MASK_WIDTH, MASK_HEIGHT);
+    createLayerTextureImageView(mSunMaskTexture);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 1.0f;
+
+    if (vkCreateSampler(mDevice, &samplerInfo, nullptr, &mSunMaskTexture.sampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Atmosphere] فشل إنشاء Sampler لقناع الشمس");
+    }
+}
+
+void VulkanContext::createAtmosphereDescriptorSets()
+{
+    const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
+
+    if (mAtmosphereSunDescriptorPool == VK_NULL_HANDLE)
+    {
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT;
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
+
+        if (vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &mAtmosphereSunDescriptorPool) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل إنشاء Descriptor Pool للشمس");
+        }
+
+        std::vector<VkDescriptorSetLayout> setLayouts(MAX_FRAMES_IN_FLIGHT, layouts.sunDescriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = mAtmosphereSunDescriptorPool;
+        allocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
+        allocInfo.pSetLayouts = setLayouts.data();
+
+        if (vkAllocateDescriptorSets(mDevice, &allocInfo, mAtmosphereSunDescriptorSets.data()) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل إنشاء Descriptor Sets للشمس");
+        }
+    }
+
+    if (mAtmosphereGodRayDescriptorPool == VK_NULL_HANDLE)
+    {
+        std::array<VkDescriptorPoolSize, 2> poolSizes{};
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+        poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
+
+        if (vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &mAtmosphereGodRayDescriptorPool) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل إنشاء Descriptor Pool للأشعة");
+        }
+
+        std::vector<VkDescriptorSetLayout> setLayouts(MAX_FRAMES_IN_FLIGHT, layouts.godRayDescriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = mAtmosphereGodRayDescriptorPool;
+        allocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
+        allocInfo.pSetLayouts = setLayouts.data();
+
+        if (vkAllocateDescriptorSets(mDevice, &allocInfo, mAtmosphereGodRayDescriptorSets.data()) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل إنشاء Descriptor Sets للأشعة");
+        }
+    }
+
+    for (int frameIndex = 0; frameIndex < MAX_FRAMES_IN_FLIGHT; ++frameIndex)
+    {
+        VkDescriptorBufferInfo sunBufferInfo{};
+        sunBufferInfo.buffer = mSunUniformBuffers[frameIndex];
+        sunBufferInfo.offset = 0;
+        sunBufferInfo.range = sizeof(SunDiskUniformData);
+
+        VkWriteDescriptorSet sunWrite{};
+        sunWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        sunWrite.dstSet = mAtmosphereSunDescriptorSets[frameIndex];
+        sunWrite.dstBinding = 0;
+        sunWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        sunWrite.descriptorCount = 1;
+        sunWrite.pBufferInfo = &sunBufferInfo;
+        vkUpdateDescriptorSets(mDevice, 1, &sunWrite, 0, nullptr);
+
+        VkDescriptorImageInfo maskInfo{};
+        maskInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        maskInfo.imageView = mSunMaskTexture.imageView;
+        maskInfo.sampler = mSunMaskTexture.sampler;
+
+        VkDescriptorBufferInfo godRayBufferInfo{};
+        godRayBufferInfo.buffer = mGodRayUniformBuffers[frameIndex];
+        godRayBufferInfo.offset = 0;
+        godRayBufferInfo.range = sizeof(GodRayUniformData);
+
+        std::array<VkWriteDescriptorSet, 2> godRayWrites{};
+        godRayWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        godRayWrites[0].dstSet = mAtmosphereGodRayDescriptorSets[frameIndex];
+        godRayWrites[0].dstBinding = 0;
+        godRayWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        godRayWrites[0].descriptorCount = 1;
+        godRayWrites[0].pImageInfo = &maskInfo;
+
+        godRayWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        godRayWrites[1].dstSet = mAtmosphereGodRayDescriptorSets[frameIndex];
+        godRayWrites[1].dstBinding = 1;
+        godRayWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        godRayWrites[1].descriptorCount = 1;
+        godRayWrites[1].pBufferInfo = &godRayBufferInfo;
+
+        vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(godRayWrites.size()), godRayWrites.data(), 0, nullptr);
+    }
+}
+
 void VulkanContext::createWindTextureResources()
 {
     if (mWindTexture.image != VK_NULL_HANDLE)
@@ -1128,6 +1469,146 @@ void VulkanContext::createWindTextureResources()
     }
 }
 
+void VulkanContext::createAtmospherePipelines()
+{
+    if (!mAtmosphereRenderer.isInitialized() || mRenderPass == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    cleanupAtmospherePipelines();
+
+    const auto vertexShaderCode = readFile("assets/shaders/vert/fullscreen_triangle.vert.spv");
+    const auto sunFragmentShaderCode = readFile("assets/shaders/frag/sun_disk.frag.spv");
+    const auto godRayFragmentShaderCode = readFile("assets/shaders/frag/god_rays.frag.spv");
+
+    const VkShaderModule vertexShaderModule = createShaderModule(vertexShaderCode);
+    const VkShaderModule sunFragmentShaderModule = createShaderModule(sunFragmentShaderCode);
+    const VkShaderModule godRayFragmentShaderModule = createShaderModule(godRayFragmentShaderCode);
+
+    VkPipelineShaderStageCreateInfo shaderStages[2]{};
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = vertexShaderModule;
+    shaderStages[0].pName = "main";
+
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(FullscreenVertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].offset = offsetof(FullscreenVertex, x);
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(FullscreenVertex, u);
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = 2;
+    dynamicState.pDynamicStates = dynamicStates;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineColorBlendAttachmentState additiveBlend =
+        AtmosphereRenderer::makeAdditiveBlendAttachment();
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &additiveBlend;
+
+    const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
+
+    auto createPipeline = [&](VkShaderModule fragmentModule,
+                              VkPipelineLayout pipelineLayout,
+                              VkPipeline& pipelineHandle,
+                              const char* errorMessage) {
+        shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        shaderStages[1].module = fragmentModule;
+        shaderStages[1].pName = "main";
+
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pColorBlendState = &colorBlending;
+        pipelineInfo.pDynamicState = &dynamicState;
+        pipelineInfo.layout = pipelineLayout;
+        pipelineInfo.renderPass = mRenderPass;
+        pipelineInfo.subpass = 0;
+
+        if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipelineHandle) != VK_SUCCESS)
+        {
+            throw std::runtime_error(errorMessage);
+        }
+    };
+
+    try
+    {
+        createPipeline(
+            godRayFragmentShaderModule,
+            layouts.godRayPipelineLayout,
+            mAtmosphereGodRayPipeline,
+            "[Atmosphere] فشل إنشاء pipeline للأشعة");
+        createPipeline(
+            sunFragmentShaderModule,
+            layouts.sunPipelineLayout,
+            mAtmosphereSunPipeline,
+            "[Atmosphere] فشل إنشاء pipeline للشمس");
+    }
+    catch (...)
+    {
+        vkDestroyShaderModule(mDevice, godRayFragmentShaderModule, nullptr);
+        vkDestroyShaderModule(mDevice, sunFragmentShaderModule, nullptr);
+        vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+        throw;
+    }
+
+    vkDestroyShaderModule(mDevice, godRayFragmentShaderModule, nullptr);
+    vkDestroyShaderModule(mDevice, sunFragmentShaderModule, nullptr);
+    vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+}
+
 void VulkanContext::createSpritePipeline()
 {
     if (mRenderPass == VK_NULL_HANDLE || mDescriptorSetLayout == VK_NULL_HANDLE)
@@ -1152,19 +1633,6 @@ void VulkanContext::createSpritePipeline()
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaderStages[1].module = fragmentShaderModule;
     shaderStages[1].pName = "main";
-
-    constexpr GrassFragmentSpecializationData fragmentSpecializationData{};
-    constexpr std::array<VkSpecializationMapEntry, 3> fragmentSpecializationEntries{{
-        {0u, static_cast<uint32_t>(offsetof(GrassFragmentSpecializationData, density)), sizeof(float)},
-        {1u, static_cast<uint32_t>(offsetof(GrassFragmentSpecializationData, maxLayers)), sizeof(int32_t)},
-        {2u, static_cast<uint32_t>(offsetof(GrassFragmentSpecializationData, detailScale)), sizeof(float)},
-    }};
-    VkSpecializationInfo fragmentSpecializationInfo{};
-    fragmentSpecializationInfo.mapEntryCount = static_cast<uint32_t>(fragmentSpecializationEntries.size());
-    fragmentSpecializationInfo.pMapEntries = fragmentSpecializationEntries.data();
-    fragmentSpecializationInfo.dataSize = sizeof(fragmentSpecializationData);
-    fragmentSpecializationInfo.pData = &fragmentSpecializationData;
-    shaderStages[1].pSpecializationInfo = &fragmentSpecializationInfo;
 
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = 0;
@@ -1583,6 +2051,82 @@ void VulkanContext::destroyLayerResources(SpriteLayerResources &layer)
     }
     layer.vertexCount = 0;
     layer.maxQuads = 0;
+}
+
+void VulkanContext::destroyAtmosphereUniformBuffers()
+{
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        if (mSunUniformBuffersMapped[i] != nullptr && mSunUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkUnmapMemory(mDevice, mSunUniformBuffersMemory[i]);
+            mSunUniformBuffersMapped[i] = nullptr;
+        }
+        if (mSunUniformBuffers[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(mDevice, mSunUniformBuffers[i], nullptr);
+            mSunUniformBuffers[i] = VK_NULL_HANDLE;
+        }
+        if (mSunUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(mDevice, mSunUniformBuffersMemory[i], nullptr);
+            mSunUniformBuffersMemory[i] = VK_NULL_HANDLE;
+        }
+
+        if (mGodRayUniformBuffersMapped[i] != nullptr && mGodRayUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkUnmapMemory(mDevice, mGodRayUniformBuffersMemory[i]);
+            mGodRayUniformBuffersMapped[i] = nullptr;
+        }
+        if (mGodRayUniformBuffers[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(mDevice, mGodRayUniformBuffers[i], nullptr);
+            mGodRayUniformBuffers[i] = VK_NULL_HANDLE;
+        }
+        if (mGodRayUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(mDevice, mGodRayUniformBuffersMemory[i], nullptr);
+            mGodRayUniformBuffersMemory[i] = VK_NULL_HANDLE;
+        }
+
+        mAtmosphereSunDescriptorSets[i] = VK_NULL_HANDLE;
+        mAtmosphereGodRayDescriptorSets[i] = VK_NULL_HANDLE;
+    }
+}
+
+void VulkanContext::destroyAtmosphereVertexBuffer()
+{
+    if (mAtmosphereVertexBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(mDevice, mAtmosphereVertexBuffer, nullptr);
+        mAtmosphereVertexBuffer = VK_NULL_HANDLE;
+    }
+    if (mAtmosphereVertexBufferMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(mDevice, mAtmosphereVertexBufferMemory, nullptr);
+        mAtmosphereVertexBufferMemory = VK_NULL_HANDLE;
+    }
+}
+
+void VulkanContext::destroyAtmosphereDescriptorSets()
+{
+    if (mAtmosphereSunDescriptorPool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(mDevice, mAtmosphereSunDescriptorPool, nullptr);
+        mAtmosphereSunDescriptorPool = VK_NULL_HANDLE;
+    }
+    if (mAtmosphereGodRayDescriptorPool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(mDevice, mAtmosphereGodRayDescriptorPool, nullptr);
+        mAtmosphereGodRayDescriptorPool = VK_NULL_HANDLE;
+    }
+    mAtmosphereSunDescriptorSets.fill(VK_NULL_HANDLE);
+    mAtmosphereGodRayDescriptorSets.fill(VK_NULL_HANDLE);
+}
+
+void VulkanContext::destroyAtmosphereMaskTexture()
+{
+    destroyLayerResources(mSunMaskTexture);
 }
 
 void VulkanContext::updateWindUniformBuffer(uint32_t frameIndex)
@@ -2025,6 +2569,20 @@ void VulkanContext::cleanupSpritePipeline()
     {
         vkDestroyPipelineLayout(mDevice, mSpritePipelineLayout, nullptr);
         mSpritePipelineLayout = VK_NULL_HANDLE;
+    }
+}
+
+void VulkanContext::cleanupAtmospherePipelines()
+{
+    if (mAtmosphereSunPipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(mDevice, mAtmosphereSunPipeline, nullptr);
+        mAtmosphereSunPipeline = VK_NULL_HANDLE;
+    }
+    if (mAtmosphereGodRayPipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(mDevice, mAtmosphereGodRayPipeline, nullptr);
+        mAtmosphereGodRayPipeline = VK_NULL_HANDLE;
     }
 }
 
