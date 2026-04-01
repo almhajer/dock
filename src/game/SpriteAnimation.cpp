@@ -1,94 +1,28 @@
 #include "SpriteAnimation.h"
+#include "HunterSpriteAtlas.h"
 
 #include <algorithm>
 #include <iostream>
+#include <utility>
 
 namespace game {
 
-namespace {
-
-constexpr int HUNTER_ATLAS_IMAGE_WIDTH = 1176;
-constexpr int HUNTER_ATLAS_IMAGE_HEIGHT = 1000;
-constexpr int HUNTER_ATLAS_COLUMNS = 4;
-constexpr int HUNTER_ATLAS_CELL_WIDTH = 273;
-constexpr int HUNTER_ATLAS_CELL_HEIGHT = 486;
-constexpr int HUNTER_ATLAS_GUTTER = 28;
-constexpr AtlasFrame HUNTER_ATLAS_FRAMES[] = {
-    {19, 11, 235, 465},
-    {311, 11, 253, 465},
-    {614, 10, 249, 466},
-    {923, 17, 232, 459},
-    {23, 531, 227, 459},
-    {322, 534, 231, 456},
-    {622, 534, 233, 456},
-    {923, 528, 233, 462},
-};
-
-constexpr int HUNTER_ATLAS_FRAME_COUNT =
-    static_cast<int>(sizeof(HUNTER_ATLAS_FRAMES) / sizeof(HUNTER_ATLAS_FRAMES[0]));
-
-} // namespace
-
 // ─── بناء أطلس الصياد من البكسلات ─────────────────────────────────
 
-void SpriteAnimation::buildHunterAtlas(int imgW, int imgH, const unsigned char* pixels) {
-    mData = SpriteAtlasData{};
+void SpriteAnimation::setAtlasData(SpriteAtlasData data) {
+    mData = std::move(data);
+}
 
+void SpriteAnimation::buildHunterAtlas(int imgW, int imgH, const unsigned char* pixels) {
     if (imgW <= 0 || imgH <= 0 || !pixels) {
+        mData = SpriteAtlasData{};
         std::cerr << "[Sprite] بيانات صورة غير صالحة" << std::endl;
         return;
     }
 
-    mData.imageWidth = imgW;
-    mData.imageHeight = imgH;
+    mData = createHunterSpriteAtlasData(imgW, imgH);
 
-    if (imgW != HUNTER_ATLAS_IMAGE_WIDTH || imgH != HUNTER_ATLAS_IMAGE_HEIGHT) {
-        std::cerr << "[Sprite] تحذير: أبعاد الصورة لا تطابق atlas المتوقع ("
-                  << HUNTER_ATLAS_IMAGE_WIDTH << "x" << HUNTER_ATLAS_IMAGE_HEIGHT
-                  << "), الحالي " << imgW << "x" << imgH << std::endl;
-    }
-
-    mData.frames.reserve(HUNTER_ATLAS_FRAME_COUNT);
-    for (int i = 0; i < HUNTER_ATLAS_FRAME_COUNT; ++i) {
-        AtlasFrame frame = HUNTER_ATLAS_FRAMES[i];
-        const int col = i % HUNTER_ATLAS_COLUMNS;
-        const int row = i / HUNTER_ATLAS_COLUMNS;
-        const int cellOriginX = col * (HUNTER_ATLAS_CELL_WIDTH + HUNTER_ATLAS_GUTTER);
-        const int cellOriginY = row * (HUNTER_ATLAS_CELL_HEIGHT + HUNTER_ATLAS_GUTTER);
-
-        frame.offsetX = frame.x - cellOriginX;
-        frame.offsetY = frame.y - cellOriginY;
-        frame.sourceWidth = HUNTER_ATLAS_CELL_WIDTH;
-        frame.sourceHeight = HUNTER_ATLAS_CELL_HEIGHT;
-        mData.frames.push_back(frame);
-    }
-
-    // ─── 4 حركات ──────────────────────────────────────────────────
-    auto addClip = [&](const std::string& key,
-                       const std::string& labelAr,
-                       const std::string& labelEn,
-                       const std::string& type,
-                       const std::string& dir,
-                       std::vector<int> frameIndices,
-                       int fps, bool loop) {
-        AnimationClip clip;
-        clip.key = key;
-        clip.labelAr = labelAr;
-        clip.labelEn = labelEn;
-        clip.type = type;
-        clip.direction = dir;
-        clip.frames = std::move(frameIndices);
-        clip.fps = fps;
-        clip.loop = loop;
-        mData.animations.emplace(key, std::move(clip));
-    };
-
-    addClip("walk_left",  "مشي إلى اليسار", "Walk Left",  "walk", "left",  {0, 1, 2, 3, 4, 5, 6}, 8, true);
-    addClip("walk_right", "مشي إلى اليمين", "Walk Right", "walk", "right", {0, 1, 2, 3, 4, 5, 6}, 8, true);
-    addClip("idle_left",  "وقوف يسار",       "Idle Left",  "idle", "left",  {7}, 1, true);
-    addClip("idle_right", "وقوف يمين",       "Idle Right", "idle", "right", {7}, 1, true);
-
-    std::cout << "[Sprite] تم تحميل atlas الصياد الثابتة: " << HUNTER_ATLAS_FRAME_COUNT
+    std::cout << "[Sprite] تم تحميل atlas الصياد الثابتة: " << mData.frames.size()
               << " فريم (" << imgW << "x" << imgH << ")" << std::endl;
 }
 
@@ -138,24 +72,31 @@ void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) co
 // ─── حساب UV للفريم ─────────────────────────────────────────────
 
 void SpriteAnimation::getFrameUV(int frameIndex, float& u0, float& u1, float& v0, float& v1) const {
-    if (frameIndex < 0 || frameIndex >= static_cast<int>(mData.frames.size())) {
+    const AtlasFrame* frame = getFrame(frameIndex);
+    if (frame == nullptr) {
         u0 = u1 = v0 = v1 = 0.0f;
         return;
     }
 
-    const AtlasFrame& frame = mData.frames[frameIndex];
     float imgW = static_cast<float>(mData.imageWidth);
     float imgH = static_cast<float>(mData.imageHeight);
     constexpr float texelInset = 0.5f;
 
-    const float insetX = (frame.width > 1) ? texelInset : 0.0f;
-    const float insetY = (frame.height > 1) ? texelInset : 0.0f;
+    const float insetX = (frame->width > 1) ? texelInset : 0.0f;
+    const float insetY = (frame->height > 1) ? texelInset : 0.0f;
 
     // سحب UV قليلًا للداخل لمنع sampler من قراءة بكسلات الفريم المجاور.
-    u0 = (static_cast<float>(frame.x) + insetX) / imgW;
-    u1 = (static_cast<float>(frame.x + frame.width) - insetX) / imgW;
-    v0 = (static_cast<float>(frame.y) + insetY) / imgH;
-    v1 = (static_cast<float>(frame.y + frame.height) - insetY) / imgH;
+    u0 = (static_cast<float>(frame->x) + insetX) / imgW;
+    u1 = (static_cast<float>(frame->x + frame->width) - insetX) / imgW;
+    v0 = (static_cast<float>(frame->y) + insetY) / imgH;
+    v1 = (static_cast<float>(frame->y + frame->height) - insetY) / imgH;
+}
+
+const AtlasFrame* SpriteAnimation::getFrame(int frameIndex) const {
+    if (frameIndex < 0 || frameIndex >= static_cast<int>(mData.frames.size())) {
+        return nullptr;
+    }
+    return &mData.frames[frameIndex];
 }
 
 // ─── الحصول على مقطع ────────────────────────────────────────────

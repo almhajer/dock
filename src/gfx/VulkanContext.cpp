@@ -1,39 +1,48 @@
 #include "VulkanContext.h"
 
 #include <GLFW/glfw3.h>
-#include <fstream>
-#include <stdexcept>
 #include <algorithm>
-#include <iostream>
-#include <cstring>
+#include <array>
 #include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iostream>
 #include <set>
+#include <stdexcept>
+#include <vector>
 
-// تحميل الصور بدون مكتبات خارجية - نستخدم stb_image
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// ─── ثوابت الطبقات والامتدادات ──────────────────────────────────
-
-const std::vector<const char*> gfx::VulkanContext::VALIDATION_LAYERS = {
-    "VK_LAYER_KHRONOS_validation"
+const std::vector<const char *> gfx::VulkanContext::VALIDATION_LAYERS = {
+    "VK_LAYER_KHRONOS_validation",
 };
 
-const std::vector<const char*> gfx::VulkanContext::DEVICE_EXTENSIONS = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+const std::vector<const char *> gfx::VulkanContext::DEVICE_EXTENSIONS = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
-namespace gfx {
+namespace
+{
+struct WindUniformData
+{
+    alignas(16) std::array<float, 4> motion = {0.0f, 0.035f, 1.4f, 0.1f};
+    alignas(16) std::array<float, 4> wind = {1.0f, 0.35f, 0.0f, 0.0f};
+    alignas(16) std::array<float, 4> interactionA = {0.0f, 0.0f, 0.0f, 0.0f};
+    alignas(16) std::array<float, 4> interactionB = {0.0f, 0.0f, 0.0f, 0.0f};
+};
+} // namespace
 
-// ─── المُدمر ────────────────────────────────────────────────────
+namespace gfx
+{
 
-VulkanContext::~VulkanContext() {
+VulkanContext::~VulkanContext()
+{
     cleanup();
 }
 
-// ─── التهيئة الكاملة ───────────────────────────────────────────
-
-void VulkanContext::init(GLFWwindow* window, uint32_t width, uint32_t height) {
+void VulkanContext::init(GLFWwindow *window, uint32_t width, uint32_t height)
+{
     mWindowHandle = window;
     mWidth = width;
     mHeight = height;
@@ -48,118 +57,136 @@ void VulkanContext::init(GLFWwindow* window, uint32_t width, uint32_t height) {
     createRenderPass();
     createFramebuffers();
     createCommandPool();
-    createSpriteVertexBuffer();
+    createCommandBuffers();
+    createWindUniformBuffers();
+    createDescriptorSetLayout();
+    createSpritePipeline();
     createSyncObjects();
 
     mInitialized = true;
     std::cout << "[Vulkan] تمت التهيئة بنجاح" << std::endl;
 }
 
-void VulkanContext::cleanup() {
-    if (!mInitialized) return;
+void VulkanContext::cleanup()
+{
+    if (!mInitialized)
+    {
+        return;
+    }
+
     mInitialized = false;
     mSwapchainDirty = false;
 
     vkDeviceWaitIdle(mDevice);
 
     cleanupSwapchain();
-    cleanupSpriteDescriptors();
 
-    if (mTextureSampler != VK_NULL_HANDLE) {
-        vkDestroySampler(mDevice, mTextureSampler, nullptr);
-        mTextureSampler = VK_NULL_HANDLE;
+    for (auto &layer : mSpriteLayers)
+    {
+        destroyLayerResources(layer);
     }
-    if (mTextureImageView != VK_NULL_HANDLE) {
-        vkDestroyImageView(mDevice, mTextureImageView, nullptr);
-        mTextureImageView = VK_NULL_HANDLE;
-    }
-    if (mTextureImage != VK_NULL_HANDLE) {
-        vkDestroyImage(mDevice, mTextureImage, nullptr);
-        mTextureImage = VK_NULL_HANDLE;
-    }
-    if (mTextureImageMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(mDevice, mTextureImageMemory, nullptr);
-        mTextureImageMemory = VK_NULL_HANDLE;
-    }
-    if (mSpriteVertexBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(mDevice, mSpriteVertexBuffer, nullptr);
-        mSpriteVertexBuffer = VK_NULL_HANDLE;
-    }
-    if (mSpriteVertexBufferMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(mDevice, mSpriteVertexBufferMemory, nullptr);
-        mSpriteVertexBufferMemory = VK_NULL_HANDLE;
+    mSpriteLayers.clear();
+    destroyWindUniformBuffers();
+
+    if (mDescriptorSetLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
+        mDescriptorSetLayout = VK_NULL_HANDLE;
     }
 
-    for (size_t i = 0; i < mImageAvailableSemaphores.size(); i++) {
-        vkDestroySemaphore(mDevice, mImageAvailableSemaphores[i], nullptr);
+    for (VkSemaphore semaphore : mImageAvailableSemaphores)
+    {
+        vkDestroySemaphore(mDevice, semaphore, nullptr);
     }
-    for (size_t i = 0; i < mRenderFinishedSemaphores.size(); i++) {
-        vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
+    for (VkSemaphore semaphore : mRenderFinishedSemaphores)
+    {
+        vkDestroySemaphore(mDevice, semaphore, nullptr);
     }
-    // تدمير fences (عدد إطارات متوازية)
-    for (size_t i = 0; i < mInFlightFences.size(); i++) {
-        vkDestroyFence(mDevice, mInFlightFences[i], nullptr);
+    for (VkFence fence : mInFlightFences)
+    {
+        vkDestroyFence(mDevice, fence, nullptr);
     }
     mImageAvailableSemaphores.clear();
     mRenderFinishedSemaphores.clear();
     mInFlightFences.clear();
     mImagesInFlight.clear();
 
-    if (mCommandPool != VK_NULL_HANDLE) {
+    if (mCommandPool != VK_NULL_HANDLE)
+    {
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         mCommandPool = VK_NULL_HANDLE;
     }
-    if (mDevice != VK_NULL_HANDLE) {
+
+    if (mDevice != VK_NULL_HANDLE)
+    {
         vkDestroyDevice(mDevice, nullptr);
         mDevice = VK_NULL_HANDLE;
     }
 
-    if (ENABLE_VALIDATION_LAYERS) {
-        auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
-            vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT");
-        if (func) func(mInstance, mDebugMessenger, nullptr);
+    if (ENABLE_VALIDATION_LAYERS && mDebugMessenger != VK_NULL_HANDLE)
+    {
+        auto destroyDebugMessenger =
+            reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT"));
+        if (destroyDebugMessenger != nullptr)
+        {
+            destroyDebugMessenger(mInstance, mDebugMessenger, nullptr);
+        }
+        mDebugMessenger = VK_NULL_HANDLE;
     }
 
-    if (mSurface != VK_NULL_HANDLE) {
+    if (mSurface != VK_NULL_HANDLE)
+    {
         vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         mSurface = VK_NULL_HANDLE;
     }
-    if (mInstance != VK_NULL_HANDLE) {
+
+    if (mInstance != VK_NULL_HANDLE)
+    {
         vkDestroyInstance(mInstance, nullptr);
         mInstance = VK_NULL_HANDLE;
     }
+
     mWindowHandle = nullptr;
 }
 
-void VulkanContext::cleanupSwapchain() {
-    for (auto fb : mSwapchainFramebuffers) {
-        vkDestroyFramebuffer(mDevice, fb, nullptr);
+void VulkanContext::cleanupSwapchain()
+{
+    cleanupSpritePipeline();
+
+    for (VkFramebuffer framebuffer : mSwapchainFramebuffers)
+    {
+        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
     }
     mSwapchainFramebuffers.clear();
 
-    for (auto iv : mSwapchainImageViews) {
-        vkDestroyImageView(mDevice, iv, nullptr);
+    for (VkImageView imageView : mSwapchainImageViews)
+    {
+        vkDestroyImageView(mDevice, imageView, nullptr);
     }
     mSwapchainImageViews.clear();
 
-    cleanupSpritePipeline();
-
-    if (mRenderPass != VK_NULL_HANDLE) {
+    if (mRenderPass != VK_NULL_HANDLE)
+    {
         vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
         mRenderPass = VK_NULL_HANDLE;
     }
 
-    if (mSwapchain != VK_NULL_HANDLE) {
+    if (mSwapchain != VK_NULL_HANDLE)
+    {
         vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
         mSwapchain = VK_NULL_HANDLE;
     }
+
     mSwapchainImages.clear();
     mImagesInFlight.clear();
 }
 
-void VulkanContext::recreateSwapchain() {
+void VulkanContext::recreateSwapchain()
+{
     waitForValidFramebufferSize();
-    if (mWidth == 0 || mHeight == 0) {
+    if (mWidth == 0 || mHeight == 0)
+    {
         return;
     }
 
@@ -171,32 +198,320 @@ void VulkanContext::recreateSwapchain() {
     createImageViews();
     createRenderPass();
     createFramebuffers();
+    createSpritePipeline();
     createSyncObjects();
-
-    if (hasSpriteResources()) {
-        createSpritePipeline();
-    }
 
     mCurrentFrame = 0;
     mSwapchainDirty = false;
 }
 
-void VulkanContext::onResize(uint32_t newWidth, uint32_t newHeight) {
+void VulkanContext::onResize(uint32_t newWidth, uint32_t newHeight)
+{
     mWidth = newWidth;
     mHeight = newHeight;
     mSwapchainDirty = true;
 }
 
-bool VulkanContext::isInitialized() const { return mInitialized; }
+void VulkanContext::drawFrame()
+{
+    if (!mInitialized)
+    {
+        return;
+    }
 
-void VulkanContext::waitIdle() {
-    if (mDevice) vkDeviceWaitIdle(mDevice);
+    if (mSwapchainDirty && mWidth > 0 && mHeight > 0)
+    {
+        recreateSwapchain();
+    }
+
+    if (mWidth == 0 || mHeight == 0)
+    {
+        return;
+    }
+
+    if (mSwapchain == VK_NULL_HANDLE || mRenderPass == VK_NULL_HANDLE || mCommandBuffers.empty())
+    {
+        return;
+    }
+
+    vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex = 0;
+    VkResult result = vkAcquireNextImageKHR(
+        mDevice,
+        mSwapchain,
+        UINT64_MAX,
+        mImageAvailableSemaphores[mCurrentFrame],
+        VK_NULL_HANDLE,
+        &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        mSwapchainDirty = true;
+        recreateSwapchain();
+        return;
+    }
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        throw std::runtime_error("[Vulkan] فشل الحصول على صورة Swapchain");
+    }
+
+    if (imageIndex >= mImagesInFlight.size())
+    {
+        throw std::runtime_error("[Vulkan] imageIndex خارج نطاق swapchain tracking");
+    }
+
+    if (mImagesInFlight[imageIndex] != VK_NULL_HANDLE)
+    {
+        vkWaitForFences(mDevice, 1, &mImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+    }
+    mImagesInFlight[imageIndex] = mInFlightFences[mCurrentFrame];
+
+    vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
+    updateWindUniformBuffer(mCurrentFrame);
+    vkResetCommandBuffer(mCommandBuffers[mCurrentFrame], 0);
+
+    VkCommandBuffer cmd = mCommandBuffers[mCurrentFrame];
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    if (vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل بدء Command Buffer");
+    }
+
+    VkRenderPassBeginInfo renderPassBeginInfo{};
+    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassBeginInfo.renderPass = mRenderPass;
+    renderPassBeginInfo.framebuffer = mSwapchainFramebuffers[imageIndex];
+    renderPassBeginInfo.renderArea.offset = {0, 0};
+    renderPassBeginInfo.renderArea.extent = mSwapchainExtent;
+
+    VkClearValue clearColor = {{{0.05f, 0.05f, 0.15f, 1.0f}}};
+    renderPassBeginInfo.clearValueCount = 1;
+    renderPassBeginInfo.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    if (mSpritePipeline != VK_NULL_HANDLE && hasSpriteResources())
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mSpritePipeline);
+
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(mSwapchainExtent.width);
+        viewport.height = static_cast<float>(mSwapchainExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+        VkRect2D scissor{{0, 0}, mSwapchainExtent};
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+        for (const auto &layer : mSpriteLayers)
+        {
+            if (layer.vertexCount == 0 || layer.vertexBuffer == VK_NULL_HANDLE ||
+                layer.descriptorSets.empty() || layer.descriptorSets[mCurrentFrame] == VK_NULL_HANDLE)
+            {
+                continue;
+            }
+
+            vkCmdBindDescriptorSets(
+                cmd,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                mSpritePipelineLayout,
+                0,
+                1,
+                &layer.descriptorSets[mCurrentFrame],
+                0,
+                nullptr);
+
+            VkBuffer vertexBuffers[] = {layer.vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+            vkCmdDraw(cmd, layer.vertexCount, 1, 0, 0);
+        }
+    }
+
+    vkCmdEndRenderPass(cmd);
+
+    if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنهاء Command Buffer");
+    }
+
+    VkSemaphore waitSemaphores[] = {mImageAvailableSemaphores[mCurrentFrame]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSemaphore signalSemaphores[] = {mRenderFinishedSemaphores[imageIndex]};
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إرسال أوامر الرسم");
+    }
+
+    VkSwapchainKHR swapchains[] = {mSwapchain};
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapchains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || mSwapchainDirty)
+    {
+        mSwapchainDirty = true;
+        recreateSwapchain();
+    }
+
+    mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-// ─── إنشاء Instance ─────────────────────────────────────────────
+void VulkanContext::waitIdle()
+{
+    if (mDevice != VK_NULL_HANDLE)
+    {
+        vkDeviceWaitIdle(mDevice);
+    }
+}
 
-void VulkanContext::createInstance() {
-    if (ENABLE_VALIDATION_LAYERS && !checkValidationLayerSupport()) {
+bool VulkanContext::isInitialized() const
+{
+    return mInitialized;
+}
+
+VulkanContext::LayerId VulkanContext::createTexturedLayer(const std::string &path, std::size_t maxQuads)
+{
+    return createTexturedLayerWithCallback(path, maxQuads, {});
+}
+
+VulkanContext::LayerId VulkanContext::createTexturedLayerFromPixels(const unsigned char *pixels,
+                                                                    int texW,
+                                                                    int texH,
+                                                                    std::size_t maxQuads)
+{
+    return createLayerFromPixels(pixels, texW, texH, maxQuads);
+}
+
+VulkanContext::LayerId VulkanContext::createTexturedLayerWithCallback(const std::string &path,
+                                                                      std::size_t maxQuads,
+                                                                      PixelCallback cb)
+{
+    if (!mInitialized)
+    {
+        throw std::runtime_error("[Vulkan] لا يمكن إنشاء طبقة قبل init()");
+    }
+    if (maxQuads == 0)
+    {
+        throw std::runtime_error("[Vulkan] maxQuads يجب أن يكون أكبر من صفر");
+    }
+
+    int texW = 0;
+    int texH = 0;
+    int texChannels = 0;
+    stbi_uc *pixels = stbi_load(path.c_str(), &texW, &texH, &texChannels, STBI_rgb_alpha);
+    if (pixels == nullptr)
+    {
+        throw std::runtime_error("[Vulkan] فشل تحميل الصورة: " + path);
+    }
+
+    if (cb)
+    {
+        cb(texW, texH, pixels);
+    }
+
+    const LayerId layerId = createLayerFromPixels(pixels, texW, texH, maxQuads);
+    stbi_image_free(pixels);
+    return layerId;
+}
+
+VulkanContext::LayerId VulkanContext::createLayerFromPixels(const unsigned char *pixels,
+                                                            int texW,
+                                                            int texH,
+                                                            std::size_t maxQuads)
+{
+    if (!mInitialized)
+    {
+        throw std::runtime_error("[Vulkan] لا يمكن إنشاء طبقة قبل init()");
+    }
+    if (pixels == nullptr || texW <= 0 || texH <= 0)
+    {
+        throw std::runtime_error("[Vulkan] بيانات الصورة غير صالحة");
+    }
+    if (maxQuads == 0)
+    {
+        throw std::runtime_error("[Vulkan] maxQuads يجب أن يكون أكبر من صفر");
+    }
+
+    SpriteLayerResources layer;
+    layer.maxQuads = maxQuads;
+
+    createLayerTextureImageFromPixels(layer, pixels, texW, texH);
+    createLayerTextureImageView(layer);
+    createLayerTextureSampler(layer);
+    createLayerDescriptors(layer);
+    createLayerVertexBuffer(layer);
+
+    mSpriteLayers.push_back(layer);
+    return mSpriteLayers.size() - 1;
+}
+
+void VulkanContext::updateTexturedLayer(LayerId layerId, const std::vector<TexturedQuad> &quads)
+{
+    SpriteLayerResources &layer = getLayer(layerId);
+
+    if (layer.vertexBufferMapped == nullptr)
+    {
+        return;
+    }
+
+    if (quads.size() > layer.maxQuads)
+    {
+        throw std::runtime_error("[Vulkan] عدد quads يتجاوز السعة المخصصة للطبقة");
+    }
+
+    std::vector<QuadVertex> vertices;
+    vertices.reserve(quads.size() * QUAD_VERTEX_COUNT);
+    for (const TexturedQuad &quad : quads)
+    {
+        const auto quadVertices = buildQuadVertices(quad);
+        vertices.insert(vertices.end(), quadVertices.begin(), quadVertices.end());
+    }
+
+    const VkDeviceSize byteCount = sizeof(QuadVertex) * vertices.size();
+    if (byteCount > 0)
+    {
+        std::memcpy(layer.vertexBufferMapped, vertices.data(), static_cast<std::size_t>(byteCount));
+    }
+    layer.vertexCount = static_cast<uint32_t>(vertices.size());
+}
+
+void VulkanContext::setGroundInteraction(float leftFootX,
+                                         float rightFootX,
+                                         float radius,
+                                         float leftPressure,
+                                         float rightPressure)
+{
+    mGroundInteractionA = {leftFootX, radius, leftPressure, 0.0f};
+    mGroundInteractionB = {rightFootX, radius, rightPressure, 0.0f};
+}
+
+void VulkanContext::createInstance()
+{
+    if (ENABLE_VALIDATION_LAYERS && !checkValidationLayerSupport())
+    {
         throw std::runtime_error("[Vulkan] طبقات التحقق غير متوفرة");
     }
 
@@ -208,30 +523,32 @@ void VulkanContext::createInstance() {
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
+    const auto extensions = getRequiredExtensions();
+
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
-
-    auto extensions = getRequiredExtensions();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
-    if (ENABLE_VALIDATION_LAYERS) {
+    if (ENABLE_VALIDATION_LAYERS)
+    {
         createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
         createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
-    } else {
-        createInfo.enabledLayerCount = 0;
     }
 
-    if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS) {
+    if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء VkInstance");
     }
 }
 
-// ─── Debug Messenger ─────────────────────────────────────────────
-
-void VulkanContext::setupDebugMessenger() {
-    if (!ENABLE_VALIDATION_LAYERS) return;
+void VulkanContext::setupDebugMessenger()
+{
+    if (!ENABLE_VALIDATION_LAYERS)
+    {
+        return;
+    }
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -243,34 +560,38 @@ void VulkanContext::setupDebugMessenger() {
         VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT,
-                                     VkDebugUtilsMessageTypeFlagsEXT,
-                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                                     void*) -> VkBool32 {
-        std::cerr << "[Vulkan Validation] " << pCallbackData->pMessage << std::endl;
+                                    VkDebugUtilsMessageTypeFlagsEXT,
+                                    const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
+                                    void *) -> VkBool32
+    {
+        std::cerr << "[Vulkan Validation] " << callbackData->pMessage << std::endl;
         return VK_FALSE;
     };
 
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)
-        vkGetInstanceProcAddr(mInstance, "vkCreateDebugUtilsMessengerEXT");
-    if (!func || func(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS) {
+    const auto createDebugMessenger =
+        reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(mInstance, "vkCreateDebugUtilsMessengerEXT"));
+    if (createDebugMessenger == nullptr ||
+        createDebugMessenger(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
+    {
         std::cerr << "[Vulkan] تحذير: فشل إعداد Debug Messenger" << std::endl;
     }
 }
 
-// ─── Surface ─────────────────────────────────────────────────────
-
-void VulkanContext::createSurface(GLFWwindow* window) {
-    if (glfwCreateWindowSurface(mInstance, window, nullptr, &mSurface) != VK_SUCCESS) {
+void VulkanContext::createSurface(GLFWwindow *window)
+{
+    if (glfwCreateWindowSurface(mInstance, window, nullptr, &mSurface) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Surface");
     }
 }
 
-// ─── اختيار الجهاز الفعلي ──────────────────────────────────────
-
-void VulkanContext::pickPhysicalDevice() {
+void VulkanContext::pickPhysicalDevice()
+{
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
-    if (deviceCount == 0) {
+    if (deviceCount == 0)
+    {
         throw std::runtime_error("[Vulkan] لا يوجد GPU يدعم Vulkan");
     }
 
@@ -278,127 +599,61 @@ void VulkanContext::pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
 
     int bestScore = 0;
-    for (const auto& device : devices) {
-        int score = rateDeviceSuitability(device);
-        if (score > bestScore) {
+    for (VkPhysicalDevice device : devices)
+    {
+        const int score = rateDeviceSuitability(device);
+        if (score > bestScore)
+        {
             bestScore = score;
             mPhysicalDevice = device;
         }
     }
 
-    if (mPhysicalDevice == VK_NULL_HANDLE) {
+    if (mPhysicalDevice == VK_NULL_HANDLE)
+    {
         throw std::runtime_error("[Vulkan] لا يوجد GPU مناسب");
     }
 }
 
-int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) const {
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(device, &props);
-
-    int score = 0;
-
-    // GPU منفصل أفضل بكثير من المدمج
-    if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-        score += 1000;
-    }
-
-    score += static_cast<int>(props.limits.maxImageDimension2D);
-
-    // يجب أن يدعم الطوابير المطلوبة
-    if (!findQueueFamilies(device).isComplete()) return 0;
-
-    // يجب أن يدعم امتدادات السوابتشين
-    if (!checkDeviceExtensionSupport(device)) return 0;
-
-    // يجب أن يدعم السوابتشين بشكل كافٍ
-    auto swapchainSupport = querySwapchainSupport(device);
-    if (swapchainSupport.formats.empty() || swapchainSupport.presentModes.empty()) return 0;
-
-    return score;
-}
-
-bool VulkanContext::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
-    uint32_t extCount;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, nullptr);
-
-    std::vector<VkExtensionProperties> available(extCount);
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extCount, available.data());
-
-    for (const char* required : DEVICE_EXTENSIONS) {
-        bool found = false;
-        for (const auto& ext : available) {
-            if (strcmp(required, ext.extensionName) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) return false;
-    }
-    return true;
-}
-
-QueueFamilyIndices VulkanContext::findQueueFamilies(VkPhysicalDevice device) const {
-    QueueFamilyIndices indices;
-
-    uint32_t queueCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, nullptr);
-    std::vector<VkQueueFamilyProperties> queues(queueCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, queues.data());
-
-    for (uint32_t i = 0; i < queueCount; i++) {
-        if (queues[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
-        }
-
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSupport);
-        if (presentSupport) {
-            indices.presentFamily = i;
-        }
-
-        if (indices.isComplete()) break;
-    }
-
-    return indices;
-}
-
-// ─── الجهاز المنطقي ─────────────────────────────────────────────
-
-void VulkanContext::createLogicalDevice() {
-    auto indices = findQueueFamilies(mPhysicalDevice);
+void VulkanContext::createLogicalDevice()
+{
+    const QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
     std::set<uint32_t> uniqueFamilies = {
         indices.graphicsFamily.value(),
-        indices.presentFamily.value()
+        indices.presentFamily.value(),
     };
 
-    float queuePriority = 1.0f;
-    for (uint32_t family : uniqueFamilies) {
-        VkDeviceQueueCreateInfo qi{};
-        qi.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        qi.queueFamilyIndex = family;
-        qi.queueCount = 1;
-        qi.pQueuePriorities = &queuePriority;
-        queueInfos.push_back(qi);
+    const float queuePriority = 1.0f;
+    for (uint32_t family : uniqueFamilies)
+    {
+        VkDeviceQueueCreateInfo queueInfo{};
+        queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueInfo.queueFamilyIndex = family;
+        queueInfo.queueCount = 1;
+        queueInfo.pQueuePriorities = &queuePriority;
+        queueInfos.push_back(queueInfo);
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = queueInfos.data();
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size());
+    createInfo.pQueueCreateInfos = queueInfos.data();
     createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
     createInfo.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
 
-    if (ENABLE_VALIDATION_LAYERS) {
+    if (ENABLE_VALIDATION_LAYERS)
+    {
         createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
         createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
     }
 
-    if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS) {
+    if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Logical Device");
     }
 
@@ -406,117 +661,136 @@ void VulkanContext::createLogicalDevice() {
     vkGetDeviceQueue(mDevice, indices.presentFamily.value(), 0, &mPresentQueue);
 }
 
-// ─── السوابتشين ─────────────────────────────────────────────────
-
-SwapchainSupportDetails VulkanContext::querySwapchainSupport(VkPhysicalDevice device) const {
+SwapchainSupportDetails VulkanContext::querySwapchainSupport(VkPhysicalDevice device) const
+{
     SwapchainSupportDetails details;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, mSurface, &details.capabilities);
 
-    uint32_t formatCount;
+    uint32_t formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, mSurface, &formatCount, nullptr);
-    if (formatCount != 0) {
+    if (formatCount != 0)
+    {
         details.formats.resize(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, mSurface, &formatCount, details.formats.data());
     }
 
-    uint32_t modeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, mSurface, &modeCount, nullptr);
-    if (modeCount != 0) {
-        details.presentModes.resize(modeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, mSurface, &modeCount, details.presentModes.data());
+    uint32_t presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, mSurface, &presentModeCount, nullptr);
+    if (presentModeCount != 0)
+    {
+        details.presentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, mSurface, &presentModeCount, details.presentModes.data());
     }
 
     return details;
 }
 
-VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available) const {
-    // نفضّل B8G8R8A8 مع SRGB
-    for (const auto& fmt : available) {
-        if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB &&
-            fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            return fmt;
+VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) const
+{
+    for (const VkSurfaceFormatKHR &format : available)
+    {
+        if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
+            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return format;
         }
     }
-    return available[0];
+    return available.front();
 }
 
-VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available) const {
-    // نفضّل Mailbox (ثلاثي التخزين بدون تمزق)
-    for (const auto& mode : available) {
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) return mode;
+VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &available) const
+{
+    for (VkPresentModeKHR presentMode : available)
+    {
+        if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+        {
+            return presentMode;
+        }
     }
-    return VK_PRESENT_MODE_FIFO_KHR; // مضمون متوفر
+    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VulkanContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& caps, uint32_t width, uint32_t height) const {
-    if (caps.currentExtent.width != UINT32_MAX) {
-        return caps.currentExtent;
+VkExtent2D VulkanContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
+                                           uint32_t width,
+                                           uint32_t height) const
+{
+    if (capabilities.currentExtent.width != UINT32_MAX)
+    {
+        return capabilities.currentExtent;
     }
 
-    VkExtent2D extent = { width, height };
-    extent.width = std::clamp(extent.width, caps.minImageExtent.width, caps.maxImageExtent.width);
-    extent.height = std::clamp(extent.height, caps.minImageExtent.height, caps.maxImageExtent.height);
+    VkExtent2D extent{width, height};
+    extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+    extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     return extent;
 }
 
-void VulkanContext::createSwapchain() {
-    auto support = querySwapchainSupport(mPhysicalDevice);
-    auto format = chooseSwapSurfaceFormat(support.formats);
-    auto mode = chooseSwapPresentMode(support.presentModes);
-    auto extent = chooseSwapExtent(support.capabilities, mWidth, mHeight);
+void VulkanContext::createSwapchain()
+{
+    const SwapchainSupportDetails support = querySwapchainSupport(mPhysicalDevice);
+    const VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(support.formats);
+    const VkPresentModeKHR presentMode = chooseSwapPresentMode(support.presentModes);
+    const VkExtent2D extent = chooseSwapExtent(support.capabilities, mWidth, mHeight);
 
-    // عدد الصور = الحد الأدنى + 1 (لتجنب الانتظار)
     uint32_t imageCount = support.capabilities.minImageCount + 1;
-    if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount) {
+    if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount)
+    {
         imageCount = support.capabilities.maxImageCount;
     }
+
+    const QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
+    const uint32_t familyIndices[] = {
+        indices.graphicsFamily.value(),
+        indices.presentFamily.value(),
+    };
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = mSurface;
     createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = format.format;
-    createInfo.imageColorSpace = format.colorSpace;
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    auto indices = findQueueFamilies(mPhysicalDevice);
-    uint32_t families[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
-
-    if (indices.graphicsFamily != indices.presentFamily) {
+    if (indices.graphicsFamily != indices.presentFamily)
+    {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = families;
-    } else {
+        createInfo.pQueueFamilyIndices = familyIndices;
+    }
+    else
+    {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
     createInfo.preTransform = support.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = mode;
+    createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS) {
+    if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Swapchain");
     }
 
     vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, nullptr);
     mSwapchainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, mSwapchainImages.data());
-    mImagesInFlight.assign(imageCount, VK_NULL_HANDLE);
 
-    mSwapchainImageFormat = format.format;
+    mSwapchainImageFormat = surfaceFormat.format;
     mSwapchainExtent = extent;
+    mImagesInFlight.assign(mSwapchainImages.size(), VK_NULL_HANDLE);
 }
 
-// ─── Image Views ─────────────────────────────────────────────────
-
-void VulkanContext::createImageViews() {
+void VulkanContext::createImageViews()
+{
     mSwapchainImageViews.resize(mSwapchainImages.size());
 
-    for (size_t i = 0; i < mSwapchainImages.size(); i++) {
+    for (std::size_t i = 0; i < mSwapchainImages.size(); ++i)
+    {
         VkImageViewCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image = mSwapchainImages[i];
@@ -532,15 +806,15 @@ void VulkanContext::createImageViews() {
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount = 1;
 
-        if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS) {
+        if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS)
+        {
             throw std::runtime_error("[Vulkan] فشل إنشاء Image View");
         }
     }
 }
 
-// ─── Render Pass ─────────────────────────────────────────────────
-
-void VulkanContext::createRenderPass() {
+void VulkanContext::createRenderPass()
+{
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = mSwapchainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -551,88 +825,85 @@ void VulkanContext::createRenderPass() {
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    VkAttachmentReference colorRef{};
-    colorRef.attachment = 0;
-    colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorRef;
+    subpass.pColorAttachments = &colorAttachmentRef;
 
-    // تبعية: انتظار حتى يكون Semaphore جاهزًا قبل البدء
-    VkSubpassDependency dep{};
-    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dep.dstSubpass = 0;
-    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.srcAccessMask = 0;
-    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    VkRenderPassCreateInfo rpInfo{};
-    rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpInfo.attachmentCount = 1;
-    rpInfo.pAttachments = &colorAttachment;
-    rpInfo.subpassCount = 1;
-    rpInfo.pSubpasses = &subpass;
-    rpInfo.dependencyCount = 1;
-    rpInfo.pDependencies = &dep;
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(mDevice, &rpInfo, nullptr, &mRenderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Render Pass");
     }
 }
 
-// ─── Framebuffers ────────────────────────────────────────────────
-
-void VulkanContext::createFramebuffers() {
+void VulkanContext::createFramebuffers()
+{
     mSwapchainFramebuffers.resize(mSwapchainImageViews.size());
 
-    for (size_t i = 0; i < mSwapchainImageViews.size(); i++) {
-        VkImageView attachments[] = { mSwapchainImageViews[i] };
+    for (std::size_t i = 0; i < mSwapchainImageViews.size(); ++i)
+    {
+        VkImageView attachments[] = {mSwapchainImageViews[i]};
 
-        VkFramebufferCreateInfo fbInfo{};
-        fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbInfo.renderPass = mRenderPass;
-        fbInfo.attachmentCount = 1;
-        fbInfo.pAttachments = attachments;
-        fbInfo.width = mSwapchainExtent.width;
-        fbInfo.height = mSwapchainExtent.height;
-        fbInfo.layers = 1;
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = mRenderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = mSwapchainExtent.width;
+        framebufferInfo.height = mSwapchainExtent.height;
+        framebufferInfo.layers = 1;
 
-        if (vkCreateFramebuffer(mDevice, &fbInfo, nullptr, &mSwapchainFramebuffers[i]) != VK_SUCCESS) {
+        if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapchainFramebuffers[i]) != VK_SUCCESS)
+        {
             throw std::runtime_error("[Vulkan] فشل إنشاء Framebuffer");
         }
     }
 }
 
-// ─── Command Pool ────────────────────────────────────────────────
-
-void VulkanContext::createCommandPool() {
-    auto indices = findQueueFamilies(mPhysicalDevice);
+void VulkanContext::createCommandPool()
+{
+    const QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = indices.graphicsFamily.value();
 
-    if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS) {
+    if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Command Pool");
     }
 }
 
-// ─── Vertex Buffer (مثلث ملون) ──────────────────────────────────
-
-// ─── Command Buffers ─────────────────────────────────────────────
-
-void VulkanContext::createCommandBuffers() {
-    if (!mCommandBuffers.empty()) {
+void VulkanContext::createCommandBuffers()
+{
+    if (!mCommandBuffers.empty())
+    {
         vkFreeCommandBuffers(
             mDevice,
             mCommandPool,
             static_cast<uint32_t>(mCommandBuffers.size()),
-            mCommandBuffers.data()
-        );
+            mCommandBuffers.data());
         mCommandBuffers.clear();
     }
 
@@ -644,475 +915,388 @@ void VulkanContext::createCommandBuffers() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
 
-    if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Command Buffers");
     }
 }
 
-// ─── Sync Objects ────────────────────────────────────────────────
-
-void VulkanContext::createSyncObjects() {
-    VkSemaphoreCreateInfo semInfo{};
-    semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+void VulkanContext::createSyncObjects()
+{
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (mImageAvailableSemaphores.empty()) {
+    if (mImageAvailableSemaphores.empty())
+    {
         mImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if (vkCreateSemaphore(mDevice, &semInfo, nullptr, &mImageAvailableSemaphores[i]) != VK_SUCCESS) {
-                throw std::runtime_error("[Vulkan] فشل إنشاء ImageAvailable Semaphores");
+        for (VkSemaphore &semaphore : mImageAvailableSemaphores)
+        {
+            if (vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+            {
+                throw std::runtime_error("[Vulkan] فشل إنشاء ImageAvailable Semaphore");
             }
         }
     }
 
-    if (mInFlightFences.empty()) {
+    if (mInFlightFences.empty())
+    {
         mInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if (vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFences[i]) != VK_SUCCESS) {
-                throw std::runtime_error("[Vulkan] فشل إنشاء Fences");
+        for (VkFence &fence : mInFlightFences)
+        {
+            if (vkCreateFence(mDevice, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
+            {
+                throw std::runtime_error("[Vulkan] فشل إنشاء InFlight Fence");
             }
         }
     }
 
-    for (VkSemaphore semaphore : mRenderFinishedSemaphores) {
+    for (VkSemaphore semaphore : mRenderFinishedSemaphores)
+    {
         vkDestroySemaphore(mDevice, semaphore, nullptr);
     }
     mRenderFinishedSemaphores.clear();
     mRenderFinishedSemaphores.resize(mSwapchainImages.size());
 
-    for (size_t i = 0; i < mRenderFinishedSemaphores.size(); i++) {
-        if (vkCreateSemaphore(mDevice, &semInfo, nullptr, &mRenderFinishedSemaphores[i]) != VK_SUCCESS) {
-            throw std::runtime_error("[Vulkan] فشل إنشاء RenderFinished Semaphores");
+    for (VkSemaphore &semaphore : mRenderFinishedSemaphores)
+    {
+        if (vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Vulkan] فشل إنشاء RenderFinished Semaphore");
         }
     }
 
     mImagesInFlight.assign(mSwapchainImages.size(), VK_NULL_HANDLE);
 }
 
-// ─── رسم إطار ───────────────────────────────────────────────────
-
-void VulkanContext::drawFrame() {
-    if (mSwapchainDirty && mWidth > 0 && mHeight > 0) {
-        recreateSwapchain();
-    }
-
-    if (!mInitialized || mWidth == 0 || mHeight == 0) return;
-    if (mSwapchain == VK_NULL_HANDLE || mRenderPass == VK_NULL_HANDLE || mCommandBuffers.empty()) return;
-
-    // انتظار انتهاء الإطار السابق
-    vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
-
-    // الحصول على صورة من السوابتشين
-    uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(
-        mDevice, mSwapchain, UINT64_MAX,
-        mImageAvailableSemaphores[mCurrentFrame],
-        VK_NULL_HANDLE, &imageIndex
-    );
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        mSwapchainDirty = true;
-        recreateSwapchain();
-        return;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error("[Vulkan] فشل الحصول على صورة Swapchain");
-    }
-
-    if (imageIndex >= mImagesInFlight.size()) {
-        throw std::runtime_error("[Vulkan] imageIndex خارج نطاق swapchain tracking");
-    }
-
-    if (mImagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-        vkWaitForFences(mDevice, 1, &mImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
-    }
-    mImagesInFlight[imageIndex] = mInFlightFences[mCurrentFrame];
-
-    // إعادة ضبط الـ fence
-    vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
-
-    // تسجيل أوامر الرسم
-
-    // تسجيل أوامر الرسم
-    vkResetCommandBuffer(mCommandBuffers[mCurrentFrame], 0);
+void VulkanContext::createDescriptorSetLayout()
+{
+    if (mDescriptorSetLayout != VK_NULL_HANDLE)
     {
-        VkCommandBuffer cmd = mCommandBuffers[mCurrentFrame];
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        vkBeginCommandBuffer(cmd, &beginInfo);
-
-        VkRenderPassBeginInfo rpBegin{};
-        rpBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        rpBegin.renderPass = mRenderPass;
-        rpBegin.framebuffer = mSwapchainFramebuffers[imageIndex];
-        rpBegin.renderArea.offset = { 0, 0 };
-        rpBegin.renderArea.extent = mSwapchainExtent;
-
-        // لون الخلفية: أزرق داكن يشبه السماء
-        VkClearValue clearColor = { {{0.05f, 0.05f, 0.15f, 1.0f}} };
-        rpBegin.clearValueCount = 1;
-        rpBegin.pClearValues = &clearColor;
-
-        vkCmdBeginRenderPass(cmd, &rpBegin, VK_SUBPASS_CONTENTS_INLINE);
-
-        // رسم السبرايت (إذا كان النسيج محمّلًا)
-        if (mSpritePipeline != VK_NULL_HANDLE && mSpriteVertexBuffer != VK_NULL_HANDLE) {
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mSpritePipeline);
-
-            VkViewport viewport{};
-            viewport.x = 0.0f;
-            viewport.y = 0.0f;
-            viewport.width = static_cast<float>(mSwapchainExtent.width);
-            viewport.height = static_cast<float>(mSwapchainExtent.height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-            vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-            VkRect2D scissor{{0, 0}, mSwapchainExtent};
-            vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                mSpritePipelineLayout, 0, 1, &mDescriptorSet, 0, nullptr);
-
-            VkBuffer spriteVB[] = { mSpriteVertexBuffer };
-            VkDeviceSize spriteOff[] = { 0 };
-            vkCmdBindVertexBuffers(cmd, 0, 1, spriteVB, spriteOff);
-
-            vkCmdDraw(cmd, 6, 1, 0, 0);
-        }
-
-        vkCmdEndRenderPass(cmd);
-
-        if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
-            throw std::runtime_error("[Vulkan] فشل تسجيل Command Buffer");
-        }
-    }
-
-    // إرسال الأوامر
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    VkSemaphore waitSemaphores[] = { mImageAvailableSemaphores[mCurrentFrame] };
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &mCommandBuffers[mCurrentFrame];
-
-    // كل صورة swapchain لها render-finished semaphore خاصة بها لتجنّب إعادة استخدامها قبل إعادة acquire.
-    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphores[imageIndex] };
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS) {
-        throw std::runtime_error("[Vulkan] فشل إرسال أوامر الرسم");
-    }
-
-    // عرض الإطار
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
-    VkSwapchainKHR swapchains[] = { mSwapchain };
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapchains;
-    presentInfo.pImageIndices = &imageIndex;
-
-    result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || mSwapchainDirty) {
-        mSwapchainDirty = true;
-        recreateSwapchain();
-    }
-
-    mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void VulkanContext::cleanupSpritePipeline() {
-    if (mSpritePipeline != VK_NULL_HANDLE) {
-        vkDestroyPipeline(mDevice, mSpritePipeline, nullptr);
-        mSpritePipeline = VK_NULL_HANDLE;
-    }
-    if (mSpritePipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(mDevice, mSpritePipelineLayout, nullptr);
-        mSpritePipelineLayout = VK_NULL_HANDLE;
-    }
-}
-
-void VulkanContext::cleanupSpriteDescriptors() {
-    if (mDescriptorPool != VK_NULL_HANDLE) {
-        vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
-        mDescriptorPool = VK_NULL_HANDLE;
-    }
-    if (mDescriptorSetLayout != VK_NULL_HANDLE) {
-        vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
-        mDescriptorSetLayout = VK_NULL_HANDLE;
-    }
-    mDescriptorSet = VK_NULL_HANDLE;
-}
-
-void VulkanContext::waitForValidFramebufferSize() {
-    if (mWindowHandle == nullptr) {
         return;
     }
 
-    int fbWidth = 0;
-    int fbHeight = 0;
-    glfwGetFramebufferSize(mWindowHandle, &fbWidth, &fbHeight);
+    VkDescriptorSetLayoutBinding samplerBinding{};
+    samplerBinding.binding = 0;
+    samplerBinding.descriptorCount = 1;
+    samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    while (fbWidth == 0 || fbHeight == 0) {
-        if (glfwWindowShouldClose(mWindowHandle)) {
-            mWidth = 0;
-            mHeight = 0;
-            return;
-        }
+    VkDescriptorSetLayoutBinding windBinding{};
+    windBinding.binding = 1;
+    windBinding.descriptorCount = 1;
+    windBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    windBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        glfwWaitEvents();
-        glfwGetFramebufferSize(mWindowHandle, &fbWidth, &fbHeight);
-    }
-
-    mWidth = static_cast<uint32_t>(fbWidth);
-    mHeight = static_cast<uint32_t>(fbHeight);
-}
-
-bool VulkanContext::hasSpriteResources() const {
-    return mTextureImageView != VK_NULL_HANDLE &&
-           mTextureSampler != VK_NULL_HANDLE &&
-           mDescriptorSetLayout != VK_NULL_HANDLE &&
-           mDescriptorSet != VK_NULL_HANDLE;
-}
-
-// ─── أدوات مساعدة ───────────────────────────────────────────────
-
-std::vector<const char*> VulkanContext::getRequiredExtensions() const {
-    uint32_t glfwCount = 0;
-    const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
-    std::vector<const char*> extensions(glfwExts, glfwExts + glfwCount);
-
-    if (ENABLE_VALIDATION_LAYERS) {
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    }
-    return extensions;
-}
-
-bool VulkanContext::checkValidationLayerSupport() const {
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-    std::vector<VkLayerProperties> available(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, available.data());
-
-    for (const char* name : VALIDATION_LAYERS) {
-        bool found = false;
-        for (const auto& layer : available) {
-            if (strcmp(name, layer.layerName) == 0) { found = true; break; }
-        }
-        if (!found) return false;
-    }
-    return true;
-}
-
-VkShaderModule VulkanContext::createShaderModule(const std::vector<char>& code) const {
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-    VkShaderModule module;
-    if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &module) != VK_SUCCESS) {
-        throw std::runtime_error("[Vulkan] فشل إنشاء Shader Module");
-    }
-    return module;
-}
-
-std::vector<char> VulkanContext::readFile(const std::string& path) {
-    std::ifstream file(path, std::ios::ate | std::ios::binary);
-    if (!file.is_open()) {
-        throw std::runtime_error("[Vulkan] فشل قراءة ملف: " + path);
-    }
-    size_t fileSize = static_cast<size_t>(file.tellg());
-    std::vector<char> buffer(fileSize);
-    file.seekg(0);
-    file.read(buffer.data(), static_cast<std::streamsize>(fileSize));
-    file.close();
-    return buffer;
-}
-
-// ─── تحميل النسيج ───────────────────────────────────────────────
-
-void VulkanContext::loadTexture(const std::string& path) {
-    createTextureImage(path);
-    createTextureImageView();
-    createTextureSampler();
-    createSpriteDescriptors();
-    createSpritePipeline();
-    createCommandBuffers();
-}
-
-void VulkanContext::loadTextureWithCallback(const std::string& path, PixelCallback cb) {
-    int texW = 0, texH = 0, texChannels = 0;
-    stbi_uc* pixels = stbi_load(path.c_str(), &texW, &texH, &texChannels, STBI_rgb_alpha);
-    if (!pixels) {
-        throw std::runtime_error("[Vulkan] فشل تحميل الصورة: " + path);
-    }
-
-    // تمرير البكسلات لـ callback قبل إنشاء موارد Vulkan
-    if (cb) {
-        cb(texW, texH, pixels);
-    }
-
-    // إنشاء موارد Vulkan من نفس البكسلات
-    createTextureImageFromPixels(pixels, texW, texH);
-    stbi_image_free(pixels);
-
-    createTextureImageView();
-    createTextureSampler();
-    createSpriteDescriptors();
-    createSpritePipeline();
-    createCommandBuffers();
-}
-
-void VulkanContext::updateSpriteQuad(float u0, float u1, float v0, float v1,
-                                     float x0, float x1, float y0, float y1) {
-    // quad = مثلثين (6 رؤوس): position(vec2) + texCoord(vec2)
-    float vertices[] = {
-        // مثلث أول
-        x0, y0,  u0, v0,  // أعلى يسار
-        x1, y0,  u1, v0,  // أعلى يمين
-        x1, y1,  u1, v1,  // أسفل يمين
-        // مثلث ثاني
-        x0, y0,  u0, v0,
-        x1, y1,  u1, v1,
-        x0, y1,  u0, v1,
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+        samplerBinding,
+        windBinding,
     };
 
-    void* data;
-    vkMapMemory(mDevice, mSpriteVertexBufferMemory, 0, sizeof(vertices), 0, &data);
-    memcpy(data, vertices, sizeof(vertices));
-    vkUnmapMemory(mDevice, mSpriteVertexBufferMemory);
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
+
+    if (vkCreateDescriptorSetLayout(mDevice, &layoutInfo, nullptr, &mDescriptorSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنشاء Descriptor Set Layout");
+    }
 }
 
-void VulkanContext::createTextureImage(const std::string& path) {
-    int texW, texH, texChannels;
-    stbi_uc* pixels = stbi_load(path.c_str(), &texW, &texH, &texChannels, STBI_rgb_alpha);
-    if (!pixels) {
-        throw std::runtime_error("[Vulkan] فشل تحميل الصورة: " + path);
-    }
+void VulkanContext::createWindUniformBuffers()
+{
+    const VkDeviceSize bufferSize = sizeof(WindUniformData);
 
-    createTextureImageFromPixels(pixels, texW, texH);
-    stbi_image_free(pixels);
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            mWindUniformBuffers[i],
+            mWindUniformBuffersMemory[i]);
+
+        if (vkMapMemory(mDevice, mWindUniformBuffersMemory[i], 0, bufferSize, 0, &mWindUniformBuffersMapped[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Vulkan] فشل ربط ذاكرة wind uniform buffer");
+        }
+
+        std::memset(mWindUniformBuffersMapped[i], 0, static_cast<std::size_t>(bufferSize));
+    }
 }
 
-void VulkanContext::createTextureImageFromPixels(const unsigned char* pixels, int texW, int texH) {
-    VkDeviceSize imageSize = VkDeviceSize(texW) * texH * 4;
-    mMipLevels = 1;
-
-    if (mTextureImageView != VK_NULL_HANDLE) {
-        vkDestroyImageView(mDevice, mTextureImageView, nullptr);
-        mTextureImageView = VK_NULL_HANDLE;
-    }
-    if (mTextureImage != VK_NULL_HANDLE) {
-        vkDestroyImage(mDevice, mTextureImage, nullptr);
-        mTextureImage = VK_NULL_HANDLE;
-    }
-    if (mTextureImageMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(mDevice, mTextureImageMemory, nullptr);
-        mTextureImageMemory = VK_NULL_HANDLE;
+void VulkanContext::createSpritePipeline()
+{
+    if (mRenderPass == VK_NULL_HANDLE || mDescriptorSetLayout == VK_NULL_HANDLE)
+    {
+        throw std::runtime_error("[Vulkan] لا يمكن إنشاء Sprite Pipeline قبل تجهيز RenderPass و DescriptorSetLayout");
     }
 
-    // إنشاء buffer مؤقت لنسخ البيانات
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingMemory;
-    createBuffer(imageSize,
+    cleanupSpritePipeline();
+
+    const auto vertexShaderCode = readFile("assets/shaders/vert/sprite.vert.spv");
+    const auto fragmentShaderCode = readFile("assets/shaders/frag/sprite.frag.spv");
+
+    const VkShaderModule vertexShaderModule = createShaderModule(vertexShaderCode);
+    const VkShaderModule fragmentShaderModule = createShaderModule(fragmentShaderCode);
+
+    VkPipelineShaderStageCreateInfo shaderStages[2]{};
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = vertexShaderModule;
+    shaderStages[0].pName = "main";
+    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[1].module = fragmentShaderModule;
+    shaderStages[1].pName = "main";
+
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(QuadVertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions{};
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].offset = offsetof(QuadVertex, x);
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(QuadVertex, u);
+    attributeDescriptions[2].binding = 0;
+    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(QuadVertex, alpha);
+    attributeDescriptions[3].binding = 0;
+    attributeDescriptions[3].location = 3;
+    attributeDescriptions[3].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[3].offset = offsetof(QuadVertex, windWeight);
+    attributeDescriptions[4].binding = 0;
+    attributeDescriptions[4].location = 4;
+    attributeDescriptions[4].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[4].offset = offsetof(QuadVertex, windPhase);
+    attributeDescriptions[5].binding = 0;
+    attributeDescriptions[5].location = 5;
+    attributeDescriptions[5].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[5].offset = offsetof(QuadVertex, windResponse);
+    attributeDescriptions[6].binding = 0;
+    attributeDescriptions[6].location = 6;
+    attributeDescriptions[6].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[6].offset = offsetof(QuadVertex, materialType);
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(mSwapchainExtent.width);
+    viewport.height = static_cast<float>(mSwapchainExtent.height);
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{{0, 0}, mSwapchainExtent};
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = 2;
+    dynamicState.pDynamicStates = dynamicStates;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT |
+        VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &mDescriptorSetLayout;
+
+    if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mSpritePipelineLayout) != VK_SUCCESS)
+    {
+        vkDestroyShaderModule(mDevice, fragmentShaderModule, nullptr);
+        vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+        throw std::runtime_error("[Vulkan] فشل إنشاء Pipeline Layout");
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = mSpritePipelineLayout;
+    pipelineInfo.renderPass = mRenderPass;
+    pipelineInfo.subpass = 0;
+
+    if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mSpritePipeline) != VK_SUCCESS)
+    {
+        vkDestroyShaderModule(mDevice, fragmentShaderModule, nullptr);
+        vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+        throw std::runtime_error("[Vulkan] فشل إنشاء Graphics Pipeline");
+    }
+
+    vkDestroyShaderModule(mDevice, fragmentShaderModule, nullptr);
+    vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+}
+
+void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &layer,
+                                                      const unsigned char *pixels,
+                                                      int texW,
+                                                      int texH)
+{
+    const VkDeviceSize imageSize = static_cast<VkDeviceSize>(texW) * static_cast<VkDeviceSize>(texH) * 4;
+
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingBufferMemory = VK_NULL_HANDLE;
+    createBuffer(
+        imageSize,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer, stagingMemory);
+        stagingBuffer,
+        stagingBufferMemory);
 
-    void* data;
-    vkMapMemory(mDevice, stagingMemory, 0, imageSize, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(mDevice, stagingMemory);
+    void *mappedData = nullptr;
+    if (vkMapMemory(mDevice, stagingBufferMemory, 0, imageSize, 0, &mappedData) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل ربط staging buffer");
+    }
+    std::memcpy(mappedData, pixels, static_cast<std::size_t>(imageSize));
+    vkUnmapMemory(mDevice, stagingBufferMemory);
 
-    // إنشاء الصورة
-    VkImageCreateInfo imgInfo{};
-    imgInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imgInfo.imageType = VK_IMAGE_TYPE_2D;
-    imgInfo.extent.width = static_cast<uint32_t>(texW);
-    imgInfo.extent.height = static_cast<uint32_t>(texH);
-    imgInfo.extent.depth = 1;
-    imgInfo.mipLevels = mMipLevels;
-    imgInfo.arrayLayers = 1;
-    imgInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-    imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imgInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = static_cast<uint32_t>(texW);
+    imageInfo.extent.height = static_cast<uint32_t>(texH);
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
-    if (vkCreateImage(mDevice, &imgInfo, nullptr, &mTextureImage) != VK_SUCCESS) {
+    if (vkCreateImage(mDevice, &imageInfo, nullptr, &layer.image) != VK_SUCCESS)
+    {
+        vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+        vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
         throw std::runtime_error("[Vulkan] فشل إنشاء صورة النسيج");
     }
 
-    VkMemoryRequirements memReqs;
-    vkGetImageMemoryRequirements(mDevice, mTextureImage, &memReqs);
+    VkMemoryRequirements memoryRequirements{};
+    vkGetImageMemoryRequirements(mDevice, layer.image, &memoryRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReqs.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memReqs.memoryTypeBits,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocInfo.allocationSize = memoryRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    vkAllocateMemory(mDevice, &allocInfo, nullptr, &mTextureImageMemory);
-    vkBindImageMemory(mDevice, mTextureImage, mTextureImageMemory, 0);
+    if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &layer.imageMemory) != VK_SUCCESS)
+    {
+        vkDestroyImage(mDevice, layer.image, nullptr);
+        layer.image = VK_NULL_HANDLE;
+        vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+        vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+        throw std::runtime_error("[Vulkan] فشل حجز ذاكرة صورة النسيج");
+    }
 
-    transitionImageLayout(mTextureImage, VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(stagingBuffer, mTextureImage,
-        static_cast<uint32_t>(texW), static_cast<uint32_t>(texH));
-    transitionImageLayout(mTextureImage, VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if (vkBindImageMemory(mDevice, layer.image, layer.imageMemory, 0) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل ربط ذاكرة صورة النسيج");
+    }
+
+    transitionImageLayout(layer.image, VK_FORMAT_R8G8B8A8_SRGB,
+                          VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, layer.image, static_cast<uint32_t>(texW), static_cast<uint32_t>(texH));
+    transitionImageLayout(layer.image, VK_FORMAT_R8G8B8A8_SRGB,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
-    vkFreeMemory(mDevice, stagingMemory, nullptr);
+    vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
 
     std::cout << "[Vulkan] تم تحميل النسيج: " << texW << "x" << texH << std::endl;
 }
 
-void VulkanContext::createTextureImageView() {
-    if (mTextureImageView != VK_NULL_HANDLE) {
-        vkDestroyImageView(mDevice, mTextureImageView, nullptr);
-        mTextureImageView = VK_NULL_HANDLE;
-    }
-
+void VulkanContext::createLayerTextureImageView(SpriteLayerResources &layer)
+{
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = mTextureImage;
+    viewInfo.image = layer.image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = mMipLevels;
+    viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(mDevice, &viewInfo, nullptr, &mTextureImageView) != VK_SUCCESS) {
+    if (vkCreateImageView(mDevice, &viewInfo, nullptr, &layer.imageView) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Image View للنسيج");
     }
 }
 
-void VulkanContext::createTextureSampler() {
-    if (mTextureSampler != VK_NULL_HANDLE) {
-        vkDestroySampler(mDevice, mTextureSampler, nullptr);
-        mTextureSampler = VK_NULL_HANDLE;
-    }
-
+void VulkanContext::createLayerTextureSampler(SpriteLayerResources &layer)
+{
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    // هذا الأطلس بلا padding بين الخلايا، لذا nearest يمنع تسرب الفريمات المتجاورة.
     samplerInfo.magFilter = VK_FILTER_NEAREST;
     samplerInfo.minFilter = VK_FILTER_NEAREST;
     samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -1125,312 +1309,479 @@ void VulkanContext::createTextureSampler() {
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(mMipLevels);
+    samplerInfo.maxLod = 1.0f;
 
-    if (vkCreateSampler(mDevice, &samplerInfo, nullptr, &mTextureSampler) != VK_SUCCESS) {
+    if (vkCreateSampler(mDevice, &samplerInfo, nullptr, &layer.sampler) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Sampler");
     }
 }
 
-void VulkanContext::createSpriteDescriptors() {
-    cleanupSpritePipeline();
-    cleanupSpriteDescriptors();
-
-    VkDescriptorSetLayoutBinding samplerBinding{};
-    samplerBinding.binding = 0;
-    samplerBinding.descriptorCount = 1;
-    samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerBinding.pImmutableSamplers = nullptr;
-    samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &samplerBinding;
-
-    if (vkCreateDescriptorSetLayout(mDevice, &layoutInfo, nullptr, &mDescriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("[Vulkan] فشل إنشاء Descriptor Set Layout");
-    }
-
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 1;
+void VulkanContext::createLayerDescriptors(SpriteLayerResources &layer)
+{
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    poolInfo.maxSets = 1;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
 
-    if (vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &mDescriptorPool) != VK_SUCCESS) {
+    if (vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &layer.descriptorPool) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Descriptor Pool");
     }
 
+    layer.descriptorSets.assign(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, mDescriptorSetLayout);
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = mDescriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &mDescriptorSetLayout;
+    allocInfo.descriptorPool = layer.descriptorPool;
+    allocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
+    allocInfo.pSetLayouts = layouts.data();
 
-    if (vkAllocateDescriptorSets(mDevice, &allocInfo, &mDescriptorSet) != VK_SUCCESS) {
+    if (vkAllocateDescriptorSets(mDevice, &allocInfo, layer.descriptorSets.data()) != VK_SUCCESS)
+    {
         throw std::runtime_error("[Vulkan] فشل إنشاء Descriptor Set");
     }
 
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = mTextureImageView;
-    imageInfo.sampler = mTextureSampler;
+    for (int frameIndex = 0; frameIndex < MAX_FRAMES_IN_FLIGHT; ++frameIndex)
+    {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = layer.imageView;
+        imageInfo.sampler = layer.sampler;
 
-    VkWriteDescriptorSet descWrite{};
-    descWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descWrite.dstSet = mDescriptorSet;
-    descWrite.dstBinding = 0;
-    descWrite.dstArrayElement = 0;
-    descWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descWrite.descriptorCount = 1;
-    descWrite.pImageInfo = &imageInfo;
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = mWindUniformBuffers[frameIndex];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(WindUniformData);
 
-    vkUpdateDescriptorSets(mDevice, 1, &descWrite, 0, nullptr);
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet = layer.descriptorSets[frameIndex];
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[0].pImageInfo = &imageInfo;
+
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = layer.descriptorSets[frameIndex];
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites[1].pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(
+            mDevice,
+            static_cast<uint32_t>(descriptorWrites.size()),
+            descriptorWrites.data(),
+            0,
+            nullptr);
+    }
 }
 
-// ─── Pipeline السبرايت (مع Texture) ─────────────────────────────
+void VulkanContext::createLayerVertexBuffer(SpriteLayerResources &layer)
+{
+    const VkDeviceSize bufferSize =
+        static_cast<VkDeviceSize>(sizeof(QuadVertex)) * QUAD_VERTEX_COUNT * layer.maxQuads;
 
-void VulkanContext::createSpritePipeline() {
-    if (mRenderPass == VK_NULL_HANDLE || mDescriptorSetLayout == VK_NULL_HANDLE) {
-        throw std::runtime_error("[Vulkan] لا يمكن إنشاء Sprite Pipeline قبل تجهيز Render Pass و Descriptor Layout");
-    }
-
-    cleanupSpritePipeline();
-
-    // إنشاء Pipeline
-    auto vertCode = readFile("assets/shaders/vert/sprite.vert.spv");
-    auto fragCode = readFile("assets/shaders/frag/sprite.frag.spv");
-    VkShaderModule vertMod = createShaderModule(vertCode);
-    VkShaderModule fragMod = createShaderModule(fragCode);
-
-    VkPipelineShaderStageCreateInfo stages[] = {
-        {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vertMod, "main", nullptr},
-        {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, fragMod, "main", nullptr}
-    };
-
-    // Vertex: position(vec2) + texCoord(vec2)
-    VkVertexInputBindingDescription binding{};
-    binding.binding = 0;
-    binding.stride = 4 * sizeof(float);
-    binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    VkVertexInputAttributeDescription attrs[2]{};
-    attrs[0].binding = 0; attrs[0].location = 0;
-    attrs[0].format = VK_FORMAT_R32G32_SFLOAT; attrs[0].offset = 0;
-    attrs[1].binding = 0; attrs[1].location = 1;
-    attrs[1].format = VK_FORMAT_R32G32_SFLOAT; attrs[1].offset = 2 * sizeof(float);
-
-    VkPipelineVertexInputStateCreateInfo vertInput{};
-    vertInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertInput.vertexBindingDescriptionCount = 1;
-    vertInput.pVertexBindingDescriptions = &binding;
-    vertInput.vertexAttributeDescriptionCount = 2;
-    vertInput.pVertexAttributeDescriptions = attrs;
-
-    VkPipelineInputAssemblyStateCreateInfo assembly{};
-    assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    assembly.primitiveRestartEnable = VK_FALSE;
-
-    VkViewport vp{};
-    vp.width = static_cast<float>(mSwapchainExtent.width);
-    vp.height = static_cast<float>(mSwapchainExtent.height);
-    vp.maxDepth = 1.0f;
-
-    VkRect2D scissor{{0, 0}, mSwapchainExtent};
-
-    VkPipelineViewportStateCreateInfo vpState{};
-    vpState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    vpState.viewportCount = 1;
-    vpState.pViewports = &vp;
-    vpState.scissorCount = 1;
-    vpState.pScissors = &scissor;
-
-    VkDynamicState dynamicStates[] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 2;
-    dynamicState.pDynamicStates = dynamicStates;
-
-    VkPipelineRasterizationStateCreateInfo raster{};
-    raster.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    raster.polygonMode = VK_POLYGON_MODE_FILL;
-    raster.lineWidth = 1.0f;
-    raster.cullMode = VK_CULL_MODE_NONE; // لا إخفاء - الـ quad ثنائي الأبعاد
-    raster.frontFace = VK_FRONT_FACE_CLOCKWISE;
-
-    VkPipelineMultisampleStateCreateInfo ms{};
-    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineColorBlendAttachmentState blendAttach{};
-    blendAttach.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                  VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    blendAttach.blendEnable = VK_TRUE; // دمج ألفا للشفافية
-    blendAttach.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    blendAttach.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    blendAttach.colorBlendOp = VK_BLEND_OP_ADD;
-    blendAttach.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendAttach.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    blendAttach.alphaBlendOp = VK_BLEND_OP_ADD;
-
-    VkPipelineColorBlendStateCreateInfo blendState{};
-    blendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    blendState.attachmentCount = 1;
-    blendState.pAttachments = &blendAttach;
-
-    VkPipelineLayoutCreateInfo pipeLayout{};
-    pipeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeLayout.setLayoutCount = 1;
-    pipeLayout.pSetLayouts = &mDescriptorSetLayout;
-
-    if (vkCreatePipelineLayout(mDevice, &pipeLayout, nullptr, &mSpritePipelineLayout) != VK_SUCCESS) {
-        vkDestroyShaderModule(mDevice, fragMod, nullptr);
-        vkDestroyShaderModule(mDevice, vertMod, nullptr);
-        throw std::runtime_error("[Vulkan] فشل إنشاء Pipeline Layout للسبرايت");
-    }
-
-    VkGraphicsPipelineCreateInfo pipeInfo{};
-    pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeInfo.stageCount = 2;
-    pipeInfo.pStages = stages;
-    pipeInfo.pVertexInputState = &vertInput;
-    pipeInfo.pInputAssemblyState = &assembly;
-    pipeInfo.pViewportState = &vpState;
-    pipeInfo.pRasterizationState = &raster;
-    pipeInfo.pMultisampleState = &ms;
-    pipeInfo.pColorBlendState = &blendState;
-    pipeInfo.pDynamicState = &dynamicState;
-    pipeInfo.layout = mSpritePipelineLayout;
-    pipeInfo.renderPass = mRenderPass;
-    pipeInfo.subpass = 0;
-
-    if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &mSpritePipeline) != VK_SUCCESS) {
-        vkDestroyShaderModule(mDevice, fragMod, nullptr);
-        vkDestroyShaderModule(mDevice, vertMod, nullptr);
-        throw std::runtime_error("[Vulkan] فشل إنشاء Graphics Pipeline للسبرايت");
-    }
-
-    vkDestroyShaderModule(mDevice, fragMod, nullptr);
-    vkDestroyShaderModule(mDevice, vertMod, nullptr);
-}
-
-void VulkanContext::createSpriteVertexBuffer() {
-    // 6 رؤوس (مثلثين) = quad كامل - UV افتراضية (كل النسيج)
-    float vertices[] = {
-        -0.4f, -0.6f,  0.0f, 0.0f,
-         0.4f, -0.6f,  1.0f, 0.0f,
-         0.4f,  0.6f,  1.0f, 1.0f,
-        -0.4f, -0.6f,  0.0f, 0.0f,
-         0.4f,  0.6f,  1.0f, 1.0f,
-        -0.4f,  0.6f,  0.0f, 1.0f,
-    };
-
-    VkDeviceSize bufferSize = sizeof(vertices);
-    createBuffer(bufferSize,
+    createBuffer(
+        bufferSize,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        mSpriteVertexBuffer, mSpriteVertexBufferMemory);
+        layer.vertexBuffer,
+        layer.vertexBufferMemory);
 
-    void* data;
-    vkMapMemory(mDevice, mSpriteVertexBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices, bufferSize);
-    vkUnmapMemory(mDevice, mSpriteVertexBufferMemory);
+    if (vkMapMemory(mDevice, layer.vertexBufferMemory, 0, bufferSize, 0, &layer.vertexBufferMapped) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل ربط ذاكرة vertex buffer");
+    }
+
+    std::memset(layer.vertexBufferMapped, 0, static_cast<std::size_t>(bufferSize));
+    layer.vertexCount = 0;
 }
 
-// ─── أدوات Buffer/Image ─────────────────────────────────────────
+void VulkanContext::destroyLayerResources(SpriteLayerResources &layer)
+{
+    if (layer.vertexBufferMapped != nullptr && layer.vertexBufferMemory != VK_NULL_HANDLE)
+    {
+        vkUnmapMemory(mDevice, layer.vertexBufferMemory);
+        layer.vertexBufferMapped = nullptr;
+    }
 
-uint32_t VulkanContext::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const {
-    VkPhysicalDeviceMemoryProperties memProps;
-    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProps);
-    for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProps.memoryTypes[i].propertyFlags & props) == props) {
+    if (layer.vertexBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(mDevice, layer.vertexBuffer, nullptr);
+        layer.vertexBuffer = VK_NULL_HANDLE;
+    }
+    if (layer.vertexBufferMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(mDevice, layer.vertexBufferMemory, nullptr);
+        layer.vertexBufferMemory = VK_NULL_HANDLE;
+    }
+    if (layer.descriptorPool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(mDevice, layer.descriptorPool, nullptr);
+        layer.descriptorPool = VK_NULL_HANDLE;
+    }
+    layer.descriptorSets.clear();
+    if (layer.sampler != VK_NULL_HANDLE)
+    {
+        vkDestroySampler(mDevice, layer.sampler, nullptr);
+        layer.sampler = VK_NULL_HANDLE;
+    }
+    if (layer.imageView != VK_NULL_HANDLE)
+    {
+        vkDestroyImageView(mDevice, layer.imageView, nullptr);
+        layer.imageView = VK_NULL_HANDLE;
+    }
+    if (layer.image != VK_NULL_HANDLE)
+    {
+        vkDestroyImage(mDevice, layer.image, nullptr);
+        layer.image = VK_NULL_HANDLE;
+    }
+    if (layer.imageMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(mDevice, layer.imageMemory, nullptr);
+        layer.imageMemory = VK_NULL_HANDLE;
+    }
+    layer.vertexCount = 0;
+    layer.maxQuads = 0;
+}
+
+void VulkanContext::updateWindUniformBuffer(uint32_t frameIndex)
+{
+    if (frameIndex >= static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) ||
+        mWindUniformBuffersMapped[frameIndex] == nullptr)
+    {
+        return;
+    }
+
+    WindUniformData data;
+    data.motion[0] = static_cast<float>(glfwGetTime());
+    data.interactionA = mGroundInteractionA;
+    data.interactionB = mGroundInteractionB;
+    std::memcpy(mWindUniformBuffersMapped[frameIndex], &data, sizeof(data));
+}
+
+void VulkanContext::destroyWindUniformBuffers()
+{
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        if (mWindUniformBuffersMapped[i] != nullptr && mWindUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkUnmapMemory(mDevice, mWindUniformBuffersMemory[i]);
+            mWindUniformBuffersMapped[i] = nullptr;
+        }
+
+        if (mWindUniformBuffers[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(mDevice, mWindUniformBuffers[i], nullptr);
+            mWindUniformBuffers[i] = VK_NULL_HANDLE;
+        }
+
+        if (mWindUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(mDevice, mWindUniformBuffersMemory[i], nullptr);
+            mWindUniformBuffersMemory[i] = VK_NULL_HANDLE;
+        }
+    }
+}
+
+std::vector<const char *> VulkanContext::getRequiredExtensions() const
+{
+    uint32_t glfwExtensionCount = 0;
+    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+    if (ENABLE_VALIDATION_LAYERS)
+    {
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+    return extensions;
+}
+
+bool VulkanContext::checkValidationLayerSupport() const
+{
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    for (const char *layerName : VALIDATION_LAYERS)
+    {
+        bool found = false;
+        for (const VkLayerProperties &layerProperties : availableLayers)
+        {
+            if (std::strcmp(layerName, layerProperties.layerName) == 0)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool VulkanContext::checkDeviceExtensionSupport(VkPhysicalDevice device) const
+{
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+    for (const char *requiredExtension : DEVICE_EXTENSIONS)
+    {
+        bool found = false;
+        for (const VkExtensionProperties &extension : availableExtensions)
+        {
+            if (std::strcmp(requiredExtension, extension.extensionName) == 0)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+int VulkanContext::rateDeviceSuitability(VkPhysicalDevice device) const
+{
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(device, &properties);
+
+    int score = 0;
+    if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        score += 1000;
+    }
+
+    score += static_cast<int>(properties.limits.maxImageDimension2D);
+
+    if (!findQueueFamilies(device).isComplete())
+    {
+        return 0;
+    }
+    if (!checkDeviceExtensionSupport(device))
+    {
+        return 0;
+    }
+
+    const SwapchainSupportDetails support = querySwapchainSupport(device);
+    if (support.formats.empty() || support.presentModes.empty())
+    {
+        return 0;
+    }
+
+    return score;
+}
+
+QueueFamilyIndices VulkanContext::findQueueFamilies(VkPhysicalDevice device) const
+{
+    QueueFamilyIndices indices;
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    for (uint32_t i = 0; i < queueFamilyCount; ++i)
+    {
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphicsFamily = i;
+        }
+
+        VkBool32 presentSupport = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSupport);
+        if (presentSupport)
+        {
+            indices.presentFamily = i;
+        }
+
+        if (indices.isComplete())
+        {
+            break;
+        }
+    }
+
+    return indices;
+}
+
+VkShaderModule VulkanContext::createShaderModule(const std::vector<char> &code) const
+{
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+    VkShaderModule shaderModule = VK_NULL_HANDLE;
+    if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنشاء Shader Module");
+    }
+    return shaderModule;
+}
+
+std::vector<char> VulkanContext::readFile(const std::string &path)
+{
+    std::ifstream file(path, std::ios::ate | std::ios::binary);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("[Vulkan] فشل قراءة ملف: " + path);
+    }
+
+    const std::size_t fileSize = static_cast<std::size_t>(file.tellg());
+    std::vector<char> buffer(fileSize);
+    file.seekg(0);
+    file.read(buffer.data(), static_cast<std::streamsize>(fileSize));
+    return buffer;
+}
+
+uint32_t VulkanContext::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
+{
+    VkPhysicalDeviceMemoryProperties memoryProperties{};
+    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memoryProperties);
+
+    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
+    {
+        if ((typeFilter & (1u << i)) &&
+            (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
             return i;
         }
     }
+
     throw std::runtime_error("[Vulkan] لم يُعثر على نوع ذاكرة مناسب");
 }
 
-void VulkanContext::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                                  VkMemoryPropertyFlags props,
-                                  VkBuffer& buffer, VkDeviceMemory& memory) {
-    VkBufferCreateInfo bufInfo{};
-    bufInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufInfo.size = size;
-    bufInfo.usage = usage;
-    bufInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+VulkanContext::SpriteLayerResources &VulkanContext::getLayer(LayerId layerId)
+{
+    if (layerId >= mSpriteLayers.size())
+    {
+        throw std::runtime_error("[Vulkan] معرف الطبقة غير صالح");
+    }
+    return mSpriteLayers[layerId];
+}
 
-    vkCreateBuffer(mDevice, &bufInfo, nullptr, &buffer);
+const VulkanContext::SpriteLayerResources &VulkanContext::getLayer(LayerId layerId) const
+{
+    if (layerId >= mSpriteLayers.size())
+    {
+        throw std::runtime_error("[Vulkan] معرف الطبقة غير صالح");
+    }
+    return mSpriteLayers[layerId];
+}
 
-    VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(mDevice, buffer, &memReqs);
+void VulkanContext::createBuffer(VkDeviceSize size,
+                                 VkBufferUsageFlags usage,
+                                 VkMemoryPropertyFlags properties,
+                                 VkBuffer &buffer,
+                                 VkDeviceMemory &memory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(mDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنشاء Buffer");
+    }
+
+    VkMemoryRequirements memoryRequirements{};
+    vkGetBufferMemoryRequirements(mDevice, buffer, &memoryRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReqs.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memReqs.memoryTypeBits, props);
+    allocInfo.allocationSize = memoryRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties);
 
-    vkAllocateMemory(mDevice, &allocInfo, nullptr, &memory);
-    vkBindBufferMemory(mDevice, buffer, memory, 0);
+    if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &memory) != VK_SUCCESS)
+    {
+        vkDestroyBuffer(mDevice, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
+        throw std::runtime_error("[Vulkan] فشل حجز ذاكرة Buffer");
+    }
+
+    if (vkBindBufferMemory(mDevice, buffer, memory, 0) != VK_SUCCESS)
+    {
+        vkDestroyBuffer(mDevice, buffer, nullptr);
+        vkFreeMemory(mDevice, memory, nullptr);
+        buffer = VK_NULL_HANDLE;
+        memory = VK_NULL_HANDLE;
+        throw std::runtime_error("[Vulkan] فشل ربط ذاكرة Buffer");
+    }
 }
 
-void VulkanContext::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+void VulkanContext::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
+{
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandPool = mCommandPool;
     allocInfo.commandBufferCount = 1;
 
-    VkCommandBuffer cmd;
-    vkAllocateCommandBuffers(mDevice, &allocInfo, &cmd);
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    vkAllocateCommandBuffers(mDevice, &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmd, &beginInfo);
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
     VkBufferCopy copyRegion{};
     copyRegion.size = size;
-    vkCmdCopyBuffer(cmd, src, dst, 1, &copyRegion);
-
-    vkEndCommandBuffer(cmd);
+    vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
+    vkEndCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
+    submitInfo.pCommandBuffers = &commandBuffer;
 
     vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(mGraphicsQueue);
-
-    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &cmd);
+    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
 }
 
-void VulkanContext::transitionImageLayout(VkImage image, VkFormat /*format*/,
-                                           VkImageLayout oldLayout, VkImageLayout newLayout) {
+void VulkanContext::transitionImageLayout(VkImage image,
+                                          VkFormat /*format*/,
+                                          VkImageLayout oldLayout,
+                                          VkImageLayout newLayout)
+{
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandPool = mCommandPool;
     allocInfo.commandBufferCount = 1;
 
-    VkCommandBuffer cmd;
-    vkAllocateCommandBuffers(mDevice, &allocInfo, &cmd);
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    vkAllocateCommandBuffers(mDevice, &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmd, &beginInfo);
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1441,76 +1792,139 @@ void VulkanContext::transitionImageLayout(VkImage image, VkFormat /*format*/,
     barrier.image = image;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = mMipLevels;
+    barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
-    VkPipelineStageFlags srcStage, dstStage;
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    VkPipelineStageFlags sourceStage = 0;
+    VkPipelineStageFlags destinationStage = 0;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    } else {
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
         throw std::runtime_error("[Vulkan] انتقال تخطيط غير مدعوم");
     }
 
-    vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-    vkEndCommandBuffer(cmd);
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        sourceStage,
+        destinationStage,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier);
+
+    vkEndCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
+    submitInfo.pCommandBuffers = &commandBuffer;
 
     vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(mGraphicsQueue);
-    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &cmd);
+    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
 }
 
-void VulkanContext::copyBufferToImage(VkBuffer buffer, VkImage image,
-                                       uint32_t texWidth, uint32_t texHeight) {
+void VulkanContext::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t texWidth, uint32_t texHeight)
+{
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandPool = mCommandPool;
     allocInfo.commandBufferCount = 1;
 
-    VkCommandBuffer cmd;
-    vkAllocateCommandBuffers(mDevice, &allocInfo, &cmd);
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    vkAllocateCommandBuffers(mDevice, &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmd, &beginInfo);
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
     VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
     region.imageExtent = {texWidth, texHeight, 1};
 
-    vkCmdCopyBufferToImage(cmd, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    vkEndCommandBuffer(cmd);
+    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkEndCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
+    submitInfo.pCommandBuffers = &commandBuffer;
 
     vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(mGraphicsQueue);
-    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &cmd);
+    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
+}
+
+void VulkanContext::cleanupSpritePipeline()
+{
+    if (mSpritePipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(mDevice, mSpritePipeline, nullptr);
+        mSpritePipeline = VK_NULL_HANDLE;
+    }
+
+    if (mSpritePipelineLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyPipelineLayout(mDevice, mSpritePipelineLayout, nullptr);
+        mSpritePipelineLayout = VK_NULL_HANDLE;
+    }
+}
+
+void VulkanContext::waitForValidFramebufferSize()
+{
+    if (mWindowHandle == nullptr)
+    {
+        return;
+    }
+
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    glfwGetFramebufferSize(mWindowHandle, &framebufferWidth, &framebufferHeight);
+
+    while (framebufferWidth == 0 || framebufferHeight == 0)
+    {
+        if (glfwWindowShouldClose(mWindowHandle))
+        {
+            mWidth = 0;
+            mHeight = 0;
+            return;
+        }
+
+        glfwWaitEvents();
+        glfwGetFramebufferSize(mWindowHandle, &framebufferWidth, &framebufferHeight);
+    }
+
+    mWidth = static_cast<uint32_t>(framebufferWidth);
+    mHeight = static_cast<uint32_t>(framebufferHeight);
+}
+
+bool VulkanContext::hasSpriteResources() const
+{
+    return !mSpriteLayers.empty();
 }
 
 } // namespace gfx

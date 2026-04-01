@@ -6,8 +6,8 @@ int main() {
     try {
         core::App::Config config;
         config.window.title = "DuckH - صيد البط";
-        config.window.width = 1280;
-        config.window.height = 720;
+        config.window.width = 1600;
+        config.window.height = 900;
 
         core::App app(config);
         app.run();

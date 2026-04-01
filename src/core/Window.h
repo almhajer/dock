@@ -21,8 +21,8 @@ public:
 
         Config()
             : title("DuckH")
-            , width(1280)
-            , height(720)
+            , width(1600)
+            , height(900)
             , fullscreen(false)
             , resizable(true)
             , vsync(true) {}

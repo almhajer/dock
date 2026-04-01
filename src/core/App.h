@@ -56,6 +56,21 @@ private:
     /// تحديث المنطق كل إطار
     void update(float deltaTime);
 
+    /// تحديث منطق حركة الصياد واختيار المقطع المناسب
+    void updateHunterMotion(float deltaTime);
+
+    /// تحديث صف العشب المتحرك أسفل الشاشة
+    void updateGrassRenderData();
+
+    /// تحديث شريط التربة الثابت أسفل الشاشة
+    void updateSoilRenderData();
+
+    /// تحديث الـ quad الخاصة بالصياد للعرض الحالي
+    void updateHunterRenderData();
+
+    /// تحديث أثر القدمين على العشب مع بقاء الأثر لفترة قصيرة
+    void updateGroundInteraction(float deltaTime);
+
     /// رسم الإطار
     void render();
 
@@ -74,6 +89,16 @@ private:
     game::SpriteAnimation mSpriteAnim;
     game::AnimationState mHunterState;
     std::string mAssetsPath;
+    gfx::VulkanContext::LayerId mGrassLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mHunterLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mSoilLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    uint32_t mGrassLayoutWidth = 0;
+    uint32_t mGrassLayoutHeight = 0;
+    float mLeftGroundX = 0.0f;
+    float mRightGroundX = 0.0f;
+    float mLeftGroundPressure = 0.0f;
+    float mRightGroundPressure = 0.0f;
+    float mGroundFootRadius = 0.06f;
     float mHunterX = 0.0f;       // موقع الصياد الأفقي (-1 إلى 1)
     float mHunterSpeed = 0.8f;   // سرعة الحركة (وحدات/ثانية)
     bool mRunning = false;

@@ -1,11 +1,14 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <vector>
-#include <string>
+#include "RenderTypes.h"
+
 #include <array>
-#include <optional>
+#include <cstddef>
+#include <vulkan/vulkan.h>
 #include <functional>
+#include <optional>
+#include <string>
+#include <vector>
 
 struct GLFWwindow;
 
@@ -36,6 +39,10 @@ namespace gfx
     class VulkanContext
     {
     public:
+        using LayerId = std::size_t;
+        static constexpr LayerId INVALID_LAYER_ID = static_cast<LayerId>(-1);
+        static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
         VulkanContext() = default;
         ~VulkanContext();
 
@@ -61,18 +68,48 @@ namespace gfx
         /// هل التهيئة تمت بنجاح؟
         [[nodiscard]] bool isInitialized() const;
 
-        /// تحميل نسيج سبرايت من ملف PNG
-        void loadTexture(const std::string &path);
-
-        /// تحميل نسيج + تمرير بيانات البكسلات لـ callback قبل تحريرها
         using PixelCallback = std::function<void(int w, int h, const unsigned char* pixels)>;
-        void loadTextureWithCallback(const std::string &path, PixelCallback cb);
 
-        /// تحديث رؤوس الـ quad مباشرة من حدود الشاشة و UV
-        void updateSpriteQuad(float u0, float u1, float v0, float v1,
-                              float x0, float x1, float y0, float y1);
+        /// إنشاء طبقة رسم textured quads من ملف صورة
+        [[nodiscard]] LayerId createTexturedLayer(const std::string &path, std::size_t maxQuads);
+
+        /// إنشاء طبقة رسم textured quads من بكسلات جاهزة في الذاكرة
+        [[nodiscard]] LayerId createTexturedLayerFromPixels(const unsigned char *pixels,
+                                                            int texW,
+                                                            int texH,
+                                                            std::size_t maxQuads);
+
+        /// إنشاء طبقة رسم textured quads مع callback لمعالجة البكسلات قبل رفعها إلى GPU
+        [[nodiscard]] LayerId createTexturedLayerWithCallback(const std::string &path,
+                                                              std::size_t maxQuads,
+                                                              PixelCallback cb);
+
+        /// تحديث quads الخاصة بطبقة معينة
+        void updateTexturedLayer(LayerId layerId, const std::vector<TexturedQuad> &quads);
+
+        /// تحديث موضع وتأثير القدمين على شريط العشب/التربة
+        void setGroundInteraction(float leftFootX,
+                                  float rightFootX,
+                                  float radius,
+                                  float leftPressure,
+                                  float rightPressure);
 
     private:
+        struct SpriteLayerResources
+        {
+            VkImage image = VK_NULL_HANDLE;
+            VkDeviceMemory imageMemory = VK_NULL_HANDLE;
+            VkImageView imageView = VK_NULL_HANDLE;
+            VkSampler sampler = VK_NULL_HANDLE;
+            VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+            std::vector<VkDescriptorSet> descriptorSets;
+            VkBuffer vertexBuffer = VK_NULL_HANDLE;
+            VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
+            void *vertexBufferMapped = nullptr;
+            std::size_t maxQuads = 0;
+            uint32_t vertexCount = 0;
+        };
+
         // ─── إنشاء المكونات ─────────────────────────────────────────
         void createInstance();
         void setupDebugMessenger();
@@ -86,13 +123,24 @@ namespace gfx
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
-        void createTextureImage(const std::string &path);
-        void createTextureImageFromPixels(const unsigned char *pixels, int texW, int texH);
-        void createTextureImageView();
-        void createTextureSampler();
-        void createSpriteDescriptors();
+        void createDescriptorSetLayout();
         void createSpritePipeline();
-        void createSpriteVertexBuffer();
+        void createWindUniformBuffers();
+        void createLayerTextureImageFromPixels(SpriteLayerResources &layer,
+                                               const unsigned char *pixels,
+                                               int texW,
+                                               int texH);
+        void createLayerTextureImageView(SpriteLayerResources &layer);
+        void createLayerTextureSampler(SpriteLayerResources &layer);
+        void createLayerDescriptors(SpriteLayerResources &layer);
+        void createLayerVertexBuffer(SpriteLayerResources &layer);
+        void updateWindUniformBuffer(uint32_t frameIndex);
+        [[nodiscard]] LayerId createLayerFromPixels(const unsigned char *pixels,
+                                                    int texW,
+                                                    int texH,
+                                                    std::size_t maxQuads);
+        void destroyLayerResources(SpriteLayerResources &layer);
+        void destroyWindUniformBuffers();
 
         // ─── أدوات مساعدة ───────────────────────────────────────────
         [[nodiscard]] std::vector<const char *> getRequiredExtensions() const;
@@ -107,13 +155,14 @@ namespace gfx
         [[nodiscard]] VkShaderModule createShaderModule(const std::vector<char> &code) const;
         [[nodiscard]] static std::vector<char> readFile(const std::string &path);
         [[nodiscard]] uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
+        [[nodiscard]] SpriteLayerResources &getLayer(LayerId layerId);
+        [[nodiscard]] const SpriteLayerResources &getLayer(LayerId layerId) const;
         void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props,
                           VkBuffer &buffer, VkDeviceMemory &memory);
         void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
         void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
         void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t texWidth, uint32_t texHeight);
         void cleanupSpritePipeline();
-        void cleanupSpriteDescriptors();
         void waitForValidFramebufferSize();
         [[nodiscard]] bool hasSpriteResources() const;
 
@@ -148,19 +197,12 @@ namespace gfx
         VkPipelineLayout mSpritePipelineLayout = VK_NULL_HANDLE;
         VkPipeline mSpritePipeline = VK_NULL_HANDLE;
         VkDescriptorSetLayout mDescriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorPool mDescriptorPool = VK_NULL_HANDLE;
-        VkDescriptorSet mDescriptorSet = VK_NULL_HANDLE;
-
-        // نسيج السبرايت
-        VkImage mTextureImage = VK_NULL_HANDLE;
-        VkDeviceMemory mTextureImageMemory = VK_NULL_HANDLE;
-        VkImageView mTextureImageView = VK_NULL_HANDLE;
-        VkSampler mTextureSampler = VK_NULL_HANDLE;
-        uint32_t mMipLevels = 1;
-
-        // رؤوس السبرايت (quad مع UV)
-        VkBuffer mSpriteVertexBuffer = VK_NULL_HANDLE;
-        VkDeviceMemory mSpriteVertexBufferMemory = VK_NULL_HANDLE;
+        std::vector<SpriteLayerResources> mSpriteLayers;
+        std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffers{};
+        std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMemory{};
+        std::array<void *, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMapped{};
+        std::array<float, 4> mGroundInteractionA{0.0f, 0.0f, 0.0f, 0.0f};
+        std::array<float, 4> mGroundInteractionB{0.0f, 0.0f, 0.0f, 0.0f};
 
         VkCommandPool mCommandPool = VK_NULL_HANDLE;
         std::vector<VkCommandBuffer> mCommandBuffers;
@@ -175,8 +217,6 @@ namespace gfx
         uint32_t mHeight = 0;
         uint32_t mCurrentFrame = 0;
         bool mSwapchainDirty = false;
-
-        static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
         // طبقات التحقق (Debug فقط)
         static constexpr bool ENABLE_VALIDATION_LAYERS =
