@@ -397,6 +397,7 @@ void VulkanContext::drawFrame()
             gfx::SunDiskUniformData sunData = kDefaultSunDiskUniformData;
             sunData.sunDisk[0] += sunOffsetX;
             sunData.sunDisk[1] += sunOffsetY;
+            sunData.appearance[3] = static_cast<float>(glfwGetTime());
             std::memcpy(mSunUniformBuffersMapped[mCurrentFrame], &sunData, sizeof(sunData));
         }
         if (mGodRayUniformBuffersMapped[mCurrentFrame] != nullptr)
