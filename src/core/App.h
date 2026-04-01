@@ -4,6 +4,8 @@
 #include "Input.h"
 #include "Timer.h"
 #include "../ui/Localization.h"
+#include "../gfx/VulkanContext.h"
+#include "../game/SpriteAnimation.h"
 
 #include <memory>
 #include <string>
@@ -68,7 +70,12 @@ private:
     Input mInput;
     Timer mTimer;
     ui::Localization mLocalization;
+    gfx::VulkanContext mVulkan;
+    game::SpriteAnimation mSpriteAnim;
+    game::AnimationState mHunterState;
     std::string mAssetsPath;
+    float mHunterX = 0.0f;       // موقع الصياد الأفقي (-1 إلى 1)
+    float mHunterSpeed = 0.8f;   // سرعة الحركة (وحدات/ثانية)
     bool mRunning = false;
     bool mInitialized = false;
 };

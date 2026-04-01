@@ -53,6 +53,22 @@ bool Window::isOpen() const {
 
 void Window::pollEvents() {
     glfwPollEvents();
+
+    if (!mHandle) {
+        return;
+    }
+
+    int fbWidth = 0;
+    int fbHeight = 0;
+    glfwGetFramebufferSize(mHandle, &fbWidth, &fbHeight);
+
+    const uint32_t newWidth = static_cast<uint32_t>(fbWidth);
+    const uint32_t newHeight = static_cast<uint32_t>(fbHeight);
+    if (newWidth != mWidth || newHeight != mHeight) {
+        mWidth = newWidth;
+        mHeight = newHeight;
+        mResized = true;
+    }
 }
 
 void Window::waitEvents() {
@@ -80,6 +96,17 @@ bool Window::wasResized() {
 void Window::setVSync(bool /*enabled*/) {
     // ملاحظة: VSync في Vulkan يُدار عبر Swapchain (VK_PRESENT_MODE_FIFO_KHR)
     // هذا العلم يُستخدم لاحقًا عند إنشاء/إعادة إنشاء Swapchain
+}
+
+void Window::setCursorVisible(bool visible) {
+    if (!mHandle) return;
+    mCursorVisible = visible;
+    glfwSetInputMode(mHandle, GLFW_CURSOR,
+        visible ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+}
+
+bool Window::isCursorVisible() const {
+    return mCursorVisible;
 }
 
 // ─── ردود نداء GLFW ────────────────────────────────────────────

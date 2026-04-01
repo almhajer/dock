@@ -1,14 +1,26 @@
 #include "Input.h"
 
 #include <GLFW/glfw3.h>
+#include <unordered_map>
 
 namespace core {
 
+namespace {
+
+std::unordered_map<GLFWwindow*, Input*> gInputInstances;
+
+Input* getInputForWindow(GLFWwindow* window) {
+    auto it = gInputInstances.find(window);
+    return (it != gInputInstances.end()) ? it->second : nullptr;
+}
+
+} // namespace
+
 void Input::init(GLFWwindow* window) {
     mWindow = window;
+    gInputInstances[window] = this;
 
-    // ربط ردود نداء GLFW مع هذه النافذة
-    glfwSetWindowUserPointer(window, this);
+    // ربط ردود نداء GLFW مع هذه النافذة دون لمس user pointer الخاص بالنافذة
     glfwSetKeyCallback(window, keyCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
     glfwSetCursorPosCallback(window, cursorPosCallback);
@@ -30,6 +42,21 @@ void Input::update() {
     mMouseDeltaY = mMouseY - mMouseLastY;
     mMouseLastX = mMouseX;
     mMouseLastY = mMouseY;
+}
+
+void Input::shutdown() {
+    // فصل callbacks عن GLFW قبل تدمير أي شيء
+    if (mWindow) {
+        gInputInstances.erase(mWindow);
+        glfwSetKeyCallback(mWindow, nullptr);
+        glfwSetMouseButtonCallback(mWindow, nullptr);
+        glfwSetCursorPosCallback(mWindow, nullptr);
+        mWindow = nullptr;
+    }
+    mKeysCurrent.clear();
+    mKeysPrevious.clear();
+    mMouseButtonsCurrent.clear();
+    mMouseButtonsPrevious.clear();
 }
 
 bool Input::isKeyPressed(int key) const {
@@ -62,7 +89,7 @@ float Input::getMouseDeltaY() const { return mMouseDeltaY; }
 // ─── ردود نداء GLFW (ثابتة) ────────────────────────────────────
 
 void Input::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/) {
-    auto* input = static_cast<Input*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputForWindow(window);
     if (!input || key < 0) return;
 
     if (action == GLFW_PRESS) {
@@ -74,7 +101,7 @@ void Input::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int actio
 }
 
 void Input::mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*/) {
-    auto* input = static_cast<Input*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputForWindow(window);
     if (!input) return;
 
     if (action == GLFW_PRESS) {
@@ -85,7 +112,7 @@ void Input::mouseButtonCallback(GLFWwindow* window, int button, int action, int 
 }
 
 void Input::cursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
-    auto* input = static_cast<Input*>(glfwGetWindowUserPointer(window));
+    auto* input = getInputForWindow(window);
     if (!input) return;
 
     input->mMouseX = static_cast<float>(xpos);

@@ -57,6 +57,12 @@ public:
     /// تعيين VSync
     void setVSync(bool enabled);
 
+    /// إظهار/إخفاء مؤشر الماوس
+    void setCursorVisible(bool visible);
+
+    /// هل المؤشر مرئي؟
+    [[nodiscard]] bool isCursorVisible() const;
+
 private:
     /// رد نداء تغيير حجم النافذة
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
@@ -65,6 +71,7 @@ private:
     uint32_t mWidth = 0;
     uint32_t mHeight = 0;
     bool mResized = false;
+    bool mCursorVisible = true;
 };
 
 } // namespace core

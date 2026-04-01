@@ -18,6 +18,9 @@ public:
     /// تحديث حالة الإدخال - يُستدعى بداية كل إطار
     void update();
 
+    /// قطع الاتصال مع GLFW وتنظيف البيانات
+    void shutdown();
+
     /// هل المفتاح مضغوط حاليًا؟
     [[nodiscard]] bool isKeyPressed(int key) const;
 
