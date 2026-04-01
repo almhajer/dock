@@ -45,6 +45,8 @@ public:
     const SpriteAtlasData& getData() const { return mData; }
 
 private:
+    const AnimationClip* findClip(const std::string& key) const;
+
     SpriteAtlasData mData;
 };
 

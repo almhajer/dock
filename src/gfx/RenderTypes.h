@@ -47,6 +47,26 @@ struct QuadVertex {
     float materialType = QUAD_MATERIAL_TEXTURED;
 };
 
+[[nodiscard]] inline constexpr UvRect fullUvRect() {
+    return {0.0f, 1.0f, 0.0f, 1.0f};
+}
+
+[[nodiscard]] inline constexpr ScreenRect makeScreenRect(float x0, float x1, float y0, float y1) {
+    return {x0, x1, y0, y1};
+}
+
+[[nodiscard]] inline constexpr TexturedQuad makeTexturedQuad(
+    ScreenRect screen,
+    UvRect uv = fullUvRect(),
+    float alpha = 1.0f,
+    float windWeight = 0.0f,
+    float windPhase = 0.0f,
+    float windResponse = 0.0f,
+    float materialType = QUAD_MATERIAL_TEXTURED
+) {
+    return {screen, uv, alpha, windWeight, windPhase, windResponse, materialType};
+}
+
 [[nodiscard]] inline float lerpFloat(float a, float b, float t) {
     return a + (b - a) * t;
 }

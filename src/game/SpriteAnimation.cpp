@@ -1,11 +1,28 @@
 #include "SpriteAnimation.h"
 #include "HunterSpriteAtlas.h"
 
-#include <algorithm>
 #include <iostream>
 #include <utility>
 
 namespace game {
+namespace {
+
+constexpr float kTexelInset = 0.5f;
+
+bool isLeftFacingClipKey(const std::string& clipKey)
+{
+    return clipKey.size() >= 5 && clipKey.compare(clipKey.size() - 5, 5, "_left") == 0;
+}
+
+void resetAnimationState(AnimationState& state, const std::string& clipKey)
+{
+    state.currentClip = clipKey;
+    state.elapsed = 0.0f;
+    state.currentFrameIndex = 0;
+    state.finished = false;
+}
+
+} // namespace
 
 // ─── بناء أطلس الصياد من البكسلات ─────────────────────────────────
 
@@ -29,27 +46,24 @@ void SpriteAnimation::buildHunterAtlas(int imgW, int imgH, const unsigned char* 
 // ─── تحديث الحالة ────────────────────────────────────────────────
 
 void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
-    auto it = mData.animations.find(state.currentClip);
-    if (it == mData.animations.end()) return;
-
-    const AnimationClip& clip = it->second;
-    if (clip.frames.empty()) return;
+    const AnimationClip* clip = findClip(state.currentClip);
+    if (clip == nullptr || clip->frames.empty()) return;
 
     state.elapsed += deltaTime;
 
-    int rawIndex = static_cast<int>(state.elapsed * static_cast<float>(clip.fps));
+    int rawIndex = static_cast<int>(state.elapsed * static_cast<float>(clip->fps));
 
-    if (clip.loop) {
-        rawIndex = rawIndex % static_cast<int>(clip.frames.size());
+    if (clip->loop) {
+        rawIndex = rawIndex % static_cast<int>(clip->frames.size());
         state.finished = false;
     } else {
-        if (rawIndex >= static_cast<int>(clip.frames.size())) {
-            rawIndex = static_cast<int>(clip.frames.size()) - 1;
+        if (rawIndex >= static_cast<int>(clip->frames.size())) {
+            rawIndex = static_cast<int>(clip->frames.size()) - 1;
             state.finished = true;
         }
     }
 
-    state.currentFrameIndex = clip.frames[rawIndex];
+    state.currentFrameIndex = clip->frames[rawIndex];
 }
 
 // ─── بدء تشغيل مقطع ─────────────────────────────────────────────
@@ -57,15 +71,12 @@ void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
 void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) const {
     if (state.currentClip == clipKey && !state.finished) return;
 
-    state.currentClip = clipKey;
-    state.elapsed = 0.0f;
-    state.currentFrameIndex = 0;
-    state.finished = false;
+    resetAnimationState(state, clipKey);
 
-    auto it = mData.animations.find(clipKey);
-    if (it != mData.animations.end() && !it->second.frames.empty()) {
-        state.currentFrameIndex = it->second.frames[0];
-        state.flipX = (it->second.direction == "left");
+    const AnimationClip* clip = findClip(clipKey);
+    if (clip != nullptr && !clip->frames.empty()) {
+        state.currentFrameIndex = clip->frames[0];
+        state.flipX = isLeftFacingClipKey(clipKey);
     }
 }
 
@@ -80,10 +91,9 @@ void SpriteAnimation::getFrameUV(int frameIndex, float& u0, float& u1, float& v0
 
     float imgW = static_cast<float>(mData.imageWidth);
     float imgH = static_cast<float>(mData.imageHeight);
-    constexpr float texelInset = 0.5f;
 
-    const float insetX = (frame->width > 1) ? texelInset : 0.0f;
-    const float insetY = (frame->height > 1) ? texelInset : 0.0f;
+    const float insetX = (frame->width > 1) ? kTexelInset : 0.0f;
+    const float insetY = (frame->height > 1) ? kTexelInset : 0.0f;
 
     // سحب UV قليلًا للداخل لمنع sampler من قراءة بكسلات الفريم المجاور.
     u0 = (static_cast<float>(frame->x) + insetX) / imgW;
@@ -102,6 +112,10 @@ const AtlasFrame* SpriteAnimation::getFrame(int frameIndex) const {
 // ─── الحصول على مقطع ────────────────────────────────────────────
 
 const AnimationClip* SpriteAnimation::getClip(const std::string& key) const {
+    return findClip(key);
+}
+
+const AnimationClip* SpriteAnimation::findClip(const std::string& key) const {
     auto it = mData.animations.find(key);
     return (it != mData.animations.end()) ? &it->second : nullptr;
 }

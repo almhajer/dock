@@ -7,7 +7,6 @@
 #include "../gfx/VulkanContext.h"
 #include "../game/SpriteAnimation.h"
 
-#include <memory>
 #include <string>
 
 namespace core {

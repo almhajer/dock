@@ -1,6 +1,7 @@
 #include "HunterSpriteAtlas.h"
 
 #include <array>
+#include <span>
 #include <utility>
 
 namespace game {
@@ -25,25 +26,30 @@ constexpr std::array<AtlasFrame, 8> HUNTER_ATLAS_FRAMES = {{
     {923, 528, 233, 462},
 }};
 
+constexpr std::array<int, 7> WALK_FRAMES = {{0, 1, 2, 3, 4, 5, 6}};
+constexpr std::array<int, 1> IDLE_FRAMES = {{7}};
+
 void addClip(SpriteAtlasData& data,
              const std::string& key,
-             const std::string& labelAr,
-             const std::string& labelEn,
-             const std::string& type,
-             const std::string& direction,
-             std::vector<int> frames,
+             std::span<const int> frames,
              int fps,
              bool loop) {
     AnimationClip clip;
     clip.key = key;
-    clip.labelAr = labelAr;
-    clip.labelEn = labelEn;
-    clip.type = type;
-    clip.direction = direction;
-    clip.frames = std::move(frames);
+    clip.frames.assign(frames.begin(), frames.end());
     clip.fps = fps;
     clip.loop = loop;
     data.animations.emplace(key, std::move(clip));
+}
+
+template <std::size_t FrameCount>
+void addDirectionalClipPair(SpriteAtlasData& data,
+                            const std::string& baseName,
+                            const std::array<int, FrameCount>& frames,
+                            int fps,
+                            bool loop) {
+    addClip(data, baseName + "_left", std::span<const int>(frames), fps, loop);
+    addClip(data, baseName + "_right", std::span<const int>(frames), fps, loop);
 }
 
 } // namespace
@@ -69,10 +75,8 @@ SpriteAtlasData createHunterSpriteAtlasData(int imageWidth, int imageHeight) {
         data.frames.push_back(frame);
     }
 
-    addClip(data, "walk_left",  "مشي إلى اليسار", "Walk Left",  "walk", "left",  {0, 1, 2, 3, 4, 5, 6}, 8, true);
-    addClip(data, "walk_right", "مشي إلى اليمين", "Walk Right", "walk", "right", {0, 1, 2, 3, 4, 5, 6}, 8, true);
-    addClip(data, "idle_left",  "وقوف يسار",      "Idle Left",  "idle", "left",  {7}, 1, true);
-    addClip(data, "idle_right", "وقوف يمين",      "Idle Right", "idle", "right", {7}, 1, true);
+    addDirectionalClipPair(data, "walk", WALK_FRAMES, 8, true);
+    addDirectionalClipPair(data, "idle", IDLE_FRAMES, 1, true);
 
     // الإبقاء على الأبعاد المتوقعة ضمن هذا الملف يجعل atlas قابلة للاستبدال لاحقًا
     // بملف مشابه من دون لمس كود الأنيميشن نفسه.

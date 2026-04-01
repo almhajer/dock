@@ -97,6 +97,7 @@ namespace gfx
     private:
         struct SpriteLayerResources
         {
+            VkFormat imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
             VkImage image = VK_NULL_HANDLE;
             VkDeviceMemory imageMemory = VK_NULL_HANDLE;
             VkImageView imageView = VK_NULL_HANDLE;
@@ -126,6 +127,7 @@ namespace gfx
         void createDescriptorSetLayout();
         void createSpritePipeline();
         void createWindUniformBuffers();
+        void createWindTextureResources();
         void createLayerTextureImageFromPixels(SpriteLayerResources &layer,
                                                const unsigned char *pixels,
                                                int texW,
@@ -141,6 +143,7 @@ namespace gfx
                                                     std::size_t maxQuads);
         void destroyLayerResources(SpriteLayerResources &layer);
         void destroyWindUniformBuffers();
+        void destroyWindTextureResources();
 
         // ─── أدوات مساعدة ───────────────────────────────────────────
         [[nodiscard]] std::vector<const char *> getRequiredExtensions() const;
@@ -201,6 +204,7 @@ namespace gfx
         std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffers{};
         std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMemory{};
         std::array<void *, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMapped{};
+        SpriteLayerResources mWindTexture;
         std::array<float, 4> mGroundInteractionA{0.0f, 0.0f, 0.0f, 0.0f};
         std::array<float, 4> mGroundInteractionB{0.0f, 0.0f, 0.0f, 0.0f};
 

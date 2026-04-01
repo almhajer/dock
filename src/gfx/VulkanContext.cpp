@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -31,6 +32,57 @@ struct WindUniformData
     alignas(16) std::array<float, 4> interactionA = {0.0f, 0.0f, 0.0f, 0.0f};
     alignas(16) std::array<float, 4> interactionB = {0.0f, 0.0f, 0.0f, 0.0f};
 };
+
+struct GrassFragmentSpecializationData
+{
+    float density = 1.5f;
+    int32_t maxLayers = 2;
+    float detailScale = 1.0f;
+};
+
+constexpr float PI = 3.14159265358979323846f;
+
+std::vector<unsigned char> generateWindTexturePixels(int width, int height)
+{
+    std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u, 255u);
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            const float u = static_cast<float>(x) / static_cast<float>(width);
+            const float v = static_cast<float>(y) / static_cast<float>(height);
+
+            const float angleA = std::sin(2.0f * PI * (u * 1.0f + v * 0.35f));
+            const float angleB = std::cos(2.0f * PI * (u * 0.5f - v * 1.3f));
+            const float flowX = std::sin(2.0f * PI * (u * 1.2f + v * 0.18f)) +
+                                0.45f * std::sin(2.0f * PI * (u * 2.1f - v * 0.9f)) +
+                                0.25f * angleB;
+            const float flowY = std::cos(2.0f * PI * (v * 1.1f - u * 0.22f)) +
+                                0.45f * std::cos(2.0f * PI * (u * 1.6f + v * 1.8f)) +
+                                0.25f * angleA;
+
+            const float length = std::sqrt(flowX * flowX + flowY * flowY);
+            const float invLength = (length > 0.0001f) ? 1.0f / length : 1.0f;
+            const float dirX = flowX * invLength;
+            const float dirY = flowY * invLength;
+
+            const float strength =
+                0.5f + 0.5f *
+                (0.55f * std::sin(2.0f * PI * (u * 0.8f + v * 1.4f)) +
+                 0.45f * std::cos(2.0f * PI * (u * 1.7f - v * 0.6f)));
+
+            const std::size_t index =
+                (static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x)) * 4u;
+            pixels[index + 0] = static_cast<unsigned char>(std::clamp(dirX * 0.5f + 0.5f, 0.0f, 1.0f) * 255.0f);
+            pixels[index + 1] = static_cast<unsigned char>(std::clamp(dirY * 0.5f + 0.5f, 0.0f, 1.0f) * 255.0f);
+            pixels[index + 2] = static_cast<unsigned char>(std::clamp(strength, 0.0f, 1.0f) * 255.0f);
+            pixels[index + 3] = 255u;
+        }
+    }
+
+    return pixels;
+}
 } // namespace
 
 namespace gfx
@@ -59,6 +111,7 @@ void VulkanContext::init(GLFWwindow *window, uint32_t width, uint32_t height)
     createCommandPool();
     createCommandBuffers();
     createWindUniformBuffers();
+    createWindTextureResources();
     createDescriptorSetLayout();
     createSpritePipeline();
     createSyncObjects();
@@ -86,6 +139,7 @@ void VulkanContext::cleanup()
         destroyLayerResources(layer);
     }
     mSpriteLayers.clear();
+    destroyWindTextureResources();
     destroyWindUniformBuffers();
 
     if (mDescriptorSetLayout != VK_NULL_HANDLE)
@@ -991,9 +1045,16 @@ void VulkanContext::createDescriptorSetLayout()
     windBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     windBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+    VkDescriptorSetLayoutBinding windMapBinding{};
+    windMapBinding.binding = 2;
+    windMapBinding.descriptorCount = 1;
+    windMapBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    windMapBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = {
         samplerBinding,
         windBinding,
+        windMapBinding,
     };
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
@@ -1029,6 +1090,44 @@ void VulkanContext::createWindUniformBuffers()
     }
 }
 
+void VulkanContext::createWindTextureResources()
+{
+    if (mWindTexture.image != VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    constexpr int WIND_TEX_WIDTH = 128;
+    constexpr int WIND_TEX_HEIGHT = 128;
+    const std::vector<unsigned char> pixels = generateWindTexturePixels(WIND_TEX_WIDTH, WIND_TEX_HEIGHT);
+
+    mWindTexture.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+    createLayerTextureImageFromPixels(mWindTexture, pixels.data(), WIND_TEX_WIDTH, WIND_TEX_HEIGHT);
+    createLayerTextureImageView(mWindTexture);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 1.0f;
+
+    if (vkCreateSampler(mDevice, &samplerInfo, nullptr, &mWindTexture.sampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنشاء Wind Texture Sampler");
+    }
+}
+
 void VulkanContext::createSpritePipeline()
 {
     if (mRenderPass == VK_NULL_HANDLE || mDescriptorSetLayout == VK_NULL_HANDLE)
@@ -1053,6 +1152,19 @@ void VulkanContext::createSpritePipeline()
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaderStages[1].module = fragmentShaderModule;
     shaderStages[1].pName = "main";
+
+    constexpr GrassFragmentSpecializationData fragmentSpecializationData{};
+    constexpr std::array<VkSpecializationMapEntry, 3> fragmentSpecializationEntries{{
+        {0u, static_cast<uint32_t>(offsetof(GrassFragmentSpecializationData, density)), sizeof(float)},
+        {1u, static_cast<uint32_t>(offsetof(GrassFragmentSpecializationData, maxLayers)), sizeof(int32_t)},
+        {2u, static_cast<uint32_t>(offsetof(GrassFragmentSpecializationData, detailScale)), sizeof(float)},
+    }};
+    VkSpecializationInfo fragmentSpecializationInfo{};
+    fragmentSpecializationInfo.mapEntryCount = static_cast<uint32_t>(fragmentSpecializationEntries.size());
+    fragmentSpecializationInfo.pMapEntries = fragmentSpecializationEntries.data();
+    fragmentSpecializationInfo.dataSize = sizeof(fragmentSpecializationData);
+    fragmentSpecializationInfo.pData = &fragmentSpecializationData;
+    shaderStages[1].pSpecializationInfo = &fragmentSpecializationInfo;
 
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = 0;
@@ -1224,7 +1336,7 @@ void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &laye
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
-    imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    imageInfo.format = layer.imageFormat;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -1260,11 +1372,11 @@ void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &laye
         throw std::runtime_error("[Vulkan] فشل ربط ذاكرة صورة النسيج");
     }
 
-    transitionImageLayout(layer.image, VK_FORMAT_R8G8B8A8_SRGB,
+    transitionImageLayout(layer.image, layer.imageFormat,
                           VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     copyBufferToImage(stagingBuffer, layer.image, static_cast<uint32_t>(texW), static_cast<uint32_t>(texH));
-    transitionImageLayout(layer.image, VK_FORMAT_R8G8B8A8_SRGB,
+    transitionImageLayout(layer.image, layer.imageFormat,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -1280,7 +1392,7 @@ void VulkanContext::createLayerTextureImageView(SpriteLayerResources &layer)
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = layer.image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    viewInfo.format = layer.imageFormat;
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
@@ -1320,9 +1432,14 @@ void VulkanContext::createLayerTextureSampler(SpriteLayerResources &layer)
 
 void VulkanContext::createLayerDescriptors(SpriteLayerResources &layer)
 {
+    if (mWindTexture.imageView == VK_NULL_HANDLE || mWindTexture.sampler == VK_NULL_HANDLE)
+    {
+        throw std::runtime_error("[Vulkan] لا يمكن إنشاء descriptor للطبقة قبل تهيئة Wind Texture");
+    }
+
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+    poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
@@ -1363,7 +1480,12 @@ void VulkanContext::createLayerDescriptors(SpriteLayerResources &layer)
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(WindUniformData);
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        VkDescriptorImageInfo windImageInfo{};
+        windImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        windImageInfo.imageView = mWindTexture.imageView;
+        windImageInfo.sampler = mWindTexture.sampler;
+
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[0].dstSet = layer.descriptorSets[frameIndex];
         descriptorWrites[0].dstBinding = 0;
@@ -1377,6 +1499,13 @@ void VulkanContext::createLayerDescriptors(SpriteLayerResources &layer)
         descriptorWrites[1].descriptorCount = 1;
         descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[1].pBufferInfo = &bufferInfo;
+
+        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet = layer.descriptorSets[frameIndex];
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites[2].pImageInfo = &windImageInfo;
 
         vkUpdateDescriptorSets(
             mDevice,
@@ -1493,6 +1622,11 @@ void VulkanContext::destroyWindUniformBuffers()
             mWindUniformBuffersMemory[i] = VK_NULL_HANDLE;
         }
     }
+}
+
+void VulkanContext::destroyWindTextureResources()
+{
+    destroyLayerResources(mWindTexture);
 }
 
 std::vector<const char *> VulkanContext::getRequiredExtensions() const

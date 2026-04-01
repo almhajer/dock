@@ -21,10 +21,6 @@ struct AtlasFrame {
 /// مقطع حركة مثل: walk_right, idle_left
 struct AnimationClip {
     std::string key;
-    std::string labelAr;
-    std::string labelEn;
-    std::string type;       // walk, idle
-    std::string direction;  // left, right
     std::vector<int> frames;
     int fps = 8;
     bool loop = true;
