@@ -9,7 +9,13 @@
 
 namespace core::scene {
 
-inline constexpr std::size_t kMaxGrassQuads = 560;
+inline constexpr std::size_t kMaxGrassQuads = 240;
+
+enum class GrassDepthLayer {
+    Background,
+    Midground,
+    Foreground,
+};
 
 struct WindowMetrics {
     uint32_t width = 0;
@@ -44,6 +50,7 @@ GrassLayout buildGrassLayout(const WindowMetrics& metrics);
 void appendGrassQuads(std::vector<gfx::TexturedQuad>& quads,
                       const GrassLayout& layout,
                       int tileIndex,
+                      GrassDepthLayer layer,
                       std::size_t maxQuads = kMaxGrassQuads);
 
 float resolveGait(float animationTime);

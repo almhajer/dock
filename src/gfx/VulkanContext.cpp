@@ -27,8 +27,8 @@ namespace
 {
 struct WindUniformData
 {
-    alignas(16) std::array<float, 4> motion = {0.0f, 0.035f, 1.4f, 0.1f};
-    alignas(16) std::array<float, 4> wind = {1.0f, 0.35f, 0.0f, 0.0f};
+    alignas(16) std::array<float, 4> motion = {0.0f, 0.028f, 1.0f, 0.075f};
+    alignas(16) std::array<float, 4> wind = {1.0f, 0.28f, 0.0f, 0.0f};
     alignas(16) std::array<float, 4> interactionA = {0.0f, 0.0f, 0.0f, 0.0f};
     alignas(16) std::array<float, 4> interactionB = {0.0f, 0.0f, 0.0f, 0.0f};
 };

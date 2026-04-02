@@ -4,7 +4,10 @@
 
 namespace game {
 
-/// يبني بيانات atlas الخاصة بالصياد من metadata ثابتة متوافقة مع sprite.png الحالية.
+/// يبني بيانات أطلس الحركة الأساسية الخاصة بالصياد من ملف البيانات الثابتة.
 [[nodiscard]] SpriteAtlasData createHunterSpriteAtlasData(int imageWidth, int imageHeight);
+
+/// يبني بيانات أطلس إطلاق النار الخاصة بالصياد من ملف البيانات الثابتة.
+[[nodiscard]] SpriteAtlasData createHunterShootSpriteAtlasData(int imageWidth, int imageHeight);
 
 } // namespace game

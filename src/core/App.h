@@ -3,6 +3,7 @@
 #include "Window.h"
 #include "Input.h"
 #include "Timer.h"
+#include "../audio/SoundEffectPlayer.h"
 #include "../ui/Localization.h"
 #include "../gfx/VulkanContext.h"
 #include "../game/SpriteAnimation.h"
@@ -55,7 +56,7 @@ private:
     /// تحديث المنطق كل إطار
     void update(float deltaTime);
 
-    /// تحديث منطق حركة الصياد واختيار المقطع المناسب
+    /// تحديث الحركة الأساسية وطبقة الإطلاق الخاصة بالصياد في كل إطار
     void updateHunterMotion(float deltaTime);
 
     /// تحديث صف العشب المتحرك أسفل الشاشة
@@ -64,7 +65,7 @@ private:
     /// تحديث شريط التربة الثابت أسفل الشاشة
     void updateSoilRenderData();
 
-    /// تحديث الـ quad الخاصة بالصياد للعرض الحالي
+    /// تحديث طبقتي عرض الصياد: الحركة الأساسية ثم طبقة الإطلاق فوقها عند الحاجة
     void updateHunterRenderData();
 
     /// تحديث أثر القدمين على العشب مع بقاء الأثر لفترة قصيرة
@@ -79,27 +80,45 @@ private:
     /// كشف لغة النظام تلقائيًا (macOS: CFLocale، غير ذلك: متغير LANG)
     static ui::Localization::Language detectSystemLanguage();
 
-    // مكونات التطبيق
+    // مكونات التطبيق الأساسية
     Window mWindow;
     Input mInput;
     Timer mTimer;
     ui::Localization mLocalization;
     gfx::VulkanContext mVulkan;
+    audio::SoundEffectPlayer mHunterShotSound;
+
+    // أطلس الحركة الأساسية للصياد وأطلس الإطلاق المنفصل فوقها.
     game::SpriteAnimation mSpriteAnim;
+    game::SpriteAnimation mHunterShootAnim;
     game::AnimationState mHunterState;
+    game::AnimationState mHunterShootState;
     std::string mAssetsPath;
+
+    // معرّفات الطبقات داخل Vulkan مرتبة من الخلف إلى الأمام.
     gfx::VulkanContext::LayerId mGrassLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mHunterLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mHunterShootLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mSoilLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+
+    // كاش بسيط لتخطيط العشب حتى لا نعيد بناء نفس الرقع دون داع.
     uint32_t mGrassLayoutWidth = 0;
     uint32_t mGrassLayoutHeight = 0;
+
+    // بيانات تفاعل القدمين مع الأرض.
     float mLeftGroundX = 0.0f;
     float mRightGroundX = 0.0f;
     float mLeftGroundPressure = 0.0f;
     float mRightGroundPressure = 0.0f;
     float mGroundFootRadius = 0.06f;
+
+    // حالة الصياد الحالية.
     float mHunterX = 0.0f;       // موقع الصياد الأفقي (-1 إلى 1)
     float mHunterSpeed = 0.8f;   // سرعة الحركة (وحدات/ثانية)
+    float mReloadTimer = 0.0f;
+    float mHunterShootTransitionTimer = 0.0f; // مؤقت الانتقال بين فريمات ما بعد الإطلاق
+    bool mHunterShootActive = false;
+    bool mIsReloading = false;
     bool mRunning = false;
     bool mInitialized = false;
 };

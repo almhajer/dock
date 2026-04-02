@@ -1,5 +1,7 @@
 #include "App.h"
 #include "SceneLayout.h"
+#include "../game/HunterSpriteAtlas.h"
+#include "../game/HunterSpriteData.h"
 
 #include <GLFW/glfw3.h>
 
@@ -9,6 +11,7 @@
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #ifdef __APPLE__
@@ -22,6 +25,22 @@ namespace core
         constexpr float FOOTPRINT_DECAY_PER_SECOND = 1.85f;
         constexpr float FOOTPRINT_FOLLOW_PER_SECOND = 18.0f;
         constexpr float FOOT_CONTACT_THRESHOLD = 0.08f;
+
+        [[nodiscard]] std::string directionalClip(const char* baseName, bool facingLeft)
+        {
+            return std::string(baseName) + (facingLeft ? "_left" : "_right");
+        }
+
+        [[nodiscard]] bool isDirectionalClip(const std::string& clipKey, std::string_view baseName)
+        {
+            auto matches = [&](std::string_view suffix)
+            {
+                return clipKey.size() == (baseName.size() + suffix.size()) &&
+                    clipKey.compare(0, baseName.size(), baseName) == 0 &&
+                    clipKey.compare(baseName.size(), suffix.size(), suffix) == 0;
+            };
+            return matches("_left") || matches("_right");
+        }
     } // namespace
 
     App::App(const Config &config)
@@ -63,9 +82,18 @@ namespace core
         // الصياد في المنتصف بين التربة الخلفية والعشب الأمامي.
         const std::string spritePath = mAssetsPath + "/sprite/sprite.png";
         mHunterLayerId = mVulkan.createTexturedLayerWithCallback(spritePath, 1,
-            [this](int w, int h, const unsigned char* pixels) {
-                mSpriteAnim.buildHunterAtlas(w, h, pixels);
+            [this](int w, int h, const unsigned char* /*pixels*/) {
+                mSpriteAnim.setAtlasData(game::createHunterSpriteAtlasData(w, h));
             });
+
+        const std::string shootSpritePath = mAssetsPath + "/sprite/hunterGun.png";
+        mHunterShootLayerId = mVulkan.createTexturedLayerWithCallback(shootSpritePath, 1,
+            [this](int w, int h, const unsigned char* /*pixels*/) {
+                mHunterShootAnim.setAtlasData(game::createHunterShootSpriteAtlasData(w, h));
+            });
+
+        // تحميل مؤثر إطلاق النار مرة واحدة ثم إعادة استخدامه عند كل طلقة.
+        mHunterShotSound.load(mAssetsPath + "/audio/hunter_shot.mp3");
 
         mGrassLayerId = mVulkan.createTexturedLayerFromPixels(
             WHITE_PIXEL.data(),
@@ -191,38 +219,114 @@ namespace core
 
     void App::updateHunterMotion(float deltaTime)
     {
-        bool moving = false;
-        const std::string lastDirection = mHunterState.flipX ? "left" : "right";
+        const game::HunterActionTiming& actionTiming = game::hunterActionTiming();
 
-        if (mInput.isKeyPressed(GLFW_KEY_RIGHT))
+        // نحدّث مؤقت إعادة التعبئة أولًا حتى لا يتداخل مع طلب الإطلاق الجديد.
+        if (mIsReloading)
         {
-            mHunterX += mHunterSpeed * deltaTime;
-            moving = true;
-            if (mHunterState.currentClip != "walk_right" || mHunterState.finished)
+            mReloadTimer = std::max(0.0f, mReloadTimer - deltaTime);
+            if (mReloadTimer <= 0.0f)
             {
-                mSpriteAnim.play(mHunterState, "walk_right");
-            }
-        }
-        else if (mInput.isKeyPressed(GLFW_KEY_LEFT))
-        {
-            mHunterX -= mHunterSpeed * deltaTime;
-            moving = true;
-            if (mHunterState.currentClip != "walk_left" || mHunterState.finished)
-            {
-                mSpriteAnim.play(mHunterState, "walk_left");
+                mIsReloading = false;
             }
         }
 
-        if (!moving)
+        int moveIntent = 0;
+        if (mInput.isKeyPressed(GLFW_KEY_A) || mInput.isKeyPressed(GLFW_KEY_LEFT))
         {
-            const std::string idleClip = (lastDirection == "right") ? "idle_right" : "idle_left";
-            if (mHunterState.currentClip != idleClip)
-            {
-                mSpriteAnim.play(mHunterState, idleClip);
-            }
+            --moveIntent;
+        }
+        if (mInput.isKeyPressed(GLFW_KEY_D) || mInput.isKeyPressed(GLFW_KEY_RIGHT))
+        {
+            ++moveIntent;
+        }
+        moveIntent = std::clamp(moveIntent, -1, 1);
+
+        bool facingLeft = mHunterState.flipX;
+        if (moveIntent < 0)
+        {
+            facingLeft = true;
+        }
+        else if (moveIntent > 0)
+        {
+            facingLeft = false;
+        }
+
+        if (moveIntent != 0)
+        {
+            mHunterX += static_cast<float>(moveIntent) * mHunterSpeed * deltaTime;
+        }
+
+        const bool reloadRequested = mInput.isKeyJustPressed(GLFW_KEY_R);
+        const bool shotRequested = mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT) && !mIsReloading;
+        const bool aiming = mInput.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
+
+        if (reloadRequested)
+        {
+            mIsReloading = true;
+            mReloadTimer = actionTiming.reloadDurationSeconds;
+        }
+        else if (shotRequested)
+        {
+            // طبقة الإطلاق تعمل كسوبرلاير مؤقت فوق سبرايت الحركة الأساسية.
+            mHunterShootActive = true;
+            mHunterShootTransitionTimer = 0.0f;
+            mHunterShootState.finished = true;
+            mHunterShootAnim.play(mHunterShootState, directionalClip("shoot", facingLeft));
+            mHunterShotSound.play();
+        }
+
+        if (moveIntent != 0)
+        {
+            mSpriteAnim.play(mHunterState, directionalClip("walk", facingLeft));
+        }
+        else
+        {
+            (void)aiming;
+            mSpriteAnim.play(mHunterState, directionalClip("idle", facingLeft));
         }
 
         mSpriteAnim.update(mHunterState, deltaTime);
+
+        if (mHunterShootActive)
+        {
+            mHunterShootAnim.update(mHunterShootState, deltaTime);
+
+            // تسلسل الإطلاق: حركة إطلاق -> تثبيت على الفريم السادس -> انتظار -> الفريم السابع.
+            if (isDirectionalClip(mHunterShootState.currentClip, "shoot") && mHunterShootState.finished)
+            {
+                mHunterShootTransitionTimer = actionTiming.shootRecoverHoldSeconds;
+                mHunterShootAnim.play(mHunterShootState, directionalClip("shoot_recover", mHunterShootState.flipX));
+            }
+            else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_recover"))
+            {
+                mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
+                if (mHunterShootTransitionTimer <= 0.0f)
+                {
+                    mHunterShootTransitionTimer = actionTiming.shootReadySettleSeconds;
+                    mHunterShootAnim.play(mHunterShootState, directionalClip("shoot_ready", mHunterShootState.flipX));
+                }
+            }
+            else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_ready"))
+            {
+                const bool keepReadyPose = moveIntent == 0 && !shotRequested;
+                if (!keepReadyPose)
+                {
+                    mHunterShootActive = false;
+                    mHunterShootTransitionTimer = 0.0f;
+                    mHunterShootState = {};
+                }
+                else
+                {
+                    mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
+                    if (mHunterShootTransitionTimer <= 0.0f)
+                    {
+                        mHunterShootActive = false;
+                        mHunterShootState = {};
+                    }
+                }
+            }
+        }
     }
 
     void App::updateGrassRenderData()
@@ -252,9 +356,18 @@ namespace core
         std::vector<gfx::TexturedQuad> quads;
         quads.reserve(scene::kMaxGrassQuads);
 
-        for (int i = 0; i < layout.tileCount && quads.size() < scene::kMaxGrassQuads; ++i)
+        constexpr std::array<scene::GrassDepthLayer, 3> GRASS_LAYERS = {
+            scene::GrassDepthLayer::Background,
+            scene::GrassDepthLayer::Midground,
+            scene::GrassDepthLayer::Foreground,
+        };
+
+        for (scene::GrassDepthLayer layer : GRASS_LAYERS)
         {
-            scene::appendGrassQuads(quads, layout, i);
+            for (int i = 0; i < layout.tileCount && quads.size() < scene::kMaxGrassQuads; ++i)
+            {
+                scene::appendGrassQuads(quads, layout, i, layer);
+            }
         }
 
         mVulkan.updateTexturedLayer(mGrassLayerId, quads);
@@ -278,30 +391,61 @@ namespace core
             return;
         }
 
-        const game::AtlasFrame* frame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
-        if (frame == nullptr || frame->sourceWidth <= 0 || frame->sourceHeight <= 0)
+        // نستخدم دالة محلية واحدة حتى يبقى تحديث طبقة الحركة وطبقة الإطلاق متطابقًا.
+        auto buildHunterQuadForState =
+            [&](gfx::VulkanContext::LayerId layerId,
+                game::SpriteAnimation& animation,
+                game::AnimationState& state,
+                bool visible)
         {
-            return;
-        }
+            if (layerId == gfx::VulkanContext::INVALID_LAYER_ID)
+            {
+                return;
+            }
+            if (!visible || state.currentClip.empty())
+            {
+                mVulkan.updateTexturedLayer(layerId, {});
+                return;
+            }
 
-        gfx::UvRect uv;
-        mSpriteAnim.getFrameUV(mHunterState.currentFrameIndex, uv.u0, uv.u1, uv.v0, uv.v1);
-        if (mHunterState.flipX)
-        {
-            std::swap(uv.u0, uv.u1);
-        }
+            const game::AtlasFrame* frame = animation.getFrame(state.currentFrameIndex);
+            if (frame == nullptr || frame->sourceWidth <= 0 || frame->sourceHeight <= 0)
+            {
+                mVulkan.updateTexturedLayer(layerId, {});
+                return;
+            }
 
-        const float logicalHalfWidth = scene::hunterLogicalHalfWidth(*frame, metrics);
-        const float clampMin = -1.0f + logicalHalfWidth;
-        const float clampMax = 1.0f - logicalHalfWidth;
-        if (clampMin < clampMax)
-        {
-            mHunterX = std::clamp(mHunterX, clampMin, clampMax);
-        }
+            gfx::UvRect uv;
+            animation.getFrameUV(state.currentFrameIndex, uv.u0, uv.u1, uv.v0, uv.v1);
+            if (state.flipX)
+            {
+                std::swap(uv.u0, uv.u1);
+            }
 
-        gfx::TexturedQuad quad = scene::buildHunterQuad(*frame, mHunterX, metrics);
-        quad.uv = uv;
-        mVulkan.updateTexturedLayer(mHunterLayerId, {quad});
+            const float logicalHalfWidth = scene::hunterLogicalHalfWidth(*frame, metrics);
+            const float clampMin = -1.0f + logicalHalfWidth;
+            const float clampMax = 1.0f - logicalHalfWidth;
+            if (clampMin < clampMax)
+            {
+                mHunterX = std::clamp(mHunterX, clampMin, clampMax);
+            }
+
+            gfx::TexturedQuad quad = scene::buildHunterQuad(*frame, mHunterX, metrics);
+            quad.uv = uv;
+            mVulkan.updateTexturedLayer(layerId, {quad});
+        };
+
+        buildHunterQuadForState(
+            mHunterLayerId,
+            mSpriteAnim,
+            mHunterState,
+            !mHunterShootActive);
+
+        buildHunterQuadForState(
+            mHunterShootLayerId,
+            mHunterShootAnim,
+            mHunterShootState,
+            mHunterShootActive);
     }
 
     void App::updateGroundInteraction(float deltaTime)
@@ -370,6 +514,9 @@ namespace core
 
         // فصل Input أولًا لمنع callbacks من الكتابة على ذاكرة مُدمّرة
         mInput.shutdown();
+
+        // تحرير الصوت قبل تنظيف Vulkan حتى تبقى دورة الإغلاق مرتبة وواضحة.
+        mHunterShotSound.reset();
 
         mVulkan.waitIdle();
         mVulkan.cleanup();

@@ -8,15 +8,28 @@ namespace {
 
 constexpr float HUNTER_SCREEN_HALF_HEIGHT = 0.5f;
 constexpr float HUNTER_BOTTOM_MARGIN = 0.04f;
-constexpr float GRASS_SCREEN_HEIGHT = 0.30f;
+constexpr float GRASS_SCREEN_HEIGHT = 0.31f;
 constexpr float SOIL_SCREEN_HEIGHT = 0.115f;
-constexpr float GRASS_OVERLAP_RATIO = 0.48f;
-constexpr float GRASS_CLUMP_ASPECT = 0.92f;
+constexpr float GRASS_OVERLAP_RATIO = 0.52f;
+constexpr float GRASS_CLUMP_ASPECT = 1.02f;
 
 float hash01(float value)
 {
     const float raw = std::sin(value * 127.1f + 311.7f) * 43758.5453f;
     return raw - std::floor(raw);
+}
+
+float smooth01(float value)
+{
+    const float clamped = std::clamp(value, 0.0f, 1.0f);
+    return clamped * clamped * (3.0f - 2.0f * clamped);
+}
+
+float noise1D(float value)
+{
+    const float base = std::floor(value);
+    const float fraction = value - base;
+    return std::lerp(hash01(base + 0.19f), hash01(base + 1.19f), smooth01(fraction));
 }
 
 gfx::TexturedQuad makeBottomAlignedQuad(float left, float bottom, float width, float height)
@@ -42,18 +55,17 @@ gfx::TexturedQuad makeGrassQuad(float left,
 }
 
 struct GrassVariation {
-    float heightScale = 1.0f;
-    float widthScale = 1.0f;
-    float xJitter = 0.0f;
-    float alpha = 1.0f;
-    float backAlpha = 1.0f;
-    float phaseA = 0.0f;
-    float phaseB = 0.0f;
-    float responseA = 0.0f;
-    float responseB = 0.0f;
-    float widthJitterA = 1.0f;
-    float widthJitterB = 1.0f;
-    float heightJitter = 1.0f;
+    float densityField = 1.0f;
+    float xDrift = 0.0f;
+    float sweep = 0.0f;
+    float heightPulse = 1.0f;
+    float widthPulse = 1.0f;
+    float phaseBack = 0.0f;
+    float phaseMid = 0.0f;
+    float phaseFront = 0.0f;
+    float responseBack = 0.0f;
+    float responseMid = 0.0f;
+    float responseFront = 0.0f;
 };
 
 GrassVariation buildGrassVariation(float clumpIndex, float tileStep)
@@ -62,21 +74,48 @@ GrassVariation buildGrassVariation(float clumpIndex, float tileStep)
     const float randomB = hash01(clumpIndex * 1.91f + 4.12f);
     const float randomC = hash01(clumpIndex * 2.73f + 9.81f);
     const float randomD = hash01(clumpIndex * 4.07f + 2.11f);
+    const float densityField = 0.46f + noise1D(clumpIndex * 0.29f + 2.8f) * 0.86f;
+    const float moistureField = noise1D(clumpIndex * 0.57f + 8.4f);
+    const float spacingField = noise1D(clumpIndex * 0.83f + 14.6f);
 
     GrassVariation variation;
-    variation.heightScale = 0.96f + randomA * 0.10f;
-    variation.widthScale = 0.76f + randomB * 0.34f;
-    variation.xJitter = (randomC - 0.5f) * tileStep * 0.08f;
-    variation.alpha = 0.86f + randomB * 0.10f;
-    variation.backAlpha = 0.52f + randomD * 0.18f;
-    variation.phaseA = clumpIndex * 0.47f + randomD * 7.0f;
-    variation.phaseB = clumpIndex * 0.61f + randomA * 5.0f + randomC * 1.7f;
-    variation.responseA = 0.62f + variation.heightScale * 0.30f;
-    variation.responseB = 0.74f + variation.heightScale * 0.38f + randomB * 0.08f;
-    variation.widthJitterA = 0.88f + randomD * 0.22f;
-    variation.widthJitterB = 0.84f + randomA * 0.28f;
-    variation.heightJitter = 0.98f + randomC * 0.04f;
+    variation.densityField = densityField;
+    variation.xDrift =
+        ((randomA - 0.5f) * 0.78f + (spacingField - 0.5f) * 0.64f) * tileStep;
+    variation.sweep =
+        ((randomB - 0.5f) * 0.86f + (moistureField - 0.5f) * 0.42f) * tileStep;
+    variation.heightPulse = 0.82f + randomC * 0.44f;
+    variation.widthPulse = 0.74f + randomD * 0.54f;
+    variation.phaseBack = clumpIndex * 0.41f + randomA * 5.6f + moistureField * 1.8f;
+    variation.phaseMid = clumpIndex * 0.58f + randomB * 7.5f + spacingField * 2.4f;
+    variation.phaseFront = clumpIndex * 0.73f + randomC * 9.2f + densityField * 2.8f;
+    variation.responseBack = 0.54f + densityField * 0.10f;
+    variation.responseMid = 0.72f + densityField * 0.17f + randomD * 0.04f;
+    variation.responseFront = 0.92f + densityField * 0.22f + moistureField * 0.08f;
     return variation;
+}
+
+void appendGrassPatch(std::vector<gfx::TexturedQuad>& quads,
+                      float centerX,
+                      float width,
+                      float height,
+                      float alpha,
+                      float windPhase,
+                      float windResponse,
+                      std::size_t maxQuads)
+{
+    if (quads.size() >= maxQuads)
+    {
+        return;
+    }
+
+    quads.push_back(makeGrassQuad(
+        centerX - width * 0.5f,
+        width,
+        height,
+        alpha,
+        windPhase,
+        windResponse));
 }
 
 } // namespace
@@ -160,31 +199,107 @@ GrassLayout buildGrassLayout(const WindowMetrics& metrics)
 void appendGrassQuads(std::vector<gfx::TexturedQuad>& quads,
                       const GrassLayout& layout,
                       int tileIndex,
+                      GrassDepthLayer layer,
                       std::size_t maxQuads)
 {
     const float clumpIndex = static_cast<float>(tileIndex);
     const GrassVariation variation = buildGrassVariation(clumpIndex, layout.tileStep);
+    const float baseCenter =
+        layout.startX + layout.tileStep * clumpIndex + layout.tileWidth * 0.5f;
+    const float lushness = variation.densityField;
+    const float accentGate = hash01(clumpIndex * 6.13f + 12.7f);
+    int stride = 1;
 
-    quads.push_back(makeGrassQuad(
-        layout.startX + layout.tileStep * clumpIndex - layout.tileStep * 0.12f + variation.xJitter * 0.45f,
-        layout.tileWidth * (variation.widthScale * variation.widthJitterA),
-        layout.tileHeight * (variation.heightScale * variation.heightJitter),
-        variation.backAlpha,
-        variation.phaseA,
-        variation.responseA));
+    switch (layer)
+    {
+    case GrassDepthLayer::Background:
+        stride = 3;
+        break;
+    case GrassDepthLayer::Midground:
+        stride = 2;
+        break;
+    case GrassDepthLayer::Foreground:
+        stride = 1;
+        break;
+    }
 
-    if (quads.size() >= maxQuads)
+    if (tileIndex % stride != 0)
     {
         return;
     }
 
-    quads.push_back(makeGrassQuad(
-        layout.startX + layout.tileStep * clumpIndex + variation.xJitter,
-        layout.tileWidth * (variation.widthScale * variation.widthJitterB),
-        layout.tileHeight * variation.heightScale,
-        variation.alpha,
-        variation.phaseB,
-        variation.responseB));
+    switch (layer)
+    {
+    case GrassDepthLayer::Background:
+        appendGrassPatch(
+            quads,
+            baseCenter - layout.tileStep * 0.18f + variation.xDrift * 0.58f,
+            layout.tileWidth * (1.70f + lushness * 0.24f) * variation.widthPulse,
+            layout.tileHeight * (0.54f + lushness * 0.12f) *
+                (0.92f + variation.heightPulse * 0.10f),
+            0.20f + lushness * 0.10f,
+            variation.phaseBack,
+            variation.responseBack,
+            maxQuads);
+        break;
+
+    case GrassDepthLayer::Midground:
+        appendGrassPatch(
+            quads,
+            baseCenter + variation.xDrift * 0.46f,
+            layout.tileWidth * (1.08f + lushness * 0.20f) *
+                (0.84f + variation.widthPulse * 0.18f),
+            layout.tileHeight * (0.76f + lushness * 0.18f) *
+                (0.92f + variation.heightPulse * 0.16f),
+            0.38f + lushness * 0.14f,
+            variation.phaseMid,
+            variation.responseMid,
+            maxQuads);
+
+        if ((tileIndex % 4 == 0) && (lushness > 0.50f || accentGate > 0.72f))
+        {
+            appendGrassPatch(
+                quads,
+                baseCenter - layout.tileStep * 0.22f + variation.sweep * 0.24f,
+                layout.tileWidth * (0.82f + lushness * 0.14f) * variation.widthPulse,
+                layout.tileHeight * (0.72f + lushness * 0.18f) *
+                    (0.94f + variation.heightPulse * 0.12f),
+                0.34f + lushness * 0.10f,
+                variation.phaseMid + 2.7f,
+                variation.responseMid * 1.02f,
+                maxQuads);
+        }
+        break;
+
+    case GrassDepthLayer::Foreground:
+        appendGrassPatch(
+            quads,
+            baseCenter + variation.sweep * 0.26f,
+            layout.tileWidth * (0.88f + lushness * 0.16f) *
+                (0.82f + variation.widthPulse * 0.14f),
+            layout.tileHeight * (0.96f + lushness * 0.22f) *
+                (0.98f + variation.heightPulse * 0.16f),
+            0.62f + lushness * 0.12f,
+            variation.phaseFront,
+            variation.responseFront,
+            maxQuads);
+
+        if ((tileIndex % 3 == 0) && (lushness > 0.62f || accentGate > 0.78f))
+        {
+            appendGrassPatch(
+                quads,
+                baseCenter - layout.tileStep * 0.14f + variation.xDrift * 0.40f,
+                layout.tileWidth * (0.66f + lushness * 0.12f) *
+                    (0.80f + variation.widthPulse * 0.10f),
+                layout.tileHeight * (1.02f + lushness * 0.24f) *
+                    (1.00f + variation.heightPulse * 0.14f),
+                0.70f + lushness * 0.08f,
+                variation.phaseFront + 3.4f,
+                variation.responseFront * 1.06f,
+                maxQuads);
+        }
+        break;
+    }
 }
 
 float resolveGait(float animationTime)
