@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AtmosphereRenderer.h"
+#include "EnvironmentTypes.h"
 #include "RenderTypes.h"
 
 #include <array>
@@ -88,12 +89,23 @@ namespace gfx
         /// تحديث quads الخاصة بطبقة معينة
         void updateTexturedLayer(LayerId layerId, const std::vector<TexturedQuad> &quads);
 
+        /// تحديث طبقة تحتوي quad واحد فقط بدون إنشاء حاويات مؤقتة
+        void updateTexturedLayer(LayerId layerId, const TexturedQuad& quad);
+
+        /// تفريغ الطبقة بسرعة عندما لا نحتاج أي رؤوس للرسم
+        void clearTexturedLayer(LayerId layerId);
+
         /// تحديث موضع وتأثير القدمين على شريط العشب/التربة
         void setGroundInteraction(float leftFootX,
                                   float rightFootX,
                                   float radius,
                                   float leftPressure,
                                   float rightPressure);
+
+        /// تحديث دفعات البيئة المرسومة بالـ instancing بعد فصل الغيوم عن الأشجار.
+        void updateEnvironmentBatches(const std::vector<EnvironmentInstance>& cloudInstances,
+                                      const std::vector<EnvironmentInstance>& backgroundTreeInstances,
+                                      const std::vector<EnvironmentInstance>& foregroundTreeInstances);
 
     private:
         struct SpriteLayerResources
@@ -112,6 +124,15 @@ namespace gfx
             uint32_t vertexCount = 0;
         };
 
+        struct EnvironmentBatchResources
+        {
+            VkBuffer instanceBuffer = VK_NULL_HANDLE;
+            VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
+            void* instanceBufferMapped = nullptr;
+            std::size_t maxInstances = 0;
+            uint32_t instanceCount = 0;
+        };
+
         // ─── إنشاء المكونات ─────────────────────────────────────────
         void createInstance();
         void setupDebugMessenger();
@@ -127,6 +148,8 @@ namespace gfx
         void createSyncObjects();
         void createDescriptorSetLayout();
         void createSpritePipeline();
+        void createEnvironmentResources();
+        void createEnvironmentPipeline();
         void createAtmosphereUniformBuffers();
         void createAtmosphereVertexBuffer();
         void createAtmosphereMaskTexture();
@@ -142,7 +165,7 @@ namespace gfx
         void createLayerTextureSampler(SpriteLayerResources &layer);
         void createLayerDescriptors(SpriteLayerResources &layer);
         void createLayerVertexBuffer(SpriteLayerResources &layer);
-        void updateWindUniformBuffer(uint32_t frameIndex);
+        void updateWindUniformBuffer(uint32_t frameIndex, float timeSeconds);
         [[nodiscard]] LayerId createLayerFromPixels(const unsigned char *pixels,
                                                     int texW,
                                                     int texH,
@@ -152,6 +175,7 @@ namespace gfx
         void destroyAtmosphereVertexBuffer();
         void destroyAtmosphereDescriptorSets();
         void destroyAtmosphereMaskTexture();
+        void destroyEnvironmentResources();
         void destroyWindUniformBuffers();
         void destroyWindTextureResources();
 
@@ -176,9 +200,18 @@ namespace gfx
         void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
         void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t texWidth, uint32_t texHeight);
         void cleanupAtmospherePipelines();
+        void cleanupEnvironmentPipeline();
         void cleanupSpritePipeline();
         void waitForValidFramebufferSize();
         [[nodiscard]] bool hasSpriteResources() const;
+        [[nodiscard]] bool hasEnvironmentResources() const;
+        void createEnvironmentAtlasResources();
+        void createEnvironmentQuadVertexBuffer();
+        void createEnvironmentDescriptors();
+        void createEnvironmentInstanceBuffer(EnvironmentBatchResources& batch, std::size_t maxInstances);
+        void updateEnvironmentBatch(EnvironmentBatchResources& batch, const std::vector<EnvironmentInstance>& instances);
+        void destroyEnvironmentBatch(EnvironmentBatchResources& batch);
+        void updateAtmosphereCloudOcclusion(const std::vector<EnvironmentInstance>& cloudInstances);
 
         /// تنظيف السوابتشين فقط (لإعادة إنشائها)
         void cleanupSwapchain();
@@ -210,16 +243,26 @@ namespace gfx
         // سبرايت
         VkPipelineLayout mSpritePipelineLayout = VK_NULL_HANDLE;
         VkPipeline mSpritePipeline = VK_NULL_HANDLE;
+        VkPipelineLayout mEnvironmentPipelineLayout = VK_NULL_HANDLE;
+        VkPipeline mEnvironmentCloudPipeline = VK_NULL_HANDLE;
+        VkPipeline mEnvironmentTreePipeline = VK_NULL_HANDLE;
         VkDescriptorSetLayout mDescriptorSetLayout = VK_NULL_HANDLE;
         VkPipeline mAtmosphereSunPipeline = VK_NULL_HANDLE;
         VkPipeline mAtmosphereGodRayPipeline = VK_NULL_HANDLE;
         std::vector<SpriteLayerResources> mSpriteLayers;
+        SpriteLayerResources mEnvironmentAtlasLayer;
+        EnvironmentBatchResources mEnvironmentCloudBatch;
+        EnvironmentBatchResources mEnvironmentBackgroundTreeBatch;
+        EnvironmentBatchResources mEnvironmentForegroundTreeBatch;
         std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mSunUniformBuffers{};
         std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mSunUniformBuffersMemory{};
         std::array<void *, MAX_FRAMES_IN_FLIGHT> mSunUniformBuffersMapped{};
         std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mGodRayUniformBuffers{};
         std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mGodRayUniformBuffersMemory{};
         std::array<void *, MAX_FRAMES_IN_FLIGHT> mGodRayUniformBuffersMapped{};
+        std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> mAtmosphereCloudUniformBuffers{};
+        std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> mAtmosphereCloudUniformBuffersMemory{};
+        std::array<void *, MAX_FRAMES_IN_FLIGHT> mAtmosphereCloudUniformBuffersMapped{};
         VkBuffer mAtmosphereVertexBuffer = VK_NULL_HANDLE;
         VkDeviceMemory mAtmosphereVertexBufferMemory = VK_NULL_HANDLE;
         VkDescriptorPool mAtmosphereSunDescriptorPool = VK_NULL_HANDLE;
@@ -231,7 +274,10 @@ namespace gfx
         std::array<void *, MAX_FRAMES_IN_FLIGHT> mWindUniformBuffersMapped{};
         SpriteLayerResources mWindTexture;
         SpriteLayerResources mSunMaskTexture;
+        VkBuffer mEnvironmentQuadVertexBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory mEnvironmentQuadVertexBufferMemory = VK_NULL_HANDLE;
         AtmosphereRenderer mAtmosphereRenderer;
+        AtmosphereCloudOcclusionData mAtmosphereCloudOcclusionData{};
         std::array<float, 4> mGroundInteractionA{0.0f, 0.0f, 0.0f, 0.0f};
         std::array<float, 4> mGroundInteractionB{0.0f, 0.0f, 0.0f, 0.0f};
 

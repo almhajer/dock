@@ -1,4 +1,5 @@
 #include "VulkanContext.h"
+#include "EnvironmentAtlas.h"
 
 #include <GLFW/glfw3.h>
 #include <algorithm>
@@ -45,6 +46,18 @@ constexpr gfx::GodRayUniformData kDefaultGodRayUniformData = {
 };
 
 constexpr float PI = 3.14159265358979323846f;
+constexpr std::size_t ENVIRONMENT_MAX_CLOUD_INSTANCES = 32;
+constexpr std::size_t ENVIRONMENT_MAX_BACKGROUND_TREE_INSTANCES = 64;
+constexpr std::size_t ENVIRONMENT_MAX_FOREGROUND_TREE_INSTANCES = 32;
+
+constexpr std::array<gfx::EnvironmentQuadVertex, gfx::ENVIRONMENT_BASE_VERTEX_COUNT> kEnvironmentQuadVertices = {{
+    {-1.0f, -1.0f, 0.0f, 0.0f},
+    { 1.0f, -1.0f, 1.0f, 0.0f},
+    { 1.0f,  1.0f, 1.0f, 1.0f},
+    {-1.0f, -1.0f, 0.0f, 0.0f},
+    { 1.0f,  1.0f, 1.0f, 1.0f},
+    {-1.0f,  1.0f, 0.0f, 1.0f},
+}};
 
 std::vector<unsigned char> generateWindTexturePixels(int width, int height)
 {
@@ -163,6 +176,7 @@ void VulkanContext::init(GLFWwindow *window, uint32_t width, uint32_t height)
     createWindTextureResources();
     createDescriptorSetLayout();
     createSpritePipeline();
+    createEnvironmentResources();
     createSyncObjects();
     mAtmosphereRenderer.init(mDevice, mSwapchainExtent);
     createAtmosphereUniformBuffers();
@@ -194,6 +208,7 @@ void VulkanContext::cleanup()
         destroyLayerResources(layer);
     }
     mSpriteLayers.clear();
+    destroyEnvironmentResources();
     destroyAtmosphereDescriptorSets();
     destroyAtmosphereMaskTexture();
     destroyAtmosphereVertexBuffer();
@@ -267,6 +282,7 @@ void VulkanContext::cleanup()
 void VulkanContext::cleanupSwapchain()
 {
     cleanupAtmospherePipelines();
+    cleanupEnvironmentPipeline();
     cleanupSpritePipeline();
 
     for (VkFramebuffer framebuffer : mSwapchainFramebuffers)
@@ -314,6 +330,7 @@ void VulkanContext::recreateSwapchain()
     createRenderPass();
     createFramebuffers();
     createSpritePipeline();
+    createEnvironmentPipeline();
     createSyncObjects();
     mAtmosphereRenderer.onResize(mSwapchainExtent);
     createAtmospherePipelines();
@@ -385,10 +402,10 @@ void VulkanContext::drawFrame()
     mImagesInFlight[imageIndex] = mInFlightFences[mCurrentFrame];
 
     vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
-    updateWindUniformBuffer(mCurrentFrame);
+    const float time = static_cast<float>(glfwGetTime());
+    updateWindUniformBuffer(mCurrentFrame, time);
 
     {
-        const float time = static_cast<float>(glfwGetTime());
         const float sunOffsetX = std::sin(time * 0.07f) * 0.012f;
         const float sunOffsetY = std::sin(time * 0.11f + 1.5f) * 0.006f;
 
@@ -397,7 +414,7 @@ void VulkanContext::drawFrame()
             gfx::SunDiskUniformData sunData = kDefaultSunDiskUniformData;
             sunData.sunDisk[0] += sunOffsetX;
             sunData.sunDisk[1] += sunOffsetY;
-            sunData.appearance[3] = static_cast<float>(glfwGetTime());
+            sunData.appearance[3] = time;
             std::memcpy(mSunUniformBuffersMapped[mCurrentFrame], &sunData, sizeof(sunData));
         }
         if (mGodRayUniformBuffersMapped[mCurrentFrame] != nullptr)
@@ -406,6 +423,13 @@ void VulkanContext::drawFrame()
             godRayData.sunPosDensityWeight[0] += sunOffsetX;
             godRayData.sunPosDensityWeight[1] += sunOffsetY;
             std::memcpy(mGodRayUniformBuffersMapped[mCurrentFrame], &godRayData, sizeof(godRayData));
+        }
+        if (mAtmosphereCloudUniformBuffersMapped[mCurrentFrame] != nullptr)
+        {
+            std::memcpy(
+                mAtmosphereCloudUniformBuffersMapped[mCurrentFrame],
+                &mAtmosphereCloudOcclusionData,
+                sizeof(mAtmosphereCloudOcclusionData));
         }
     }
     vkResetCommandBuffer(mCommandBuffers[mCurrentFrame], 0);
@@ -444,52 +468,59 @@ void VulkanContext::drawFrame()
     VkRect2D scissor{{0, 0}, mSwapchainExtent};
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+    const bool atmosphereReady = mAtmosphereRenderer.isInitialized() && mAtmosphereVertexBuffer != VK_NULL_HANDLE;
+    const AtmospherePassLayouts* atmosphereLayouts = atmosphereReady ? &mAtmosphereRenderer.getLayouts() : nullptr;
+
+    if (atmosphereReady)
+    {
+        VkBuffer atmosphereVertexBuffers[] = {mAtmosphereVertexBuffer};
+        VkDeviceSize atmosphereOffsets[] = {0};
+        vkCmdBindVertexBuffers(cmd, 0, 1, atmosphereVertexBuffers, atmosphereOffsets);
+    }
+
     if (mAtmosphereGodRayPipeline != VK_NULL_HANDLE &&
-        mAtmosphereRenderer.isInitialized() &&
+        atmosphereReady &&
         mAtmosphereGodRayDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
-        mAtmosphereVertexBuffer != VK_NULL_HANDLE)
+        atmosphereLayouts != nullptr)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mAtmosphereGodRayPipeline);
-        const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
         vkCmdBindDescriptorSets(
             cmd,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            layouts.godRayPipelineLayout,
+            atmosphereLayouts->godRayPipelineLayout,
             0,
             1,
             &mAtmosphereGodRayDescriptorSets[mCurrentFrame],
             0,
             nullptr);
-        VkBuffer vertexBuffers[] = {mAtmosphereVertexBuffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
         vkCmdDraw(cmd, 3, 1, 0, 0);
     }
 
     if (mAtmosphereSunPipeline != VK_NULL_HANDLE &&
-        mAtmosphereRenderer.isInitialized() &&
+        atmosphereReady &&
         mAtmosphereSunDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
-        mAtmosphereVertexBuffer != VK_NULL_HANDLE)
+        atmosphereLayouts != nullptr)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mAtmosphereSunPipeline);
-        const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
         vkCmdBindDescriptorSets(
             cmd,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            layouts.sunPipelineLayout,
+            atmosphereLayouts->sunPipelineLayout,
             0,
             1,
             &mAtmosphereSunDescriptorSets[mCurrentFrame],
             0,
             nullptr);
-        VkBuffer vertexBuffers[] = {mAtmosphereVertexBuffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
         vkCmdDraw(cmd, 3, 1, 0, 0);
     }
 
-    if (mSpritePipeline != VK_NULL_HANDLE && hasSpriteResources())
+    auto drawSpriteLayers = [&]()
     {
+        if (mSpritePipeline == VK_NULL_HANDLE || !hasSpriteResources())
+        {
+            return;
+        }
+
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mSpritePipeline);
 
         for (const auto &layer : mSpriteLayers)
@@ -515,6 +546,74 @@ void VulkanContext::drawFrame()
             vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
             vkCmdDraw(cmd, layer.vertexCount, 1, 0, 0);
         }
+    };
+
+    if ((mEnvironmentCloudPipeline != VK_NULL_HANDLE || mEnvironmentTreePipeline != VK_NULL_HANDLE) &&
+        hasEnvironmentResources() &&
+        !mEnvironmentAtlasLayer.descriptorSets.empty() &&
+        mEnvironmentAtlasLayer.descriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
+        mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE)
+    {
+        auto drawEnvironmentBatch = [&](const EnvironmentBatchResources& batch)
+        {
+            if (batch.instanceCount == 0 || batch.instanceBuffer == VK_NULL_HANDLE)
+            {
+                return;
+            }
+
+            VkBuffer buffers[] = {mEnvironmentQuadVertexBuffer, batch.instanceBuffer};
+            VkDeviceSize offsets[] = {0, 0};
+            vkCmdBindVertexBuffers(cmd, 0, 2, buffers, offsets);
+            vkCmdDraw(
+                cmd,
+                static_cast<uint32_t>(ENVIRONMENT_BASE_VERTEX_COUNT),
+                batch.instanceCount,
+                0,
+                0);
+        };
+
+        auto bindEnvironmentDescriptor = [&]()
+        {
+            vkCmdBindDescriptorSets(
+                cmd,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                mEnvironmentPipelineLayout,
+                0,
+                1,
+                &mEnvironmentAtlasLayer.descriptorSets[mCurrentFrame],
+                0,
+                nullptr);
+        };
+
+        // الغيوم تُرسم أولًا بمسار مستقل وخفيف قبل الأشجار لتقليل تفرع الشيدر.
+        if (mEnvironmentCloudPipeline != VK_NULL_HANDLE)
+        {
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mEnvironmentCloudPipeline);
+            bindEnvironmentDescriptor();
+            drawEnvironmentBatch(mEnvironmentCloudBatch);
+        }
+
+        // أشجار الخلفية تبقى قبل السبرايت الأساسي حتى يستمر إحساس العمق.
+        if (mEnvironmentTreePipeline != VK_NULL_HANDLE)
+        {
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mEnvironmentTreePipeline);
+            bindEnvironmentDescriptor();
+            drawEnvironmentBatch(mEnvironmentBackgroundTreeBatch);
+        }
+
+        drawSpriteLayers();
+
+        // الأشجار الأمامية تُرسم في النهاية لتمنح المشهد إحساس parallax أوضح.
+        if (mEnvironmentTreePipeline != VK_NULL_HANDLE)
+        {
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mEnvironmentTreePipeline);
+            bindEnvironmentDescriptor();
+            drawEnvironmentBatch(mEnvironmentForegroundTreeBatch);
+        }
+    }
+    else
+    {
+        drawSpriteLayers();
     }
 
     vkCmdEndRenderPass(cmd);
@@ -665,20 +764,81 @@ void VulkanContext::updateTexturedLayer(LayerId layerId, const std::vector<Textu
         throw std::runtime_error("[Vulkan] عدد quads يتجاوز السعة المخصصة للطبقة");
     }
 
-    std::vector<QuadVertex> vertices;
-    vertices.reserve(quads.size() * QUAD_VERTEX_COUNT);
+    QuadVertex* vertexWritePtr = static_cast<QuadVertex*>(layer.vertexBufferMapped);
+    std::size_t vertexCount = 0;
     for (const TexturedQuad &quad : quads)
     {
-        const auto quadVertices = buildQuadVertices(quad);
-        vertices.insert(vertices.end(), quadVertices.begin(), quadVertices.end());
+        writeQuadVertices(quad, vertexWritePtr + vertexCount);
+        vertexCount += QUAD_VERTEX_COUNT;
     }
 
-    const VkDeviceSize byteCount = sizeof(QuadVertex) * vertices.size();
-    if (byteCount > 0)
+    layer.vertexCount = static_cast<uint32_t>(vertexCount);
+}
+
+void VulkanContext::updateTexturedLayer(LayerId layerId, const TexturedQuad& quad)
+{
+    SpriteLayerResources &layer = getLayer(layerId);
+
+    if (layer.vertexBufferMapped == nullptr)
     {
-        std::memcpy(layer.vertexBufferMapped, vertices.data(), static_cast<std::size_t>(byteCount));
+        return;
     }
-    layer.vertexCount = static_cast<uint32_t>(vertices.size());
+
+    if (layer.maxQuads < 1)
+    {
+        throw std::runtime_error("[Vulkan] الطبقة لا تحتوي سعة كافية لــ quad واحد");
+    }
+
+    writeQuadVertices(quad, static_cast<QuadVertex*>(layer.vertexBufferMapped));
+    layer.vertexCount = static_cast<uint32_t>(QUAD_VERTEX_COUNT);
+}
+
+void VulkanContext::clearTexturedLayer(LayerId layerId)
+{
+    SpriteLayerResources &layer = getLayer(layerId);
+    layer.vertexCount = 0;
+}
+
+void VulkanContext::updateEnvironmentBatches(const std::vector<EnvironmentInstance>& cloudInstances,
+                                             const std::vector<EnvironmentInstance>& backgroundTreeInstances,
+                                             const std::vector<EnvironmentInstance>& foregroundTreeInstances)
+{
+    updateEnvironmentBatch(mEnvironmentCloudBatch, cloudInstances);
+    updateEnvironmentBatch(mEnvironmentBackgroundTreeBatch, backgroundTreeInstances);
+    updateEnvironmentBatch(mEnvironmentForegroundTreeBatch, foregroundTreeInstances);
+    updateAtmosphereCloudOcclusion(cloudInstances);
+}
+
+void VulkanContext::updateAtmosphereCloudOcclusion(const std::vector<EnvironmentInstance>& cloudInstances)
+{
+    mAtmosphereCloudOcclusionData = {};
+    mAtmosphereCloudOcclusionData.params[1] = 0.94f;
+
+    std::size_t cloudIndex = 0;
+    for (const EnvironmentInstance& instance : cloudInstances)
+    {
+        if (cloudIndex >= ATMOSPHERE_MAX_CLOUD_OCCLUDERS)
+        {
+            break;
+        }
+
+        // نحول quad السحابة من إحداثيات NDC إلى UV حتى تستطيع شيدرات الشمس والأشعة حساب الحجب.
+        mAtmosphereCloudOcclusionData.cloudRects[cloudIndex] = {
+            instance.centerX * 0.5f + 0.5f,
+            instance.centerY * 0.5f + 0.5f,
+            instance.halfWidth * 0.5f,
+            instance.halfHeight * 0.5f,
+        };
+        mAtmosphereCloudOcclusionData.cloudShape[cloudIndex] = {
+            instance.alpha,
+            instance.windPhase,
+            instance.softness,
+            instance.parallax,
+        };
+        ++cloudIndex;
+    }
+
+    mAtmosphereCloudOcclusionData.params[0] = static_cast<float>(cloudIndex);
 }
 
 void VulkanContext::setGroundInteraction(float leftFootX,
@@ -1223,6 +1383,7 @@ void VulkanContext::createAtmosphereUniformBuffers()
 {
     const VkDeviceSize sunBufferSize = sizeof(SunDiskUniformData);
     const VkDeviceSize godRayBufferSize = sizeof(GodRayUniformData);
+    const VkDeviceSize cloudBufferSize = sizeof(AtmosphereCloudOcclusionData);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -1249,6 +1410,18 @@ void VulkanContext::createAtmosphereUniformBuffers()
             throw std::runtime_error("[Atmosphere] فشل ربط God Ray UBO");
         }
         std::memset(mGodRayUniformBuffersMapped[i], 0, static_cast<std::size_t>(godRayBufferSize));
+
+        createBuffer(
+            cloudBufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            mAtmosphereCloudUniformBuffers[i],
+            mAtmosphereCloudUniformBuffersMemory[i]);
+        if (vkMapMemory(mDevice, mAtmosphereCloudUniformBuffersMemory[i], 0, cloudBufferSize, 0, &mAtmosphereCloudUniformBuffersMapped[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[Atmosphere] فشل ربط Cloud Occlusion UBO");
+        }
+        std::memset(mAtmosphereCloudUniformBuffersMapped[i], 0, static_cast<std::size_t>(cloudBufferSize));
     }
 }
 
@@ -1329,7 +1502,7 @@ void VulkanContext::createAtmosphereDescriptorSets()
     {
         VkDescriptorPoolSize poolSize{};
         poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT;
+        poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1361,7 +1534,7 @@ void VulkanContext::createAtmosphereDescriptorSets()
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+        poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT * 2;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1394,14 +1567,25 @@ void VulkanContext::createAtmosphereDescriptorSets()
         sunBufferInfo.offset = 0;
         sunBufferInfo.range = sizeof(SunDiskUniformData);
 
-        VkWriteDescriptorSet sunWrite{};
-        sunWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        sunWrite.dstSet = mAtmosphereSunDescriptorSets[frameIndex];
-        sunWrite.dstBinding = 0;
-        sunWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        sunWrite.descriptorCount = 1;
-        sunWrite.pBufferInfo = &sunBufferInfo;
-        vkUpdateDescriptorSets(mDevice, 1, &sunWrite, 0, nullptr);
+        VkDescriptorBufferInfo cloudBufferInfo{};
+        cloudBufferInfo.buffer = mAtmosphereCloudUniformBuffers[frameIndex];
+        cloudBufferInfo.offset = 0;
+        cloudBufferInfo.range = sizeof(AtmosphereCloudOcclusionData);
+
+        std::array<VkWriteDescriptorSet, 2> sunWrites{};
+        sunWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        sunWrites[0].dstSet = mAtmosphereSunDescriptorSets[frameIndex];
+        sunWrites[0].dstBinding = 0;
+        sunWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        sunWrites[0].descriptorCount = 1;
+        sunWrites[0].pBufferInfo = &sunBufferInfo;
+        sunWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        sunWrites[1].dstSet = mAtmosphereSunDescriptorSets[frameIndex];
+        sunWrites[1].dstBinding = 1;
+        sunWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        sunWrites[1].descriptorCount = 1;
+        sunWrites[1].pBufferInfo = &cloudBufferInfo;
+        vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(sunWrites.size()), sunWrites.data(), 0, nullptr);
 
         VkDescriptorImageInfo maskInfo{};
         maskInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1413,7 +1597,7 @@ void VulkanContext::createAtmosphereDescriptorSets()
         godRayBufferInfo.offset = 0;
         godRayBufferInfo.range = sizeof(GodRayUniformData);
 
-        std::array<VkWriteDescriptorSet, 2> godRayWrites{};
+        std::array<VkWriteDescriptorSet, 3> godRayWrites{};
         godRayWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         godRayWrites[0].dstSet = mAtmosphereGodRayDescriptorSets[frameIndex];
         godRayWrites[0].dstBinding = 0;
@@ -1427,6 +1611,13 @@ void VulkanContext::createAtmosphereDescriptorSets()
         godRayWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         godRayWrites[1].descriptorCount = 1;
         godRayWrites[1].pBufferInfo = &godRayBufferInfo;
+
+        godRayWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        godRayWrites[2].dstSet = mAtmosphereGodRayDescriptorSets[frameIndex];
+        godRayWrites[2].dstBinding = 2;
+        godRayWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        godRayWrites[2].descriptorCount = 1;
+        godRayWrites[2].pBufferInfo = &cloudBufferInfo;
 
         vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(godRayWrites.size()), godRayWrites.data(), 0, nullptr);
     }
@@ -1773,6 +1964,336 @@ void VulkanContext::createSpritePipeline()
     vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
 }
 
+void VulkanContext::createEnvironmentResources()
+{
+    createEnvironmentAtlasResources();
+    createEnvironmentDescriptors();
+    createEnvironmentQuadVertexBuffer();
+    createEnvironmentInstanceBuffer(mEnvironmentCloudBatch, ENVIRONMENT_MAX_CLOUD_INSTANCES);
+    createEnvironmentInstanceBuffer(mEnvironmentBackgroundTreeBatch, ENVIRONMENT_MAX_BACKGROUND_TREE_INSTANCES);
+    createEnvironmentInstanceBuffer(mEnvironmentForegroundTreeBatch, ENVIRONMENT_MAX_FOREGROUND_TREE_INSTANCES);
+    createEnvironmentPipeline();
+}
+
+void VulkanContext::createEnvironmentPipeline()
+{
+    if (mRenderPass == VK_NULL_HANDLE || mDescriptorSetLayout == VK_NULL_HANDLE)
+    {
+        throw std::runtime_error("[Vulkan] لا يمكن إنشاء Environment Pipeline قبل تجهيز RenderPass و DescriptorSetLayout");
+    }
+
+    cleanupEnvironmentPipeline();
+
+    std::array<VkVertexInputBindingDescription, 2> bindingDescriptions{};
+    bindingDescriptions[0].binding = 0;
+    bindingDescriptions[0].stride = sizeof(EnvironmentQuadVertex);
+    bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    bindingDescriptions[1].binding = 1;
+    bindingDescriptions[1].stride = sizeof(EnvironmentInstance);
+    bindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+    std::array<VkVertexInputAttributeDescription, 8> attributeDescriptions{};
+    attributeDescriptions[0] = {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(EnvironmentQuadVertex, x)};
+    attributeDescriptions[1] = {1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(EnvironmentQuadVertex, u)};
+    attributeDescriptions[2] = {2, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(EnvironmentInstance, centerX)};
+    attributeDescriptions[3] = {3, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(EnvironmentInstance, halfWidth)};
+    attributeDescriptions[4] = {4, 1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(EnvironmentInstance, u0)};
+    attributeDescriptions[5] = {5, 1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(EnvironmentInstance, tintR)};
+    attributeDescriptions[6] = {6, 1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(EnvironmentInstance, windWeight)};
+    attributeDescriptions[7] = {7, 1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(EnvironmentInstance, kind)};
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(mSwapchainExtent.width);
+    viewport.height = static_cast<float>(mSwapchainExtent.height);
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{{0, 0}, mSwapchainExtent};
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = 2;
+    dynamicState.pDynamicStates = dynamicStates;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT |
+        VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &mDescriptorSetLayout;
+
+    if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mEnvironmentPipelineLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنشاء Environment Pipeline Layout");
+    }
+
+    auto createEnvironmentGraphicsPipeline =
+        [&](const char* vertexPath, const char* fragmentPath, VkPipeline& pipeline, const char* label)
+    {
+        const auto vertexShaderCode = readFile(vertexPath);
+        const auto fragmentShaderCode = readFile(fragmentPath);
+
+        const VkShaderModule vertexShaderModule = createShaderModule(vertexShaderCode);
+        const VkShaderModule fragmentShaderModule = createShaderModule(fragmentShaderCode);
+
+        VkPipelineShaderStageCreateInfo shaderStages[2]{};
+        shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+        shaderStages[0].module = vertexShaderModule;
+        shaderStages[0].pName = "main";
+        shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        shaderStages[1].module = fragmentShaderModule;
+        shaderStages[1].pName = "main";
+
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pColorBlendState = &colorBlending;
+        pipelineInfo.pDynamicState = &dynamicState;
+        pipelineInfo.layout = mEnvironmentPipelineLayout;
+        pipelineInfo.renderPass = mRenderPass;
+        pipelineInfo.subpass = 0;
+
+        if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
+        {
+            vkDestroyShaderModule(mDevice, fragmentShaderModule, nullptr);
+            vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+            throw std::runtime_error(std::string("[Vulkan] فشل إنشاء ") + label);
+        }
+
+        vkDestroyShaderModule(mDevice, fragmentShaderModule, nullptr);
+        vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
+    };
+
+    createEnvironmentGraphicsPipeline(
+        "assets/shaders/vert/environment_cloud.vert.spv",
+        "assets/shaders/frag/environment_cloud.frag.spv",
+        mEnvironmentCloudPipeline,
+        "Environment Cloud Pipeline");
+
+    createEnvironmentGraphicsPipeline(
+        "assets/shaders/vert/environment_tree.vert.spv",
+        "assets/shaders/frag/environment_tree.frag.spv",
+        mEnvironmentTreePipeline,
+        "Environment Tree Pipeline");
+}
+
+void VulkanContext::createEnvironmentAtlasResources()
+{
+    if (mEnvironmentAtlasLayer.image != VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    const EnvironmentAtlasBitmap atlas = createEnvironmentAtlasBitmap();
+    createLayerTextureImageFromPixels(mEnvironmentAtlasLayer, atlas.pixels.data(), atlas.width, atlas.height);
+    createLayerTextureImageView(mEnvironmentAtlasLayer);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 1.0f;
+
+    if (vkCreateSampler(mDevice, &samplerInfo, nullptr, &mEnvironmentAtlasLayer.sampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل إنشاء Sampler للـ environment atlas");
+    }
+}
+
+void VulkanContext::createEnvironmentQuadVertexBuffer()
+{
+    if (mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    const VkDeviceSize bufferSize = sizeof(kEnvironmentQuadVertices);
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        mEnvironmentQuadVertexBuffer,
+        mEnvironmentQuadVertexBufferMemory);
+
+    void* mappedData = nullptr;
+    if (vkMapMemory(mDevice, mEnvironmentQuadVertexBufferMemory, 0, bufferSize, 0, &mappedData) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل ربط ذاكرة quad الخاصة بالبيئة");
+    }
+
+    std::memcpy(mappedData, kEnvironmentQuadVertices.data(), static_cast<std::size_t>(bufferSize));
+    vkUnmapMemory(mDevice, mEnvironmentQuadVertexBufferMemory);
+}
+
+void VulkanContext::createEnvironmentDescriptors()
+{
+    if (!mEnvironmentAtlasLayer.descriptorSets.empty())
+    {
+        return;
+    }
+
+    createLayerDescriptors(mEnvironmentAtlasLayer);
+}
+
+void VulkanContext::createEnvironmentInstanceBuffer(EnvironmentBatchResources& batch, std::size_t maxInstances)
+{
+    if (batch.instanceBuffer != VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    const VkDeviceSize bufferSize =
+        static_cast<VkDeviceSize>(sizeof(EnvironmentInstance)) * static_cast<VkDeviceSize>(maxInstances);
+
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        batch.instanceBuffer,
+        batch.instanceBufferMemory);
+
+    if (vkMapMemory(mDevice, batch.instanceBufferMemory, 0, bufferSize, 0, &batch.instanceBufferMapped) != VK_SUCCESS)
+    {
+        throw std::runtime_error("[Vulkan] فشل ربط ذاكرة instance buffer للبيئة");
+    }
+
+    std::memset(batch.instanceBufferMapped, 0, static_cast<std::size_t>(bufferSize));
+    batch.maxInstances = maxInstances;
+    batch.instanceCount = 0;
+}
+
+void VulkanContext::updateEnvironmentBatch(EnvironmentBatchResources& batch, const std::vector<EnvironmentInstance>& instances)
+{
+    if (batch.instanceBufferMapped == nullptr)
+    {
+        return;
+    }
+
+    if (instances.size() > batch.maxInstances)
+    {
+        throw std::runtime_error("[Vulkan] عدد عناصر البيئة يتجاوز السعة المخصصة للدفعة");
+    }
+
+    const VkDeviceSize byteCount = sizeof(EnvironmentInstance) * static_cast<VkDeviceSize>(instances.size());
+    if (byteCount > 0)
+    {
+        std::memcpy(batch.instanceBufferMapped, instances.data(), static_cast<std::size_t>(byteCount));
+    }
+    batch.instanceCount = static_cast<uint32_t>(instances.size());
+}
+
+void VulkanContext::destroyEnvironmentBatch(EnvironmentBatchResources& batch)
+{
+    if (batch.instanceBufferMapped != nullptr && batch.instanceBufferMemory != VK_NULL_HANDLE)
+    {
+        vkUnmapMemory(mDevice, batch.instanceBufferMemory);
+        batch.instanceBufferMapped = nullptr;
+    }
+
+    if (batch.instanceBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(mDevice, batch.instanceBuffer, nullptr);
+        batch.instanceBuffer = VK_NULL_HANDLE;
+    }
+    if (batch.instanceBufferMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(mDevice, batch.instanceBufferMemory, nullptr);
+        batch.instanceBufferMemory = VK_NULL_HANDLE;
+    }
+
+    batch.maxInstances = 0;
+    batch.instanceCount = 0;
+}
+
+void VulkanContext::destroyEnvironmentResources()
+{
+    destroyEnvironmentBatch(mEnvironmentCloudBatch);
+    destroyEnvironmentBatch(mEnvironmentBackgroundTreeBatch);
+    destroyEnvironmentBatch(mEnvironmentForegroundTreeBatch);
+
+    if (mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(mDevice, mEnvironmentQuadVertexBuffer, nullptr);
+        mEnvironmentQuadVertexBuffer = VK_NULL_HANDLE;
+    }
+    if (mEnvironmentQuadVertexBufferMemory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(mDevice, mEnvironmentQuadVertexBufferMemory, nullptr);
+        mEnvironmentQuadVertexBufferMemory = VK_NULL_HANDLE;
+    }
+
+    destroyLayerResources(mEnvironmentAtlasLayer);
+}
+
 void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &layer,
                                                       const unsigned char *pixels,
                                                       int texW,
@@ -2090,6 +2611,22 @@ void VulkanContext::destroyAtmosphereUniformBuffers()
             mGodRayUniformBuffersMemory[i] = VK_NULL_HANDLE;
         }
 
+        if (mAtmosphereCloudUniformBuffersMapped[i] != nullptr && mAtmosphereCloudUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkUnmapMemory(mDevice, mAtmosphereCloudUniformBuffersMemory[i]);
+            mAtmosphereCloudUniformBuffersMapped[i] = nullptr;
+        }
+        if (mAtmosphereCloudUniformBuffers[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyBuffer(mDevice, mAtmosphereCloudUniformBuffers[i], nullptr);
+            mAtmosphereCloudUniformBuffers[i] = VK_NULL_HANDLE;
+        }
+        if (mAtmosphereCloudUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(mDevice, mAtmosphereCloudUniformBuffersMemory[i], nullptr);
+            mAtmosphereCloudUniformBuffersMemory[i] = VK_NULL_HANDLE;
+        }
+
         mAtmosphereSunDescriptorSets[i] = VK_NULL_HANDLE;
         mAtmosphereGodRayDescriptorSets[i] = VK_NULL_HANDLE;
     }
@@ -2130,7 +2667,7 @@ void VulkanContext::destroyAtmosphereMaskTexture()
     destroyLayerResources(mSunMaskTexture);
 }
 
-void VulkanContext::updateWindUniformBuffer(uint32_t frameIndex)
+void VulkanContext::updateWindUniformBuffer(uint32_t frameIndex, float timeSeconds)
 {
     if (frameIndex >= static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) ||
         mWindUniformBuffersMapped[frameIndex] == nullptr)
@@ -2139,7 +2676,7 @@ void VulkanContext::updateWindUniformBuffer(uint32_t frameIndex)
     }
 
     WindUniformData data;
-    data.motion[0] = static_cast<float>(glfwGetTime());
+    data.motion[0] = timeSeconds;
     data.interactionA = mGroundInteractionA;
     data.interactionB = mGroundInteractionB;
     std::memcpy(mWindUniformBuffersMapped[frameIndex], &data, sizeof(data));
@@ -2573,6 +3110,27 @@ void VulkanContext::cleanupSpritePipeline()
     }
 }
 
+void VulkanContext::cleanupEnvironmentPipeline()
+{
+    if (mEnvironmentCloudPipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(mDevice, mEnvironmentCloudPipeline, nullptr);
+        mEnvironmentCloudPipeline = VK_NULL_HANDLE;
+    }
+
+    if (mEnvironmentTreePipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(mDevice, mEnvironmentTreePipeline, nullptr);
+        mEnvironmentTreePipeline = VK_NULL_HANDLE;
+    }
+
+    if (mEnvironmentPipelineLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyPipelineLayout(mDevice, mEnvironmentPipelineLayout, nullptr);
+        mEnvironmentPipelineLayout = VK_NULL_HANDLE;
+    }
+}
+
 void VulkanContext::cleanupAtmospherePipelines()
 {
     if (mAtmosphereSunPipeline != VK_NULL_HANDLE)
@@ -2618,6 +3176,13 @@ void VulkanContext::waitForValidFramebufferSize()
 bool VulkanContext::hasSpriteResources() const
 {
     return !mSpriteLayers.empty();
+}
+
+bool VulkanContext::hasEnvironmentResources() const
+{
+    return mEnvironmentAtlasLayer.imageView != VK_NULL_HANDLE &&
+        mEnvironmentAtlasLayer.sampler != VK_NULL_HANDLE &&
+        mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE;
 }
 
 } // namespace gfx

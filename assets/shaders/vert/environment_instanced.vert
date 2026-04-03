@@ -46,17 +46,17 @@ float noiseFast(vec2 uv)
 
 float fbmFast(vec2 uv)
 {
-    float value = 0.0;
-    float amplitude = 0.5;
+    float v = 0.0;
+    float a = 0.5;
 
-    // نقلنا التشويه إلى نسخة أخف: 3 طبقات فقط بدل 4.
+    // 3 octaves بدل 4 لتخفيف الحمل مع الحفاظ على شكل قريب
     for (int i = 0; i < 3; ++i)
     {
-        value += amplitude * noiseFast(uv);
+        v += a * noiseFast(uv);
         uv *= 2.0;
-        amplitude *= 0.5;
+        a *= 0.5;
     }
-    return value;
+    return v;
 }
 
 float pow5(float x)
@@ -98,6 +98,7 @@ float ellipseOcclusionSq(vec2 uv, vec2 center, vec2 radii, float feather)
 
     float inner = max(1.0 - feather, 0.0);
     float outer = 1.0 + feather;
+
     inner *= inner;
     outer *= outer;
 
@@ -127,11 +128,6 @@ float cloudOcclusionAtFast(vec2 uv)
 
         vec2 center = rect.xy;
         vec2 halfSize = rect.zw;
-        float softC = softness * 1.1;
-        vec2 influenceBounds = halfSize * vec2(1.16, 0.80) * (1.0 + softC);
-
-        if (any(greaterThan(abs(uv - center), influenceBounds)))
-            continue;
 
         float sinP   = sin(phase);
         float cosP07 = cos(phase * 0.7);
@@ -148,21 +144,21 @@ float cloudOcclusionAtFast(vec2 uv)
             uv,
             center + vec2(-halfSize.x * (0.22 + sinP * 0.02), -halfSize.y * 0.24),
             halfSize * vec2(0.28, 0.24),
-            softC
+            softness * 1.1
         );
 
         float crownB = ellipseOcclusionSq(
             uv,
             center + vec2(0.0, -halfSize.y * (0.32 + cosP07 * 0.02)),
             halfSize * vec2(0.32, 0.26),
-            softC
+            softness * 1.1
         );
 
         float crownC = ellipseOcclusionSq(
             uv,
             center + vec2(halfSize.x * (0.22 + cosP13 * 0.02), -halfSize.y * 0.22),
             halfSize * vec2(0.28, 0.24),
-            softC
+            softness * 1.1
         );
 
         float cloud = max(body, max(crownA, max(crownB, crownC)));
@@ -196,7 +192,7 @@ void main()
     float corona4 = coronaR * 4.0;
     float disk03  = diskR * 0.3;
 
-    // التشويه الحراري يبقى حول القرص فقط كي لا يدفع تكلفة على الشاشة كلها.
+    // === HEAT DISTORTION ===
     if (dist < corona4 && dist > disk03)
     {
         vec2 dUv = delta * 10.0 + vec2(time * 0.25, time * 0.18);
@@ -214,6 +210,7 @@ void main()
     float coronaT = clamp((dist - diskR) * invCoronaSpan, 0.0, 1.0);
     float outerT  = clamp((dist - coronaR) * invOuterSpan, 0.0, 1.0);
 
+    // === SOLAR DISC ===
     float disk = 1.0 - smoothstep(1.0 - soft, 1.0 + soft, diskT);
     float mu   = sqrt(max(0.0, 1.0 - diskT * diskT));
     float limb = mix(1.0 - ubo.appearance.x, 1.0, mu);
@@ -227,7 +224,9 @@ void main()
     diskCol = mix(diskCol, edgeC, smoothstep(0.45, 1.0, cT));
     diskCol *= limb;
 
+    // === MULTI-LAYERED HALO ===
     float outsideDisk = step(diskR, dist);
+
     float fall = ubo.appearance.y;
     float innerH = exp2(-coronaT * fall * 1.8 * INV_LN2) * outsideDisk;
     float midH   = exp2(-coronaT * fall * 0.8 * INV_LN2) * outsideDisk * 0.30;
@@ -241,6 +240,7 @@ void main()
         coronaT
     );
 
+    // === PROCEDURAL LIGHT RAYS ===
     float angle = atan(delta.y, delta.x);
 
     float c1 = max(0.0, cos(angle * 5.0  + 0.35));
@@ -248,27 +248,30 @@ void main()
     float c3 = max(0.0, cos(angle * 14.0 + 1.4));
     float c4 = max(0.0, cos(angle * 3.0  - 0.15));
 
-    float rays =
-          pow7(c1)
-        + pow13(c2) * 0.55
-        + pow19(c3) * 0.25
-        + pow5(c4) * 0.35;
+    float r1 = pow7(c1);
+    float r2 = pow13(c2) * 0.55;
+    float r3 = pow19(c3) * 0.25;
+    float r4 = pow5(c4) * 0.35;
+    float rays = r1 + r2 + r3 + r4;
 
     float rayN = noiseFast(vec2(angle * 3.5, dist * 5.0));
-    rays *= 0.55 + 0.45 * rayN;
+    rays *= mix(0.55, 1.0, rayN);
 
     float rayFade = smoothstep(0.03, 0.20, dist * invCoronaR);
-    rays *= rayFade * exp2(-dist / max(coronaR * 0.85, 1e-4) * INV_LN2);
+    rays *= rayFade * exp2(-(dist / max(coronaR * 0.85, 1e-4)) * INV_LN2);
     rays *= 1.0 + 0.06 * sin(time * 0.4 + angle * 2.0);
 
+    // === CLOUD OCCLUSION ===
     float cloudOcclusion = cloudOcclusionAtFast(vUv);
     float diskTransmittance = 1.0 - cloudOcclusion;
     float haloTransmittance = 1.0 - cloudOcclusion * 0.88;
     float rayTransmittance  = 1.0 - cloudOcclusion * 0.82;
+
     disk *= diskTransmittance * diskTransmittance;
     halo *= haloTransmittance;
     rays *= rayTransmittance;
 
+    // === COMBINE ===
     float intensity = disk + halo + rays * 0.38;
     vec3 color = diskCol * disk
                + haloCol * halo

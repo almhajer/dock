@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "Timer.h"
 #include "../audio/SoundEffectPlayer.h"
+#include "../game/NatureSystem.h"
 #include "../ui/Localization.h"
 #include "../gfx/VulkanContext.h"
 #include "../game/SpriteAnimation.h"
@@ -59,6 +60,9 @@ private:
     /// تحديث الحركة الأساسية وطبقة الإطلاق الخاصة بالصياد في كل إطار
     void updateHunterMotion(float deltaTime);
 
+    /// تحديث حالة الغيوم والأشجار والرياح بعيدًا عن كود الرسم
+    void updateNatureSystem(float deltaTime);
+
     /// تحديث صف العشب المتحرك أسفل الشاشة
     void updateGrassRenderData();
 
@@ -67,6 +71,9 @@ private:
 
     /// تحديث طبقتي عرض الصياد: الحركة الأساسية ثم طبقة الإطلاق فوقها عند الحاجة
     void updateHunterRenderData();
+
+    /// إرسال دفعات البيئة إلى Vulkan بعد انتهاء التحديث المنطقي
+    void updateNatureRenderData();
 
     /// تحديث أثر القدمين على العشب مع بقاء الأثر لفترة قصيرة
     void updateGroundInteraction(float deltaTime);
@@ -87,6 +94,8 @@ private:
     ui::Localization mLocalization;
     gfx::VulkanContext mVulkan;
     audio::SoundEffectPlayer mHunterShotSound;
+    game::NatureSystem mNatureSystem;
+    gfx::EnvironmentRenderData mEnvironmentRenderData;
 
     // أطلس الحركة الأساسية للصياد وأطلس الإطلاق المنفصل فوقها.
     game::SpriteAnimation mSpriteAnim;
@@ -104,6 +113,8 @@ private:
     // كاش بسيط لتخطيط العشب حتى لا نعيد بناء نفس الرقع دون داع.
     uint32_t mGrassLayoutWidth = 0;
     uint32_t mGrassLayoutHeight = 0;
+    uint32_t mSoilLayoutWidth = 0;
+    uint32_t mSoilLayoutHeight = 0;
 
     // بيانات تفاعل القدمين مع الأرض.
     float mLeftGroundX = 0.0f;

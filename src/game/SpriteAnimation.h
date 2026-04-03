@@ -9,6 +9,7 @@ namespace game {
 /// حالة الحركة الحالية
 struct AnimationState {
     std::string currentClip;
+    const AnimationClip* activeClip = nullptr;
     float elapsed = 0.0f;
     int currentFrameIndex = 0;
     bool finished = false;

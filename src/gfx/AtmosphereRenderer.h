@@ -1,10 +1,13 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <vulkan/vulkan.h>
 
 namespace gfx
 {
+
+inline constexpr std::size_t ATMOSPHERE_MAX_CLOUD_OCCLUDERS = 16;
 
 struct SunDiskUniformData
 {
@@ -17,6 +20,13 @@ struct GodRayUniformData
 {
     alignas(16) std::array<float, 4> sunPosDensityWeight = {0.82f, 0.18f, 0.92f, 0.055f};
     alignas(16) std::array<float, 4> decayExposureJitterSamples = {0.96f, 1.15f, 0.35f, 64.0f};
+};
+
+struct AtmosphereCloudOcclusionData
+{
+    alignas(16) std::array<float, 4> params = {0.0f, 0.92f, 0.0f, 0.0f}; // x = count, y = شدة الحجب, z/w = محجوز
+    alignas(16) std::array<std::array<float, 4>, ATMOSPHERE_MAX_CLOUD_OCCLUDERS> cloudRects{}; // xy = center uv, zw = half size uv
+    alignas(16) std::array<std::array<float, 4>, ATMOSPHERE_MAX_CLOUD_OCCLUDERS> cloudShape{}; // x = alpha, y = phase, z = softness, w = parallax
 };
 
 struct FullscreenVertex

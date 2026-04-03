@@ -147,6 +147,17 @@ float hunterLogicalHalfWidth(const game::AtlasFrame& frame, const WindowMetrics&
            metrics.aspect;
 }
 
+float groundSurfaceY()
+{
+    // السطح المرئي للأرض يقع فوق شريط التربة بقليل حتى تختفي قواعد العناصر داخله.
+    return 1.0f - SOIL_SCREEN_HEIGHT * 0.18f;
+}
+
+float grassTopY()
+{
+    return 1.0f - GRASS_SCREEN_HEIGHT;
+}
+
 gfx::TexturedQuad buildSoilQuad()
 {
     return gfx::makeTexturedQuad(

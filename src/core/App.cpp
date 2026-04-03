@@ -7,6 +7,7 @@
 
 #include <array>
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -26,9 +27,43 @@ namespace core
         constexpr float FOOTPRINT_FOLLOW_PER_SECOND = 18.0f;
         constexpr float FOOT_CONTACT_THRESHOLD = 0.08f;
 
-        [[nodiscard]] std::string directionalClip(const char* baseName, bool facingLeft)
+        enum class HunterClip : std::uint8_t
         {
-            return std::string(baseName) + (facingLeft ? "_left" : "_right");
+            Idle,
+            Walk,
+            Shoot,
+            ShootRecover,
+            ShootReady,
+        };
+
+        [[nodiscard]] const std::string& directionalClipKey(HunterClip clip, bool facingLeft)
+        {
+            static const std::string kIdleLeft = "idle_left";
+            static const std::string kIdleRight = "idle_right";
+            static const std::string kWalkLeft = "walk_left";
+            static const std::string kWalkRight = "walk_right";
+            static const std::string kShootLeft = "shoot_left";
+            static const std::string kShootRight = "shoot_right";
+            static const std::string kShootRecoverLeft = "shoot_recover_left";
+            static const std::string kShootRecoverRight = "shoot_recover_right";
+            static const std::string kShootReadyLeft = "shoot_ready_left";
+            static const std::string kShootReadyRight = "shoot_ready_right";
+
+            switch (clip)
+            {
+            case HunterClip::Idle:
+                return facingLeft ? kIdleLeft : kIdleRight;
+            case HunterClip::Walk:
+                return facingLeft ? kWalkLeft : kWalkRight;
+            case HunterClip::Shoot:
+                return facingLeft ? kShootLeft : kShootRight;
+            case HunterClip::ShootRecover:
+                return facingLeft ? kShootRecoverLeft : kShootRecoverRight;
+            case HunterClip::ShootReady:
+                return facingLeft ? kShootReadyLeft : kShootReadyRight;
+            }
+
+            return facingLeft ? kIdleLeft : kIdleRight;
         }
 
         [[nodiscard]] bool isDirectionalClip(const std::string& clipKey, std::string_view baseName)
@@ -103,7 +138,8 @@ namespace core
         std::cout << "[Grass] تم تفعيل العشب الإجرائي عبر الشيدر" << std::endl;
 
         // بدء حالة الوقوف يمينًا
-        mSpriteAnim.play(mHunterState, "idle_right");
+        mSpriteAnim.play(mHunterState, directionalClipKey(HunterClip::Idle, false));
+        mNatureSystem.initialize(scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight()));
 
         mInitialized = true;
         mRunning = true;
@@ -191,11 +227,20 @@ namespace core
 
     void App::update(float deltaTime)
     {
+        updateNatureSystem(deltaTime);
         updateHunterMotion(deltaTime);
         updateSoilRenderData();
+        updateNatureRenderData();
         updateGrassRenderData();
         updateHunterRenderData();
         updateGroundInteraction(deltaTime);
+    }
+
+    void App::updateNatureSystem(float deltaTime)
+    {
+        mNatureSystem.update(
+            deltaTime,
+            scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight()));
     }
 
     void App::updateSoilRenderData()
@@ -208,13 +253,20 @@ namespace core
         const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
         if (!metrics.valid())
         {
-            mVulkan.updateTexturedLayer(mSoilLayerId, {});
+            mSoilLayoutWidth = 0;
+            mSoilLayoutHeight = 0;
+            mVulkan.clearTexturedLayer(mSoilLayerId);
             return;
         }
 
-        mVulkan.updateTexturedLayer(
-            mSoilLayerId,
-            {scene::buildSoilQuad()});
+        if (scene::sameWindowLayout(metrics, mSoilLayoutWidth, mSoilLayoutHeight))
+        {
+            return;
+        }
+
+        mSoilLayoutWidth = metrics.width;
+        mSoilLayoutHeight = metrics.height;
+        mVulkan.updateTexturedLayer(mSoilLayerId, scene::buildSoilQuad());
     }
 
     void App::updateHunterMotion(float deltaTime)
@@ -242,6 +294,10 @@ namespace core
         }
         moveIntent = std::clamp(moveIntent, -1, 1);
 
+        const bool reloadRequested = mInput.isKeyJustPressed(GLFW_KEY_R);
+        const bool shotRequested = mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT) && !mIsReloading;
+
+        // جهة الصياد تعود الآن إلى الحركة الحالية أو آخر فريم معروف، لا إلى موقع الماوس.
         bool facingLeft = mHunterState.flipX;
         if (moveIntent < 0)
         {
@@ -257,10 +313,6 @@ namespace core
             mHunterX += static_cast<float>(moveIntent) * mHunterSpeed * deltaTime;
         }
 
-        const bool reloadRequested = mInput.isKeyJustPressed(GLFW_KEY_R);
-        const bool shotRequested = mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT) && !mIsReloading;
-        const bool aiming = mInput.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
-
         if (reloadRequested)
         {
             mIsReloading = true;
@@ -272,18 +324,17 @@ namespace core
             mHunterShootActive = true;
             mHunterShootTransitionTimer = 0.0f;
             mHunterShootState.finished = true;
-            mHunterShootAnim.play(mHunterShootState, directionalClip("shoot", facingLeft));
+            mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::Shoot, facingLeft));
             mHunterShotSound.play();
         }
 
         if (moveIntent != 0)
         {
-            mSpriteAnim.play(mHunterState, directionalClip("walk", facingLeft));
+            mSpriteAnim.play(mHunterState, directionalClipKey(HunterClip::Walk, facingLeft));
         }
         else
         {
-            (void)aiming;
-            mSpriteAnim.play(mHunterState, directionalClip("idle", facingLeft));
+            mSpriteAnim.play(mHunterState, directionalClipKey(HunterClip::Idle, facingLeft));
         }
 
         mSpriteAnim.update(mHunterState, deltaTime);
@@ -296,7 +347,7 @@ namespace core
             if (isDirectionalClip(mHunterShootState.currentClip, "shoot") && mHunterShootState.finished)
             {
                 mHunterShootTransitionTimer = actionTiming.shootRecoverHoldSeconds;
-                mHunterShootAnim.play(mHunterShootState, directionalClip("shoot_recover", mHunterShootState.flipX));
+                mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootRecover, mHunterShootState.flipX));
             }
             else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_recover"))
             {
@@ -304,7 +355,7 @@ namespace core
                 if (mHunterShootTransitionTimer <= 0.0f)
                 {
                     mHunterShootTransitionTimer = actionTiming.shootReadySettleSeconds;
-                    mHunterShootAnim.play(mHunterShootState, directionalClip("shoot_ready", mHunterShootState.flipX));
+                    mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootReady, mHunterShootState.flipX));
                 }
             }
             else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_ready"))
@@ -341,7 +392,7 @@ namespace core
         {
             mGrassLayoutWidth = 0;
             mGrassLayoutHeight = 0;
-            mVulkan.updateTexturedLayer(mGrassLayerId, {});
+            mVulkan.clearTexturedLayer(mGrassLayerId);
             return;
         }
         if (scene::sameWindowLayout(metrics, mGrassLayoutWidth, mGrassLayoutHeight))
@@ -371,6 +422,29 @@ namespace core
         }
 
         mVulkan.updateTexturedLayer(mGrassLayerId, quads);
+    }
+
+    void App::updateNatureRenderData()
+    {
+        const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+        if (!metrics.valid())
+        {
+            mEnvironmentRenderData.cloudInstances.clear();
+            mEnvironmentRenderData.backgroundTreeInstances.clear();
+            mEnvironmentRenderData.foregroundTreeInstances.clear();
+            mVulkan.updateEnvironmentBatches(
+                mEnvironmentRenderData.cloudInstances,
+                mEnvironmentRenderData.backgroundTreeInstances,
+                mEnvironmentRenderData.foregroundTreeInstances);
+            return;
+        }
+
+        // نبني بيانات الرسم في حاويات معاد استخدامها لتقليل التخصيصات داخل الحلقة الرئيسية.
+        mNatureSystem.buildRenderData(metrics, mEnvironmentRenderData);
+        mVulkan.updateEnvironmentBatches(
+            mEnvironmentRenderData.cloudInstances,
+            mEnvironmentRenderData.backgroundTreeInstances,
+            mEnvironmentRenderData.foregroundTreeInstances);
     }
 
     void App::updateHunterRenderData()
@@ -404,14 +478,14 @@ namespace core
             }
             if (!visible || state.currentClip.empty())
             {
-                mVulkan.updateTexturedLayer(layerId, {});
+                mVulkan.clearTexturedLayer(layerId);
                 return;
             }
 
             const game::AtlasFrame* frame = animation.getFrame(state.currentFrameIndex);
             if (frame == nullptr || frame->sourceWidth <= 0 || frame->sourceHeight <= 0)
             {
-                mVulkan.updateTexturedLayer(layerId, {});
+                mVulkan.clearTexturedLayer(layerId);
                 return;
             }
 
@@ -432,7 +506,7 @@ namespace core
 
             gfx::TexturedQuad quad = scene::buildHunterQuad(*frame, mHunterX, metrics);
             quad.uv = uv;
-            mVulkan.updateTexturedLayer(layerId, {quad});
+            mVulkan.updateTexturedLayer(layerId, quad);
         };
 
         buildHunterQuadForState(

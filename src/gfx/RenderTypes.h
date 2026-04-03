@@ -75,8 +75,7 @@ struct QuadVertex {
     return t * t * (3.0f - 2.0f * t);
 }
 
-[[nodiscard]] inline std::array<QuadVertex, QUAD_VERTEX_COUNT> buildQuadVertices(const TexturedQuad& quad) {
-    std::array<QuadVertex, QUAD_VERTEX_COUNT> vertices{};
+inline void writeQuadVertices(const TexturedQuad& quad, QuadVertex* vertices) {
     std::size_t vertexIndex = 0;
 
     for (std::size_t segment = 0; segment < QUAD_VERTICAL_SEGMENTS; ++segment) {
@@ -98,7 +97,11 @@ struct QuadVertex {
         vertices[vertexIndex++] = {quad.screen.x1, yBottom, quad.uv.u1, vBottom, quad.alpha, bottomWeight, quad.windPhase, quad.windResponse, quad.materialType};
         vertices[vertexIndex++] = {quad.screen.x0, yBottom, quad.uv.u0, vBottom, quad.alpha, bottomWeight, quad.windPhase, quad.windResponse, quad.materialType};
     }
+}
 
+[[nodiscard]] inline std::array<QuadVertex, QUAD_VERTEX_COUNT> buildQuadVertices(const TexturedQuad& quad) {
+    std::array<QuadVertex, QUAD_VERTEX_COUNT> vertices{};
+    writeQuadVertices(quad, vertices.data());
     return vertices;
 }
 

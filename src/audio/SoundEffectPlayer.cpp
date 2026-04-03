@@ -10,6 +10,8 @@
 namespace audio {
 namespace {
 
+constexpr float DEFAULT_EFFECT_VOLUME = 0.42f;
+
 /// حالة التشغيل الفعلية مخفية عن الترويسة حتى يبقى المشغل C++ عاديًا.
 struct PlayerState {
     ma_engine engine {};
@@ -86,7 +88,8 @@ bool SoundEffectPlayer::load(const std::string& path)
     }
     state->soundInitialized = true;
 
-    ma_sound_set_volume(&state->sound, 1.0f);
+    // نخفض شدة المؤثر افتراضيًا حتى لا يطغى صوت الإطلاق على بقية المشهد.
+    ma_sound_set_volume(&state->sound, DEFAULT_EFFECT_VOLUME);
     mState = state.release();
     return true;
 }

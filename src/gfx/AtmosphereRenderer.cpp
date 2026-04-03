@@ -112,18 +112,22 @@ VkPipelineColorBlendAttachmentState AtmosphereRenderer::makeAdditiveBlendAttachm
 
 void AtmosphereRenderer::createDescriptorSetLayouts()
 {
-    std::array<VkDescriptorSetLayoutBinding, 1> sunBindings{};
+    std::array<VkDescriptorSetLayoutBinding, 2> sunBindings{};
     sunBindings[0].binding = 0;
     sunBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     sunBindings[0].descriptorCount = 1;
     sunBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    sunBindings[1].binding = 1;
+    sunBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    sunBindings[1].descriptorCount = 1;
+    sunBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     mLayouts.sunDescriptorSetLayout = createDescriptorSetLayout(
         mDevice,
         sunBindings.data(),
         static_cast<uint32_t>(sunBindings.size()),
         "[Atmosphere] فشل إنشاء descriptor layout للشمس");
 
-    std::array<VkDescriptorSetLayoutBinding, 2> godRayBindings{};
+    std::array<VkDescriptorSetLayoutBinding, 3> godRayBindings{};
     godRayBindings[0].binding = 0;
     godRayBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     godRayBindings[0].descriptorCount = 1;
@@ -132,6 +136,10 @@ void AtmosphereRenderer::createDescriptorSetLayouts()
     godRayBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     godRayBindings[1].descriptorCount = 1;
     godRayBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    godRayBindings[2].binding = 2;
+    godRayBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    godRayBindings[2].descriptorCount = 1;
+    godRayBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     mLayouts.godRayDescriptorSetLayout = createDescriptorSetLayout(
         mDevice,
         godRayBindings.data(),

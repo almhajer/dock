@@ -14,9 +14,12 @@ bool isLeftFacingClipKey(const std::string& clipKey)
     return clipKey.size() >= 5 && clipKey.compare(clipKey.size() - 5, 5, "_left") == 0;
 }
 
-void resetAnimationState(AnimationState& state, const std::string& clipKey)
+void resetAnimationState(AnimationState& state,
+                         const std::string& clipKey,
+                         const AnimationClip* clip)
 {
     state.currentClip = clipKey;
+    state.activeClip = clip;
     state.elapsed = 0.0f;
     state.currentFrameIndex = 0;
     state.finished = false;
@@ -46,7 +49,12 @@ void SpriteAnimation::buildHunterAtlas(int imgW, int imgH, const unsigned char* 
 // ─── تحديث الحالة ────────────────────────────────────────────────
 
 void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
-    const AnimationClip* clip = findClip(state.currentClip);
+    const AnimationClip* clip = state.activeClip;
+    if (clip == nullptr)
+    {
+        clip = findClip(state.currentClip);
+        state.activeClip = clip;
+    }
     if (clip == nullptr || clip->frames.empty()) return;
 
     state.elapsed += deltaTime;
@@ -69,11 +77,11 @@ void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
 // ─── بدء تشغيل مقطع ─────────────────────────────────────────────
 
 void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) const {
-    if (state.currentClip == clipKey && !state.finished) return;
-
-    resetAnimationState(state, clipKey);
-
     const AnimationClip* clip = findClip(clipKey);
+    if (state.currentClip == clipKey && !state.finished && state.activeClip == clip) return;
+
+    resetAnimationState(state, clipKey, clip);
+
     if (clip != nullptr && !clip->frames.empty()) {
         state.currentFrameIndex = clip->frames[0];
         state.flipX = isLeftFacingClipKey(clipKey);

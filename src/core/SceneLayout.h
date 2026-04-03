@@ -40,6 +40,8 @@ struct GrassLayout {
 WindowMetrics makeWindowMetrics(uint32_t width, uint32_t height);
 bool sameWindowLayout(const WindowMetrics& metrics, uint32_t cachedWidth, uint32_t cachedHeight);
 float hunterLogicalHalfWidth(const game::AtlasFrame& frame, const WindowMetrics& metrics);
+float groundSurfaceY();
+float grassTopY();
 
 gfx::TexturedQuad buildSoilQuad();
 gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
