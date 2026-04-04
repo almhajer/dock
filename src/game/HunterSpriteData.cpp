@@ -67,11 +67,11 @@ constexpr std::array<int, 1> HUNTER_SHOOT_READY_SEQUENCE = {{6}};
 // أطلس الإطلاق العالي كامل الجسم، لذلك نستخدم صندوقًا منطقيًا قريبًا من sprite.png
 // ونثبت القدمين أفقيًا حول المنتصف حتى لا يهتز الجسم عند الانتقال بين الفريمات.
 constexpr std::array<RawAtlasFrame, 5> HUNTER_HIGH_SHOOT_FRAMES = {{
-    makePackedFrame(15, 189, 131, 404, 273, 486, 72, 82),
-    makePackedFrame(239, 127, 164, 466, 273, 486, 72, 20),
-    makePackedFrame(488, 121, 178, 472, 273, 486, 72, 14),
-    makePackedFrame(748, 132, 179, 461, 273, 486, 70, 25),
-    makePackedFrame(993, 134, 177, 459, 273, 486, 73, 27),
+    makePackedFrame(51, 232, 221, 630, 284, 755, 1, 125),
+    makePackedFrame(320, 184, 225, 677, 284, 755, 0, 78),
+    makePackedFrame(598, 153, 248, 708, 284, 755, 5, 47),
+    makePackedFrame(890, 106, 253, 755, 284, 755, 0, 0),
+    makePackedFrame(1236, 114, 284, 748, 284, 755, 0, 7),
 }};
 
 constexpr std::array<int, 5> HUNTER_HIGH_SHOOT_SEQUENCE = {{0, 1, 2, 3, 4}};
@@ -107,8 +107,8 @@ const HunterShootAtlasConfig HUNTER_SHOOT_CONFIG = {
 };
 
 const HunterShootAtlasConfig HUNTER_HIGH_SHOOT_CONFIG = {
-    .imageWidth = 1176,
-    .imageHeight = 784,
+    .imageWidth = 1536,
+    .imageHeight = 1024,
     .defaultSourceWidth = 0,
     .defaultSourceHeight = 0,
     .frames = std::span<const RawAtlasFrame>(HUNTER_HIGH_SHOOT_FRAMES),
