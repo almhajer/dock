@@ -57,7 +57,7 @@ private:
     /// تحديث المنطق كل إطار
     void update(float deltaTime);
 
-    /// تحديث الحركة الأساسية وطبقة الإطلاق الخاصة بالصياد في كل إطار
+    /// تحديث الحركة الأساسية وطبقات الإطلاق الخاصة بالصياد في كل إطار
     void updateHunterMotion(float deltaTime);
 
     /// تحديث حالة الغيوم والأشجار والرياح بعيدًا عن كود الرسم
@@ -69,7 +69,7 @@ private:
     /// تحديث شريط التربة الثابت أسفل الشاشة
     void updateSoilRenderData();
 
-    /// تحديث طبقتي عرض الصياد: الحركة الأساسية ثم طبقة الإطلاق فوقها عند الحاجة
+    /// تحديث طبقات عرض الصياد: الحركة الأساسية ثم طبقات الإطلاق فوقها عند الحاجة
     void updateHunterRenderData();
 
     /// إرسال دفعات البيئة إلى Vulkan بعد انتهاء التحديث المنطقي
@@ -97,17 +97,20 @@ private:
     game::NatureSystem mNatureSystem;
     gfx::EnvironmentRenderData mEnvironmentRenderData;
 
-    // أطلس الحركة الأساسية للصياد وأطلس الإطلاق المنفصل فوقها.
+    // أطلس الحركة الأساسية للصياد، وأطلسا الإطلاق العادي والعالي فوقها.
     game::SpriteAnimation mSpriteAnim;
     game::SpriteAnimation mHunterShootAnim;
+    game::SpriteAnimation mHunterHighShootAnim;
     game::AnimationState mHunterState;
     game::AnimationState mHunterShootState;
+    game::AnimationState mHunterHighShootState;
     std::string mAssetsPath;
 
     // معرّفات الطبقات داخل Vulkan مرتبة من الخلف إلى الأمام.
     gfx::VulkanContext::LayerId mGrassLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mHunterLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mHunterShootLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mHunterHighShootLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mSoilLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
 
     // كاش بسيط لتخطيط العشب حتى لا نعيد بناء نفس الرقع دون داع.
@@ -129,6 +132,8 @@ private:
     float mReloadTimer = 0.0f;
     float mHunterShootTransitionTimer = 0.0f; // مؤقت الانتقال بين فريمات ما بعد الإطلاق
     bool mHunterShootActive = false;
+    bool mHunterHighShootActive = false;
+    bool mHunterShootAutoHolster = false;
     bool mIsReloading = false;
     bool mRunning = false;
     bool mInitialized = false;

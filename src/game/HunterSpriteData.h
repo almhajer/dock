@@ -29,7 +29,7 @@ struct HunterMoveAtlasConfig {
     std::span<const int> idleFrames;
 };
 
-/// إعدادات أطلس الإطلاق للصياد في hunterGun.png.
+/// إعدادات أطلس إطلاق للصياد في صورة packed مستقلة.
 struct HunterShootAtlasConfig {
     int imageWidth = 0;
     int imageHeight = 0;
@@ -46,6 +46,7 @@ struct HunterShootAtlasConfig {
 struct HunterActionTiming {
     float reloadDurationSeconds = 0.0f;
     float shootRecoverHoldSeconds = 0.0f;
+    float highShootReadyHoldSeconds = 0.0f;
     float shootReadySettleSeconds = 0.0f;
 };
 
@@ -54,6 +55,9 @@ struct HunterActionTiming {
 
 /// الوصول إلى إعدادات أطلس الإطلاق من ملف بيانات واحد.
 [[nodiscard]] const HunterShootAtlasConfig& hunterShootAtlasConfig();
+
+/// الوصول إلى إعدادات أطلس الإطلاق العالي من ملف بيانات واحد.
+[[nodiscard]] const HunterShootAtlasConfig& hunterHighShootAtlasConfig();
 
 /// الوصول إلى توقيتات الإطلاق وإعادة التعبئة بدل نشرها داخل App.cpp.
 [[nodiscard]] const HunterActionTiming& hunterActionTiming();

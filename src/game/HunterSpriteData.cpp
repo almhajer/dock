@@ -64,6 +64,21 @@ constexpr std::array<int, 0> HUNTER_SHOOT_HOLD_SEQUENCE = {};
 constexpr std::array<int, 1> HUNTER_SHOOT_RECOVER_SEQUENCE = {{5}};
 constexpr std::array<int, 1> HUNTER_SHOOT_READY_SEQUENCE = {{6}};
 
+// أطلس الإطلاق العالي كامل الجسم، لذلك نستخدم صندوقًا منطقيًا قريبًا من sprite.png
+// ونثبت القدمين أفقيًا حول المنتصف حتى لا يهتز الجسم عند الانتقال بين الفريمات.
+constexpr std::array<RawAtlasFrame, 5> HUNTER_HIGH_SHOOT_FRAMES = {{
+    makePackedFrame(15, 189, 131, 404, 273, 486, 72, 82),
+    makePackedFrame(239, 127, 164, 466, 273, 486, 72, 20),
+    makePackedFrame(488, 121, 178, 472, 273, 486, 72, 14),
+    makePackedFrame(748, 132, 179, 461, 273, 486, 70, 25),
+    makePackedFrame(993, 134, 177, 459, 273, 486, 73, 27),
+}};
+
+constexpr std::array<int, 5> HUNTER_HIGH_SHOOT_SEQUENCE = {{0, 1, 2, 3, 4}};
+constexpr std::array<int, 0> HUNTER_HIGH_SHOOT_HOLD_SEQUENCE = {};
+constexpr std::array<int, 0> HUNTER_HIGH_SHOOT_RECOVER_SEQUENCE = {};
+constexpr std::array<int, 1> HUNTER_HIGH_SHOOT_READY_SEQUENCE = {{0}};
+
 // جميع الأرقام الخاصة بأطلس الحركة الأساسية مجمعة هنا لتسهيل ضبطها لاحقًا.
 const HunterMoveAtlasConfig HUNTER_MOVE_CONFIG = {
     .imageWidth = 1176,
@@ -91,11 +106,24 @@ const HunterShootAtlasConfig HUNTER_SHOOT_CONFIG = {
     .shootReadyFrames = std::span<const int>(HUNTER_SHOOT_READY_SEQUENCE),
 };
 
+const HunterShootAtlasConfig HUNTER_HIGH_SHOOT_CONFIG = {
+    .imageWidth = 1176,
+    .imageHeight = 784,
+    .defaultSourceWidth = 0,
+    .defaultSourceHeight = 0,
+    .frames = std::span<const RawAtlasFrame>(HUNTER_HIGH_SHOOT_FRAMES),
+    .shootFrames = std::span<const int>(HUNTER_HIGH_SHOOT_SEQUENCE),
+    .shootHoldFrames = std::span<const int>(HUNTER_HIGH_SHOOT_HOLD_SEQUENCE),
+    .shootRecoverFrames = std::span<const int>(HUNTER_HIGH_SHOOT_RECOVER_SEQUENCE),
+    .shootReadyFrames = std::span<const int>(HUNTER_HIGH_SHOOT_READY_SEQUENCE),
+};
+
 // توقيتات السلاح تبقى في هذا الملف حتى يسهل ضبط الإحساس العام من مكان واحد.
 const HunterActionTiming HUNTER_ACTION_TIMING = {
     .reloadDurationSeconds = 0.65f,
     .shootRecoverHoldSeconds = 3.0f,
-    .shootReadySettleSeconds = 0.0f,
+    .highShootReadyHoldSeconds = 1.25f,
+    .shootReadySettleSeconds = 0.22f,
 };
 
 } // namespace
@@ -108,6 +136,11 @@ const HunterMoveAtlasConfig& hunterMoveAtlasConfig()
 const HunterShootAtlasConfig& hunterShootAtlasConfig()
 {
     return HUNTER_SHOOT_CONFIG;
+}
+
+const HunterShootAtlasConfig& hunterHighShootAtlasConfig()
+{
+    return HUNTER_HIGH_SHOOT_CONFIG;
 }
 
 const HunterActionTiming& hunterActionTiming()

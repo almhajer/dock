@@ -8,6 +8,13 @@ namespace game {
 
 namespace {
 
+struct ShootClipNames {
+    const char* shoot = "";
+    const char* hold = "";
+    const char* recover = "";
+    const char* ready = "";
+};
+
 AtlasFrame makeFrameFromExplicitSource(const RawAtlasFrame& raw)
 {
     AtlasFrame frame;
@@ -97,6 +104,35 @@ AtlasFrame makeShootFrame(const RawAtlasFrame& raw, const HunterShootAtlasConfig
     return frame;
 }
 
+SpriteAtlasData createShootAtlasData(int imageWidth,
+                                     int imageHeight,
+                                     const HunterShootAtlasConfig& config,
+                                     const ShootClipNames& clipNames)
+{
+    SpriteAtlasData data;
+    data.imageWidth = imageWidth;
+    data.imageHeight = imageHeight;
+    data.frames.reserve(config.frames.size());
+
+    for (const RawAtlasFrame& raw : config.frames)
+    {
+        data.frames.push_back(makeShootFrame(raw, config));
+    }
+
+    addDirectionalClipPair(data, clipNames.shoot, config.shootFrames, 12, false);
+    addDirectionalClipPair(data, clipNames.hold, config.shootHoldFrames, 1, true);
+    addDirectionalClipPair(data, clipNames.recover, config.shootRecoverFrames, 1, true);
+    addDirectionalClipPair(data, clipNames.ready, config.shootReadyFrames, 1, true);
+
+    if (imageWidth != config.imageWidth || imageHeight != config.imageHeight)
+    {
+        data.imageWidth = imageWidth;
+        data.imageHeight = imageHeight;
+    }
+
+    return data;
+}
+
 } // namespace
 
 SpriteAtlasData createHunterSpriteAtlasData(int imageWidth, int imageHeight)
@@ -129,31 +165,31 @@ SpriteAtlasData createHunterSpriteAtlasData(int imageWidth, int imageHeight)
 SpriteAtlasData createHunterShootSpriteAtlasData(int imageWidth, int imageHeight)
 {
     const HunterShootAtlasConfig& config = hunterShootAtlasConfig();
+    return createShootAtlasData(
+        imageWidth,
+        imageHeight,
+        config,
+        ShootClipNames{
+            .shoot = "shoot",
+            .hold = "shoot_hold",
+            .recover = "shoot_recover",
+            .ready = "shoot_ready",
+        });
+}
 
-    SpriteAtlasData data;
-    data.imageWidth = imageWidth;
-    data.imageHeight = imageHeight;
-    data.frames.reserve(config.frames.size());
-
-    // أطلس الإطلاق مستقل حتى نستطيع تبديل خريطته وتسلسلاته من ملف البيانات مباشرة.
-    for (const RawAtlasFrame& raw : config.frames)
-    {
-        data.frames.push_back(makeShootFrame(raw, config));
-    }
-
-    // نعرّف المقاطع بشكل مستقل حتى يبقى ترتيب فريمات الإطلاق قابلًا للضبط من ملف البيانات.
-    addDirectionalClipPair(data, "shoot", config.shootFrames, 12, false);
-    addDirectionalClipPair(data, "shoot_hold", config.shootHoldFrames, 1, true);
-    addDirectionalClipPair(data, "shoot_recover", config.shootRecoverFrames, 1, true);
-    addDirectionalClipPair(data, "shoot_ready", config.shootReadyFrames, 1, true);
-
-    if (imageWidth != config.imageWidth || imageHeight != config.imageHeight)
-    {
-        data.imageWidth = imageWidth;
-        data.imageHeight = imageHeight;
-    }
-
-    return data;
+SpriteAtlasData createHunterHighShootSpriteAtlasData(int imageWidth, int imageHeight)
+{
+    const HunterShootAtlasConfig& config = hunterHighShootAtlasConfig();
+    return createShootAtlasData(
+        imageWidth,
+        imageHeight,
+        config,
+        ShootClipNames{
+            .shoot = "shoot_up",
+            .hold = "shoot_up_hold",
+            .recover = "shoot_up_recover",
+            .ready = "shoot_up_ready",
+        });
 }
 
 } // namespace game

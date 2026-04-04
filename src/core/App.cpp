@@ -7,6 +7,7 @@
 
 #include <array>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -34,6 +35,15 @@ namespace core
             Shoot,
             ShootRecover,
             ShootReady,
+            ShootHigh,
+            ShootHighReady,
+        };
+
+        struct CursorScreenPosition
+        {
+            float x = 0.0f;
+            float y = 0.0f;
+            bool valid = false;
         };
 
         [[nodiscard]] const std::string& directionalClipKey(HunterClip clip, bool facingLeft)
@@ -48,6 +58,10 @@ namespace core
             static const std::string kShootRecoverRight = "shoot_recover_right";
             static const std::string kShootReadyLeft = "shoot_ready_left";
             static const std::string kShootReadyRight = "shoot_ready_right";
+            static const std::string kShootHighLeft = "shoot_up_left";
+            static const std::string kShootHighRight = "shoot_up_right";
+            static const std::string kShootHighReadyLeft = "shoot_up_ready_left";
+            static const std::string kShootHighReadyRight = "shoot_up_ready_right";
 
             switch (clip)
             {
@@ -61,6 +75,10 @@ namespace core
                 return facingLeft ? kShootRecoverLeft : kShootRecoverRight;
             case HunterClip::ShootReady:
                 return facingLeft ? kShootReadyLeft : kShootReadyRight;
+            case HunterClip::ShootHigh:
+                return facingLeft ? kShootHighLeft : kShootHighRight;
+            case HunterClip::ShootHighReady:
+                return facingLeft ? kShootHighReadyLeft : kShootHighReadyRight;
             }
 
             return facingLeft ? kIdleLeft : kIdleRight;
@@ -75,6 +93,89 @@ namespace core
                     clipKey.compare(baseName.size(), suffix.size(), suffix) == 0;
             };
             return matches("_left") || matches("_right");
+        }
+
+        [[nodiscard]] CursorScreenPosition resolveCursorScreenPosition(const Input& input,
+                                                                      GLFWwindow* window)
+        {
+            CursorScreenPosition cursor;
+            if (window == nullptr)
+            {
+                return cursor;
+            }
+
+            int windowWidth = 0;
+            int windowHeight = 0;
+            glfwGetWindowSize(window, &windowWidth, &windowHeight);
+            if (windowWidth <= 0 || windowHeight <= 0)
+            {
+                return cursor;
+            }
+
+            const float clampedMouseX = std::clamp(
+                input.getMouseX(),
+                0.0f,
+                static_cast<float>(windowWidth));
+            const float clampedMouseY = std::clamp(
+                input.getMouseY(),
+                0.0f,
+                static_cast<float>(windowHeight));
+
+            cursor.x = (clampedMouseX / static_cast<float>(windowWidth)) * 2.0f - 1.0f;
+            cursor.y = (clampedMouseY / static_cast<float>(windowHeight)) * 2.0f - 1.0f;
+            cursor.valid = true;
+            return cursor;
+        }
+
+        [[nodiscard]] bool resolveCursorFacingLeft(const Input& input,
+                                                   GLFWwindow* window,
+                                                   float hunterX,
+                                                   bool fallbackFacingLeft)
+        {
+            const CursorScreenPosition cursor = resolveCursorScreenPosition(input, window);
+            if (!cursor.valid)
+            {
+                return fallbackFacingLeft;
+            }
+
+            const float cursorX = cursor.x;
+            if (cursorX < hunterX)
+            {
+                return true;
+            }
+            if (cursorX > hunterX)
+            {
+                return false;
+            }
+            return fallbackFacingLeft;
+        }
+
+        [[nodiscard]] bool shouldUseHighShootPose(const Input& input,
+                                                  GLFWwindow* window,
+                                                  float hunterX,
+                                                  const scene::WindowMetrics& metrics,
+                                                  const game::AtlasFrame* frame)
+        {
+            if (!metrics.valid() || frame == nullptr || frame->sourceWidth <= 0 || frame->sourceHeight <= 0)
+            {
+                return false;
+            }
+
+            const CursorScreenPosition cursor = resolveCursorScreenPosition(input, window);
+            if (!cursor.valid)
+            {
+                return false;
+            }
+
+            const gfx::TexturedQuad hunterQuad = scene::buildHunterQuad(*frame, hunterX, metrics);
+            const float aimOriginX = hunterX;
+            const float aimOriginY = hunterQuad.screen.y0 +
+                (hunterQuad.screen.y1 - hunterQuad.screen.y0) * 0.34f;
+            const float dx = cursor.x - aimOriginX;
+            const float dy = cursor.y - aimOriginY;
+
+            // نعتبرها طلقة عالية فقط عندما يكون المؤشر أعلى الصياد بزاوية واضحة، لا بمجرد فرق بسيط.
+            return dy < -0.08f && (-dy) > std::abs(dx) * 1.35f;
         }
     } // namespace
 
@@ -125,6 +226,12 @@ namespace core
         mHunterShootLayerId = mVulkan.createTexturedLayerWithCallback(shootSpritePath, 1,
             [this](int w, int h, const unsigned char* /*pixels*/) {
                 mHunterShootAnim.setAtlasData(game::createHunterShootSpriteAtlasData(w, h));
+            });
+
+        const std::string highShootSpritePath = mAssetsPath + "/sprite/hunterShotUP.png";
+        mHunterHighShootLayerId = mVulkan.createTexturedLayerWithCallback(highShootSpritePath, 1,
+            [this](int w, int h, const unsigned char* /*pixels*/) {
+                mHunterHighShootAnim.setAtlasData(game::createHunterHighShootSpriteAtlasData(w, h));
             });
 
         // تحميل مؤثر إطلاق النار مرة واحدة ثم إعادة استخدامه عند كل طلقة.
@@ -296,7 +403,7 @@ namespace core
         const bool reloadRequested = mInput.isKeyJustPressed(GLFW_KEY_R);
         const bool shotRequested = mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT) && !mIsReloading;
 
-        // جهة الصياد تعود الآن إلى الحركة الحالية أو آخر فريم معروف، لا إلى موقع الماوس.
+        // جهة الصياد أثناء الحركة تعتمد على الحركة الحالية، وأثناء الوقوف تتبع المؤشر أفقيًا.
         bool facingLeft = mHunterState.flipX;
         if (moveIntent < 0)
         {
@@ -306,11 +413,29 @@ namespace core
         {
             facingLeft = false;
         }
+        else
+        {
+            facingLeft = resolveCursorFacingLeft(
+                mInput,
+                mWindow.getHandle(),
+                mHunterX,
+                facingLeft);
+        }
 
         if (moveIntent != 0)
         {
             mHunterX += static_cast<float>(moveIntent) * mHunterSpeed * deltaTime;
         }
+
+        const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+        const game::AtlasFrame* baseFrame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
+        const bool highShotRequested = shotRequested &&
+            shouldUseHighShootPose(
+                mInput,
+                mWindow.getHandle(),
+                mHunterX,
+                metrics,
+                baseFrame);
 
         if (reloadRequested)
         {
@@ -319,11 +444,37 @@ namespace core
         }
         else if (shotRequested)
         {
-            // طبقة الإطلاق تعمل كسوبرلاير مؤقت فوق سبرايت الحركة الأساسية.
-            mHunterShootActive = true;
+            // الإطلاق يحدد الجهة من موضع المؤشر يمين/يسار الصياد بدون تحريك موقعه.
+            facingLeft = resolveCursorFacingLeft(
+                mInput,
+                mWindow.getHandle(),
+                mHunterX,
+                facingLeft);
+
             mHunterShootTransitionTimer = 0.0f;
-            mHunterShootState.finished = true;
-            mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::Shoot, facingLeft));
+            mHunterShootAutoHolster = false;
+
+            if (highShotRequested)
+            {
+                mHunterShootActive = false;
+                mHunterShootState = {};
+                mHunterHighShootActive = true;
+                mHunterHighShootState.finished = true;
+                mHunterHighShootAnim.play(
+                    mHunterHighShootState,
+                    directionalClipKey(HunterClip::ShootHigh, facingLeft));
+            }
+            else
+            {
+                // طبقة الإطلاق العادي تعمل كسوبرلاير مؤقت فوق سبرايت الحركة الأساسية.
+                mHunterHighShootActive = false;
+                mHunterHighShootState = {};
+                mHunterShootActive = true;
+                mHunterShootState.finished = true;
+                mHunterShootAnim.play(
+                    mHunterShootState,
+                    directionalClipKey(HunterClip::Shoot, facingLeft));
+            }
             mHunterShotSound.play();
         }
 
@@ -338,6 +489,61 @@ namespace core
 
         mSpriteAnim.update(mHunterState, deltaTime);
 
+        if (mHunterHighShootActive)
+        {
+            mHunterHighShootAnim.update(mHunterHighShootState, deltaTime);
+
+            if (isDirectionalClip(mHunterHighShootState.currentClip, "shoot_up") && mHunterHighShootState.finished)
+            {
+                const bool highShootFacingLeft = resolveCursorFacingLeft(
+                    mInput,
+                    mWindow.getHandle(),
+                    mHunterX,
+                    mHunterHighShootState.flipX);
+                mHunterShootTransitionTimer = actionTiming.highShootReadyHoldSeconds;
+                mHunterHighShootAnim.play(
+                    mHunterHighShootState,
+                    directionalClipKey(HunterClip::ShootHighReady, highShootFacingLeft));
+            }
+            else if (isDirectionalClip(mHunterHighShootState.currentClip, "shoot_up_ready"))
+            {
+                const bool keepHighReadyPose = moveIntent == 0 && !shotRequested && !mIsReloading;
+                if (!keepHighReadyPose)
+                {
+                    mHunterHighShootActive = false;
+                    mHunterShootTransitionTimer = 0.0f;
+                    mHunterHighShootState = {};
+                }
+                else
+                {
+                    const bool readyFacingLeft = resolveCursorFacingLeft(
+                        mInput,
+                        mWindow.getHandle(),
+                        mHunterX,
+                        mHunterHighShootState.flipX);
+                    if (readyFacingLeft != mHunterHighShootState.flipX)
+                    {
+                        mHunterHighShootAnim.play(
+                            mHunterHighShootState,
+                            directionalClipKey(HunterClip::ShootHighReady, readyFacingLeft));
+                    }
+
+                    mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
+                    if (mHunterShootTransitionTimer <= 0.0f)
+                    {
+                        mHunterHighShootActive = false;
+                        mHunterHighShootState = {};
+                        mHunterShootActive = true;
+                        mHunterShootAutoHolster = true;
+                        mHunterShootTransitionTimer = actionTiming.shootReadySettleSeconds;
+                        mHunterShootAnim.play(
+                            mHunterShootState,
+                            directionalClipKey(HunterClip::ShootReady, readyFacingLeft));
+                    }
+                }
+            }
+        }
+
         if (mHunterShootActive)
         {
             mHunterShootAnim.update(mHunterShootState, deltaTime);
@@ -345,26 +551,69 @@ namespace core
             // تسلسل الإطلاق: تمر الحركة عبر الفريم الخامس بدون توقف، ثم وقفة قصيرة على السادس، ثم السابع.
             if (isDirectionalClip(mHunterShootState.currentClip, "shoot") && mHunterShootState.finished)
             {
+                const bool shootFacingLeft = resolveCursorFacingLeft(
+                    mInput,
+                    mWindow.getHandle(),
+                    mHunterX,
+                    mHunterShootState.flipX);
                 mHunterShootTransitionTimer = actionTiming.shootRecoverHoldSeconds;
-                mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootRecover, mHunterShootState.flipX));
+                mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootRecover, shootFacingLeft));
             }
             else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_recover"))
             {
+                const bool recoverFacingLeft = resolveCursorFacingLeft(
+                    mInput,
+                    mWindow.getHandle(),
+                    mHunterX,
+                    mHunterShootState.flipX);
+                if (recoverFacingLeft != mHunterShootState.flipX)
+                {
+                    mHunterShootAnim.play(
+                        mHunterShootState,
+                        directionalClipKey(HunterClip::ShootRecover, recoverFacingLeft));
+                }
+
                 mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
                 if (mHunterShootTransitionTimer <= 0.0f)
                 {
                     mHunterShootTransitionTimer = 0.0f;
-                    mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootReady, mHunterShootState.flipX));
+                    mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootReady, recoverFacingLeft));
                 }
             }
             else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_ready"))
             {
-                const bool keepReadyPose = moveIntent == 0 && !shotRequested && !mIsReloading;
-                if (!keepReadyPose)
+                const bool readyFacingLeft = resolveCursorFacingLeft(
+                    mInput,
+                    mWindow.getHandle(),
+                    mHunterX,
+                    mHunterShootState.flipX);
+                if (readyFacingLeft != mHunterShootState.flipX)
                 {
-                    mHunterShootActive = false;
-                    mHunterShootTransitionTimer = 0.0f;
-                    mHunterShootState = {};
+                    mHunterShootAnim.play(
+                        mHunterShootState,
+                        directionalClipKey(HunterClip::ShootReady, readyFacingLeft));
+                }
+
+                if (mHunterShootAutoHolster)
+                {
+                    mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
+                    if (mHunterShootTransitionTimer <= 0.0f)
+                    {
+                        mHunterShootActive = false;
+                        mHunterShootAutoHolster = false;
+                        mHunterShootTransitionTimer = 0.0f;
+                        mHunterShootState = {};
+                    }
+                }
+                else
+                {
+                    const bool keepReadyPose = moveIntent == 0 && !shotRequested && !mIsReloading;
+                    if (!keepReadyPose)
+                    {
+                        mHunterShootActive = false;
+                        mHunterShootTransitionTimer = 0.0f;
+                        mHunterShootState = {};
+                    }
                 }
             }
         }
@@ -503,13 +752,19 @@ namespace core
             mHunterLayerId,
             mSpriteAnim,
             mHunterState,
-            !mHunterShootActive);
+            !mHunterShootActive && !mHunterHighShootActive);
 
         buildHunterQuadForState(
             mHunterShootLayerId,
             mHunterShootAnim,
             mHunterShootState,
             mHunterShootActive);
+
+        buildHunterQuadForState(
+            mHunterHighShootLayerId,
+            mHunterHighShootAnim,
+            mHunterHighShootState,
+            mHunterHighShootActive);
     }
 
     void App::updateGroundInteraction(float deltaTime)
