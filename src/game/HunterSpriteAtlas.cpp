@@ -8,12 +8,31 @@ namespace game {
 
 namespace {
 
+AtlasFrame makeFrameFromExplicitSource(const RawAtlasFrame& raw)
+{
+    AtlasFrame frame;
+    frame.x = raw.x;
+    frame.y = raw.y;
+    frame.width = raw.width;
+    frame.height = raw.height;
+    frame.offsetX = raw.sourceX;
+    frame.offsetY = raw.sourceY;
+    frame.sourceWidth = raw.sourceWidth;
+    frame.sourceHeight = raw.sourceHeight;
+    return frame;
+}
+
 void addClip(SpriteAtlasData& data,
              const std::string& key,
              std::span<const int> frames,
              int fps,
              bool loop)
 {
+    if (frames.empty())
+    {
+        return;
+    }
+
     AnimationClip clip;
     clip.key = key;
     clip.frames.assign(frames.begin(), frames.end());
@@ -55,15 +74,26 @@ AtlasFrame makeMoveFrame(const RawAtlasFrame& raw, std::size_t index, const Hunt
 
 AtlasFrame makeShootFrame(const RawAtlasFrame& raw, const HunterShootAtlasConfig& config)
 {
+    if (raw.sourceWidth > 0 && raw.sourceHeight > 0)
+    {
+        // عندما تأتي أبعاد المصدر صريحة من الأطلس، نعتمدها كما هي دون أي تعويضات بصرية.
+        return makeFrameFromExplicitSource(raw);
+    }
+
     AtlasFrame frame;
     frame.x = raw.x;
     frame.y = raw.y;
     frame.width = raw.width;
     frame.height = raw.height;
-    frame.offsetX = (config.sourceWidth - raw.width) / 2;
-    frame.offsetY = config.sourceHeight - raw.height;
-    frame.sourceWidth = config.sourceWidth;
-    frame.sourceHeight = config.sourceHeight;
+
+    const int sourceWidth = (config.defaultSourceWidth > 0) ? config.defaultSourceWidth : raw.width;
+    const int sourceHeight = (config.defaultSourceHeight > 0) ? config.defaultSourceHeight : raw.height;
+
+    // هذا المسار يبقى احتياطيًا للأطالس المقصوصة التي تحتاج خلية منطقية موحدة.
+    frame.offsetX = (sourceWidth - raw.width) / 2;
+    frame.offsetY = sourceHeight - raw.height;
+    frame.sourceWidth = sourceWidth;
+    frame.sourceHeight = sourceHeight;
     return frame;
 }
 
@@ -105,14 +135,15 @@ SpriteAtlasData createHunterShootSpriteAtlasData(int imageWidth, int imageHeight
     data.imageHeight = imageHeight;
     data.frames.reserve(config.frames.size());
 
-    // أطلس الإطلاق مستقل حتى نتمكن من تعديل تسلسل فريماته من ملف بيانات واحد.
+    // أطلس الإطلاق مستقل حتى نستطيع تبديل خريطته وتسلسلاته من ملف البيانات مباشرة.
     for (const RawAtlasFrame& raw : config.frames)
     {
         data.frames.push_back(makeShootFrame(raw, config));
     }
 
-    // الفريم السادس هو وضع التعافي بعد الإطلاق، والسابع وضع الجاهزية/الانتظار.
+    // نعرّف المقاطع بشكل مستقل حتى يبقى ترتيب فريمات الإطلاق قابلًا للضبط من ملف البيانات.
     addDirectionalClipPair(data, "shoot", config.shootFrames, 12, false);
+    addDirectionalClipPair(data, "shoot_hold", config.shootHoldFrames, 1, true);
     addDirectionalClipPair(data, "shoot_recover", config.shootRecoverFrames, 1, true);
     addDirectionalClipPair(data, "shoot_ready", config.shootReadyFrames, 1, true);
 

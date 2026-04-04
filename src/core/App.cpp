@@ -272,7 +272,6 @@ namespace core
     void App::updateHunterMotion(float deltaTime)
     {
         const game::HunterActionTiming& actionTiming = game::hunterActionTiming();
-
         // نحدّث مؤقت إعادة التعبئة أولًا حتى لا يتداخل مع طلب الإطلاق الجديد.
         if (mIsReloading)
         {
@@ -343,7 +342,7 @@ namespace core
         {
             mHunterShootAnim.update(mHunterShootState, deltaTime);
 
-            // تسلسل الإطلاق: حركة إطلاق -> تثبيت على الفريم السادس -> انتظار -> الفريم السابع.
+            // تسلسل الإطلاق: تمر الحركة عبر الفريم الخامس بدون توقف، ثم وقفة قصيرة على السادس، ثم السابع.
             if (isDirectionalClip(mHunterShootState.currentClip, "shoot") && mHunterShootState.finished)
             {
                 mHunterShootTransitionTimer = actionTiming.shootRecoverHoldSeconds;
@@ -354,27 +353,18 @@ namespace core
                 mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
                 if (mHunterShootTransitionTimer <= 0.0f)
                 {
-                    mHunterShootTransitionTimer = actionTiming.shootReadySettleSeconds;
+                    mHunterShootTransitionTimer = 0.0f;
                     mHunterShootAnim.play(mHunterShootState, directionalClipKey(HunterClip::ShootReady, mHunterShootState.flipX));
                 }
             }
             else if (isDirectionalClip(mHunterShootState.currentClip, "shoot_ready"))
             {
-                const bool keepReadyPose = moveIntent == 0 && !shotRequested;
+                const bool keepReadyPose = moveIntent == 0 && !shotRequested && !mIsReloading;
                 if (!keepReadyPose)
                 {
                     mHunterShootActive = false;
                     mHunterShootTransitionTimer = 0.0f;
                     mHunterShootState = {};
-                }
-                else
-                {
-                    mHunterShootTransitionTimer = std::max(0.0f, mHunterShootTransitionTimer - deltaTime);
-                    if (mHunterShootTransitionTimer <= 0.0f)
-                    {
-                        mHunterShootActive = false;
-                        mHunterShootState = {};
-                    }
                 }
             }
         }

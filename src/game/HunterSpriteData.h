@@ -10,6 +10,10 @@ struct RawAtlasFrame {
     int y = 0;
     int width = 0;
     int height = 0;
+    int sourceX = 0;       // إزاحة الفريم داخل الخلية المنطقية أفقيًا
+    int sourceY = 0;       // إزاحة الفريم داخل الخلية المنطقية من الأسفل
+    int sourceWidth = 0;   // العرض الكامل للخلية المنطقية قبل القص
+    int sourceHeight = 0;  // الارتفاع الكامل للخلية المنطقية قبل القص
 };
 
 /// إعدادات أطلس الحركة الأساسية للصياد في sprite.png.
@@ -29,10 +33,11 @@ struct HunterMoveAtlasConfig {
 struct HunterShootAtlasConfig {
     int imageWidth = 0;
     int imageHeight = 0;
-    int sourceWidth = 0;
-    int sourceHeight = 0;
+    int defaultSourceWidth = 0;
+    int defaultSourceHeight = 0;
     std::span<const RawAtlasFrame> frames;
     std::span<const int> shootFrames;
+    std::span<const int> shootHoldFrames;
     std::span<const int> shootRecoverFrames;
     std::span<const int> shootReadyFrames;
 };

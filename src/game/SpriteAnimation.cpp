@@ -80,12 +80,20 @@ void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) co
     const AnimationClip* clip = findClip(clipKey);
     if (state.currentClip == clipKey && !state.finished && state.activeClip == clip) return;
 
+    if (clip == nullptr || clip->frames.empty())
+    {
+        state.currentClip.clear();
+        state.activeClip = nullptr;
+        state.elapsed = 0.0f;
+        state.currentFrameIndex = -1;
+        state.finished = true;
+        return;
+    }
+
     resetAnimationState(state, clipKey, clip);
 
-    if (clip != nullptr && !clip->frames.empty()) {
-        state.currentFrameIndex = clip->frames[0];
-        state.flipX = isLeftFacingClipKey(clipKey);
-    }
+    state.currentFrameIndex = clip->frames[0];
+    state.flipX = isLeftFacingClipKey(clipKey);
 }
 
 // ─── حساب UV للفريم ─────────────────────────────────────────────
