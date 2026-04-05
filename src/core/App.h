@@ -51,31 +51,39 @@ public:
     [[nodiscard]] const ui::Localization& getLocalization() const;
 
 private:
+    /// مرحلة حركة الصياد الحالية
+    enum class HunterPhase : unsigned char
+    {
+        Locomotion,        // مشي أو وقوف
+        Shoot,             // تسلسل الإطلاق العادي
+        ShootHigh,         // تسلسل الإطلاق العالي
+    };
+
     /// تهيئة الأنظمة الفرعية
     void init();
 
     /// تحديث المنطق كل إطار
     void update(float deltaTime);
 
-    /// تحديث الحركة الأساسية وطبقات الإطلاق الخاصة بالصياد في كل إطار
+    /// تحديث حركة الصياد في كل إطار
     void updateHunterMotion(float deltaTime);
 
-    /// تحديث حالة الغيوم والأشجار والرياح بعيدًا عن كود الرسم
+    /// تحديث حالة الغيوم والأشجار والرياح
     void updateNatureSystem(float deltaTime);
 
-    /// تحديث صف العشب المتحرك أسفل الشاشة
+    /// تحديث صف العشب المتحرك
     void updateGrassRenderData();
 
-    /// تحديث شريط التربة الثابت أسفل الشاشة
+    /// تحديث شريط التربة
     void updateSoilRenderData();
 
-    /// تحديث طبقات عرض الصياد: الحركة الأساسية ثم طبقات الإطلاق فوقها عند الحاجة
+    /// تحديث طبقة عرض الصياد
     void updateHunterRenderData();
 
-    /// إرسال دفعات البيئة إلى Vulkan بعد انتهاء التحديث المنطقي
+    /// إرسال دفعات البيئة إلى Vulkan
     void updateNatureRenderData();
 
-    /// تحديث أثر القدمين على العشب مع بقاء الأثر لفترة قصيرة
+    /// تحديث أثر القدمين على العشب
     void updateGroundInteraction(float deltaTime);
 
     /// رسم الإطار
@@ -84,7 +92,7 @@ private:
     /// تنظيف الموارد عند الإغلاق
     void cleanup();
 
-    /// كشف لغة النظام تلقائيًا (macOS: CFLocale، غير ذلك: متغير LANG)
+    /// كشف لغة النظام تلقائيًا
     static ui::Localization::Language detectSystemLanguage();
 
     // مكونات التطبيق الأساسية
@@ -97,43 +105,34 @@ private:
     game::NatureSystem mNatureSystem;
     gfx::EnvironmentRenderData mEnvironmentRenderData;
 
-    // أطلس الحركة الأساسية للصياد، وأطلسا الإطلاق العادي والعالي فوقها.
+    // أطلس الصياد الموحد وحالته
     game::SpriteAnimation mSpriteAnim;
-    game::SpriteAnimation mHunterShootAnim;
-    game::SpriteAnimation mHunterHighShootAnim;
     game::AnimationState mHunterState;
-    game::AnimationState mHunterShootState;
-    game::AnimationState mHunterHighShootState;
+    HunterPhase mHunterPhase = HunterPhase::Locomotion;
     std::string mAssetsPath;
 
-    // معرّفات الطبقات داخل Vulkan مرتبة من الخلف إلى الأمام.
+    // معرّفات الطبقات داخل Vulkan
     gfx::VulkanContext::LayerId mGrassLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mHunterLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
-    gfx::VulkanContext::LayerId mHunterShootLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
-    gfx::VulkanContext::LayerId mHunterHighShootLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mSoilLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
 
-    // كاش بسيط لتخطيط العشب حتى لا نعيد بناء نفس الرقع دون داع.
+    // كاش تخطيط العشب
     uint32_t mGrassLayoutWidth = 0;
     uint32_t mGrassLayoutHeight = 0;
     uint32_t mSoilLayoutWidth = 0;
     uint32_t mSoilLayoutHeight = 0;
 
-    // بيانات تفاعل القدمين مع الأرض.
+    // بيانات تفاعل القدمين مع الأرض
     float mLeftGroundX = 0.0f;
     float mRightGroundX = 0.0f;
     float mLeftGroundPressure = 0.0f;
     float mRightGroundPressure = 0.0f;
     float mGroundFootRadius = 0.06f;
 
-    // حالة الصياد الحالية.
-    float mHunterX = 0.0f;       // موقع الصياد الأفقي (-1 إلى 1)
-    float mHunterSpeed = 0.8f;   // سرعة الحركة (وحدات/ثانية)
+    // حالة الصياد الحالية
+    float mHunterX = 0.0f;
+    float mHunterSpeed = 0.8f;
     float mReloadTimer = 0.0f;
-    float mHunterShootTransitionTimer = 0.0f; // مؤقت الانتقال بين فريمات ما بعد الإطلاق
-    bool mHunterShootActive = false;
-    bool mHunterHighShootActive = false;
-    bool mHunterShootAutoHolster = false;
     bool mIsReloading = false;
     bool mRunning = false;
     bool mInitialized = false;

@@ -4,13 +4,7 @@
 
 namespace game {
 
-/// يبني بيانات أطلس الحركة الأساسية الخاصة بالصياد من ملف البيانات الثابتة.
-[[nodiscard]] SpriteAtlasData createHunterSpriteAtlasData(int imageWidth, int imageHeight);
-
-/// يبني بيانات أطلس إطلاق النار الخاصة بالصياد من ملف البيانات الثابتة.
-[[nodiscard]] SpriteAtlasData createHunterShootSpriteAtlasData(int imageWidth, int imageHeight);
-
-/// يبني بيانات أطلس إطلاق النار العالي الخاصة بالصياد من ملف البيانات الثابتة.
-[[nodiscard]] SpriteAtlasData createHunterHighShootSpriteAtlasData(int imageWidth, int imageHeight);
+/// يبني بيانات الأطلس الموحد للصياد (حركة + إطلاق + إطلاق عالي) من الصورة الجديدة.
+[[nodiscard]] SpriteAtlasData createHunterAtlasData(int imageWidth, int imageHeight);
 
 } // namespace game

@@ -1,5 +1,4 @@
 #include "SpriteAnimation.h"
-#include "HunterSpriteAtlas.h"
 
 #include <iostream>
 #include <utility>
@@ -27,23 +26,10 @@ void resetAnimationState(AnimationState& state,
 
 } // namespace
 
-// ─── بناء أطلس الصياد من البكسلات ─────────────────────────────────
+// ─── تعيين بيانات الأطلس ──────────────────────────────────────────
 
 void SpriteAnimation::setAtlasData(SpriteAtlasData data) {
     mData = std::move(data);
-}
-
-void SpriteAnimation::buildHunterAtlas(int imgW, int imgH, const unsigned char* pixels) {
-    if (imgW <= 0 || imgH <= 0 || !pixels) {
-        mData = SpriteAtlasData{};
-        std::cerr << "[Sprite] بيانات صورة غير صالحة" << std::endl;
-        return;
-    }
-
-    mData = createHunterSpriteAtlasData(imgW, imgH);
-
-    std::cout << "[Sprite] تم تحميل atlas الصياد الثابتة: " << mData.frames.size()
-              << " فريم (" << imgW << "x" << imgH << ")" << std::endl;
 }
 
 // ─── تحديث الحالة ────────────────────────────────────────────────

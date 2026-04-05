@@ -24,9 +24,6 @@ public:
     /// تعيين بيانات أطلس جاهزة من مصدر خارجي
     void setAtlasData(SpriteAtlasData data);
 
-    /// بناء بيانات أطلس الصياد من metadata ثابتة متوافقة مع sprite.png
-    void buildHunterAtlas(int imgW, int imgH, const unsigned char* pixels);
-
     /// تحديث الحالة حسب الزمن
     void update(AnimationState& state, float deltaTime) const;
 
