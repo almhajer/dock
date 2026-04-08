@@ -142,8 +142,8 @@ bool sameWindowLayout(const WindowMetrics& metrics, uint32_t cachedWidth, uint32
 float hunterLogicalHalfWidth(const game::AtlasFrame& frame, const WindowMetrics& metrics)
 {
     return HUNTER_SCREEN_HALF_HEIGHT *
-           (static_cast<float>(frame.sourceWidth) /
-            static_cast<float>(frame.sourceHeight)) /
+           (static_cast<float>(frame.sourceW) /
+            static_cast<float>(frame.sourceH)) /
            metrics.aspect;
 }
 
@@ -174,20 +174,33 @@ gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
                                   float hunterX,
                                   const WindowMetrics& metrics)
 {
+    // الحجم المنطقي الكامل (sourceSize) على الشاشة.
     const float logicalHalfHeight = HUNTER_SCREEN_HALF_HEIGHT;
     const float logicalHeight = logicalHalfHeight * 2.0f;
     const float logicalHalfWidth = hunterLogicalHalfWidth(frame, metrics);
-    const float logicalX0 = hunterX - logicalHalfWidth;
-    const float logicalY0 = 1.0f - HUNTER_BOTTOM_MARGIN * 2.0f - logicalHeight;
     const float logicalWidth = logicalHalfWidth * 2.0f;
-    const float x0 = logicalX0 + logicalWidth *
-        (static_cast<float>(frame.offsetX) / static_cast<float>(frame.sourceWidth));
-    const float x1 = logicalX0 + logicalWidth *
-        (static_cast<float>(frame.offsetX + frame.width) / static_cast<float>(frame.sourceWidth));
-    const float y0 = logicalY0 + logicalHeight *
-        (static_cast<float>(frame.offsetY) / static_cast<float>(frame.sourceHeight));
-    const float y1 = logicalY0 + logicalHeight *
-        (static_cast<float>(frame.offsetY + frame.height) / static_cast<float>(frame.sourceHeight));
+
+    // موقع نقطة الارتكاز (pivot) على الشاشة.
+    // hunterX = الموقع الأفقي (منتصف الشخصية).
+    // groundY = خط الأرض — الأسفل = أعلى شريط التربة.
+    const float groundY = 1.0f - HUNTER_BOTTOM_MARGIN * 2.0f;
+    const float pivotScreenX = hunterX;
+    const float pivotScreenY = groundY;
+
+    // الحدود المنطقية لمستطيل sourceSize بالكامل.
+    const float srcLeft   = pivotScreenX - frame.pivotX * logicalWidth;
+    const float srcTopY   = pivotScreenY - frame.pivotY * logicalHeight;
+
+    // اقتطاع المستطيل المقصوص (spriteSourceSize) من داخل sourceSize.
+    const float spriteNormX = static_cast<float>(frame.spriteX) / static_cast<float>(frame.sourceW);
+    const float spriteNormY = static_cast<float>(frame.spriteY) / static_cast<float>(frame.sourceH);
+    const float spriteNormW = static_cast<float>(frame.width) / static_cast<float>(frame.sourceW);
+    const float spriteNormH = static_cast<float>(frame.height) / static_cast<float>(frame.sourceH);
+
+    const float x0 = srcLeft + spriteNormX * logicalWidth;
+    const float x1 = x0 + spriteNormW * logicalWidth;
+    const float y0 = srcTopY + spriteNormY * logicalHeight;
+    const float y1 = y0 + spriteNormH * logicalHeight;
 
     return gfx::makeTexturedQuad(gfx::makeScreenRect(x0, x1, y0, y1));
 }

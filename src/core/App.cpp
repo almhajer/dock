@@ -67,35 +67,13 @@ namespace core
             return cursor;
         }
 
-        [[nodiscard]] bool resolveCursorFacingLeft(const Input& input,
-                                                   GLFWwindow* window,
-                                                   float hunterX,
-                                                   bool fallbackFacingLeft)
-        {
-            const CursorScreenPosition cursor = resolveCursorScreenPosition(input, window);
-            if (!cursor.valid)
-            {
-                return fallbackFacingLeft;
-            }
-
-            if (cursor.x < hunterX)
-            {
-                return true;
-            }
-            if (cursor.x > hunterX)
-            {
-                return false;
-            }
-            return fallbackFacingLeft;
-        }
-
         [[nodiscard]] bool shouldUseHighShootPose(const Input& input,
                                                   GLFWwindow* window,
                                                   float hunterX,
                                                   const scene::WindowMetrics& metrics,
                                                   const game::AtlasFrame* frame)
         {
-            if (!metrics.valid() || frame == nullptr || frame->sourceWidth <= 0 || frame->sourceHeight <= 0)
+            if (!metrics.valid() || frame == nullptr || frame->sourceW <= 0 || frame->sourceH <= 0)
             {
                 return false;
             }
@@ -325,26 +303,65 @@ namespace core
         const bool reloadRequested = mInput.isKeyJustPressed(GLFW_KEY_R);
         const bool shotRequested = mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT) && !mIsReloading;
 
-        // تحديد جهة الصياد
-        bool facingLeft = mHunterState.flipX;
-        if (moveIntent < 0)
-        {
-            facingLeft = true;
-        }
-        else if (moveIntent > 0)
-        {
-            facingLeft = false;
-        }
-        else
-        {
-            facingLeft = resolveCursorFacingLeft(
-                mInput, mWindow.getHandle(), mHunterX, facingLeft);
-        }
-
         if (moveIntent != 0)
         {
             mHunterX += static_cast<float>(moveIntent) * mHunterSpeed * deltaTime;
         }
+
+        const CursorScreenPosition cursor = resolveCursorScreenPosition(mInput, mWindow.getHandle());
+
+        const auto resolveAimFacingLeft = [this, &cursor](bool fallbackFacingLeft)
+        {
+            if (!cursor.valid)
+            {
+                return fallbackFacingLeft;
+            }
+
+            if (cursor.x < mHunterX)
+            {
+                return true;
+            }
+            if (cursor.x > mHunterX)
+            {
+                return false;
+            }
+            return fallbackFacingLeft;
+        };
+
+        const auto resolveMoveFacingLeft = [moveIntent](bool fallbackFacingLeft)
+        {
+            if (moveIntent < 0)
+            {
+                return true;
+            }
+            if (moveIntent > 0)
+            {
+                return false;
+            }
+            return fallbackFacingLeft;
+        };
+
+        const auto resolveShotFacingLeft = [&]()
+        {
+            return resolveAimFacingLeft(mFacingLeft);
+        };
+
+        const auto resolveIdleFacingLeft = [&]()
+        {
+            if (moveIntent != 0)
+            {
+                return resolveMoveFacingLeft(mFacingLeft);
+            }
+
+            return resolveAimFacingLeft(mFacingLeft);
+        };
+
+        const auto playDirectionalClip = [this](const char* leftClipKey,
+                                                const char* rightClipKey,
+                                                bool facingLeft)
+        {
+            mSpriteAnim.play(mHunterState, facingLeft ? leftClipKey : rightClipKey);
+        };
 
         const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
         const game::AtlasFrame* baseFrame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
@@ -358,114 +375,96 @@ namespace core
             mReloadTimer = actionTiming.reloadDurationSeconds;
         }
 
-        // ─── آلة الحالة ─────────────────────────────────────────────
-        // تغيير الاتجاه يتم بتحديث flipX مباشرة دون إعادة تشغيل الحركة.
-        switch (mHunterPhase)
+        const auto startShot = [&](bool highShot)
         {
-        case HunterPhase::Locomotion:
-        {
-            if (shotRequested)
-            {
-                facingLeft = resolveCursorFacingLeft(
-                    mInput, mWindow.getHandle(), mHunterX, facingLeft);
+            mShotFacingLeft = resolveShotFacingLeft();
+            mFacingLeft = mShotFacingLeft;
+            mHunterPhase = highShot ? HunterPhase::ShootHigh : HunterPhase::Shoot;
 
-                if (highShotRequested)
-                {
-                    mHunterPhase = HunterPhase::ShootHigh;
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "shoot_up_left" : "shoot_up_right");
-                }
-                else
-                {
-                    mHunterPhase = HunterPhase::Shoot;
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "shoot_left" : "shoot_right");
-                }
-                mHunterShotSound.play();
+            if (highShot)
+            {
+                playDirectionalClip("shoot_up_left", "shoot_up_right", mShotFacingLeft);
             }
             else
             {
-                if (moveIntent != 0)
-                {
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "walk_left" : "walk_right");
-                }
-                else
-                {
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "idle_left" : "idle_right");
-                }
+                playDirectionalClip("shoot_left", "shoot_right", mShotFacingLeft);
+            }
+
+            mHunterShotSound.play();
+        };
+
+        const auto applyLocomotionClip = [&]()
+        {
+            mFacingLeft = resolveIdleFacingLeft();
+
+            if (moveIntent != 0)
+            {
+                playDirectionalClip("walk_left", "walk_right", mFacingLeft);
+            }
+            else
+            {
+                playDirectionalClip("idle_left", "idle_right", mFacingLeft);
+            }
+        };
+
+        bool applyLocomotionState = false;
+        bool preserveShotFacingOnLocomotionEntry = false;
+        switch (mHunterPhase)
+        {
+        case HunterPhase::Locomotion:
+            applyLocomotionState = !shotRequested;
+            if (shotRequested)
+            {
+                startShot(highShotRequested);
             }
             break;
-        }
 
         case HunterPhase::Shoot:
-        {
             mSpriteAnim.update(mHunterState, deltaTime);
-            mHunterState.flipX = resolveCursorFacingLeft(
-                mInput, mWindow.getHandle(), mHunterX, mHunterState.flipX);
+            mFacingLeft = mShotFacingLeft;
 
             if (shotRequested)
             {
-                facingLeft = mHunterState.flipX;
-
-                if (highShotRequested)
-                {
-                    mHunterPhase = HunterPhase::ShootHigh;
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "shoot_up_left" : "shoot_up_right");
-                }
-                else
-                {
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "shoot_left" : "shoot_right");
-                }
-                mHunterShotSound.play();
-                break;
+                startShot(highShotRequested);
             }
-
-            if (mHunterState.finished)
+            else if (mHunterState.finished)
             {
+                mFacingLeft = mShotFacingLeft;
                 mHunterPhase = HunterPhase::Locomotion;
+                applyLocomotionState = true;
+                preserveShotFacingOnLocomotionEntry = true;
             }
             break;
-        }
 
         case HunterPhase::ShootHigh:
-        {
             mSpriteAnim.update(mHunterState, deltaTime);
-            mHunterState.flipX = resolveCursorFacingLeft(
-                mInput, mWindow.getHandle(), mHunterX, mHunterState.flipX);
+            mFacingLeft = mShotFacingLeft;
 
             if (shotRequested)
             {
-                facingLeft = mHunterState.flipX;
-
-                if (highShotRequested)
-                {
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "shoot_up_left" : "shoot_up_right");
-                }
-                else
-                {
-                    mHunterPhase = HunterPhase::Shoot;
-                    mSpriteAnim.play(mHunterState,
-                        facingLeft ? "shoot_left" : "shoot_right");
-                }
-                mHunterShotSound.play();
-                break;
+                startShot(highShotRequested);
             }
-
-            if (mHunterState.finished)
+            else if (mHunterState.finished)
             {
+                mFacingLeft = mShotFacingLeft;
                 mHunterPhase = HunterPhase::Locomotion;
+                applyLocomotionState = true;
+                preserveShotFacingOnLocomotionEntry = true;
             }
             break;
-        }
         } // switch
 
-        if (mHunterPhase == HunterPhase::Locomotion)
+        if (applyLocomotionState && mHunterPhase == HunterPhase::Locomotion)
         {
+            if (preserveShotFacingOnLocomotionEntry && moveIntent == 0)
+            {
+                playDirectionalClip("idle_left", "idle_right", mShotFacingLeft);
+                mFacingLeft = mShotFacingLeft;
+            }
+            else
+            {
+                applyLocomotionClip();
+            }
             mSpriteAnim.update(mHunterState, deltaTime);
         }
     }
@@ -555,7 +554,7 @@ namespace core
         }
 
         const game::AtlasFrame* frame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
-        if (frame == nullptr || frame->sourceWidth <= 0 || frame->sourceHeight <= 0)
+        if (frame == nullptr || frame->sourceW <= 0 || frame->sourceH <= 0)
         {
             mVulkan.clearTexturedLayer(mHunterLayerId);
             return;
@@ -593,7 +592,7 @@ namespace core
         const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
         const game::AtlasFrame* frame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
         if (walking && metrics.valid() &&
-            frame != nullptr && frame->sourceWidth > 0 && frame->sourceHeight > 0)
+            frame != nullptr && frame->sourceW > 0 && frame->sourceH > 0)
         {
             const float logicalHalfWidth = scene::hunterLogicalHalfWidth(*frame, metrics);
             const float hunterWidth = logicalHalfWidth * 2.0f;

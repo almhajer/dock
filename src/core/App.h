@@ -133,6 +133,8 @@ private:
     float mHunterX = 0.0f;
     float mHunterSpeed = 0.8f;
     float mReloadTimer = 0.0f;
+    bool mFacingLeft = false;
+    bool mShotFacingLeft = false;
     bool mIsReloading = false;
     bool mRunning = false;
     bool mInitialized = false;

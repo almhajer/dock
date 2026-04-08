@@ -1,6 +1,5 @@
 #include "SpriteAnimation.h"
 
-#include <iostream>
 #include <utility>
 
 namespace game {
@@ -24,6 +23,38 @@ void resetAnimationState(AnimationState& state,
     state.finished = false;
 }
 
+/// حساب الفريم الحالي بناءً على المدة التراكمية لكل فريم.
+/// تُرجع فهرس الفريم داخل الكليب، أو -1 إذا تجاوز إجمالي المدة.
+int resolveFrameByDuration(const SpriteAtlasData& data,
+                           const AnimationClip& clip,
+                           float elapsedMs)
+{
+    float accumulated = 0.0f;
+    const int count = static_cast<int>(clip.frames.size());
+    for (int i = 0; i < count; ++i)
+    {
+        const AtlasFrame& frame = data.frames[clip.frames[i]];
+        accumulated += static_cast<float>(frame.durationMs);
+        if (elapsedMs < accumulated)
+        {
+            return i;
+        }
+    }
+    return -1; // تجاوز إجمالي المدة
+}
+
+/// حساب إجمالي مدة الكليب بالملي ثانية.
+float totalClipDurationMs(const SpriteAtlasData& data,
+                          const AnimationClip& clip)
+{
+    float total = 0.0f;
+    for (int idx : clip.frames)
+    {
+        total += static_cast<float>(data.frames[idx].durationMs);
+    }
+    return total;
+}
+
 } // namespace
 
 // ─── تعيين بيانات الأطلس ──────────────────────────────────────────
@@ -45,14 +76,35 @@ void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
 
     state.elapsed += deltaTime;
 
-    int rawIndex = static_cast<int>(state.elapsed * static_cast<float>(clip->fps));
+    const float elapsedMs = state.elapsed * 1000.0f;
+    const int clipLen = static_cast<int>(clip->frames.size());
 
-    if (clip->loop) {
-        rawIndex = rawIndex % static_cast<int>(clip->frames.size());
+    int rawIndex = resolveFrameByDuration(mData, *clip, elapsedMs);
+
+    if (clip->loop)
+    {
+        if (rawIndex < 0)
+        {
+            // لف الحلقة: حساب الموضع داخل الدورة التالية
+            const float totalMs = totalClipDurationMs(mData, *clip);
+            if (totalMs > 0.0f)
+            {
+                const float wrappedMs = std::fmod(elapsedMs, totalMs);
+                rawIndex = resolveFrameByDuration(mData, *clip, wrappedMs);
+                if (rawIndex < 0) rawIndex = clipLen - 1;
+            }
+            else
+            {
+                rawIndex = 0;
+            }
+        }
         state.finished = false;
-    } else {
-        if (rawIndex >= static_cast<int>(clip->frames.size())) {
-            rawIndex = static_cast<int>(clip->frames.size()) - 1;
+    }
+    else
+    {
+        if (rawIndex < 0)
+        {
+            rawIndex = clipLen - 1;
             state.finished = true;
         }
     }
@@ -97,7 +149,6 @@ void SpriteAnimation::getFrameUV(int frameIndex, float& u0, float& u1, float& v0
     const float insetX = (frame->width > 1) ? kTexelInset : 0.0f;
     const float insetY = (frame->height > 1) ? kTexelInset : 0.0f;
 
-    // سحب UV قليلًا للداخل لمنع sampler من قراءة بكسلات الفريم المجاور.
     u0 = (static_cast<float>(frame->x) + insetX) / imgW;
     u1 = (static_cast<float>(frame->x + frame->width) - insetX) / imgW;
     v0 = (static_cast<float>(frame->y) + insetY) / imgH;

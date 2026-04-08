@@ -6,55 +6,70 @@
 namespace game {
 namespace {
 
-// ─── بيانات الفريمات المستخرجة من hunter_vulkan_atlas.json ──────────
+// ─── ثوابت اللوحة المرجعية للشخصية ──────────────────────────────
 //
-// التخطيط داخل hunter_atlas.png (3328×3264):
-//   صف 0: walk_right  (8 فريمات)
-//   صف 1: walk_left   (8 فريمات — لا نستخدمها، نعتمد على flipX)
-//   صف 2: shoot_right (5 فريمات)
-//   صف 3: shoot_up    (5 فريمات)
+// sourceSize (450×500): الحجم المنطقي المرجعي الموحّد لجميع الفريمات.
+// يمثل "اللوحة الوهمية" التي تُوضع عليها الشخصية قبل القص.
 //
-// خلية منطقية موحدة: 416×816 بكسل، المحتوى محاذاة من الأسفل عند y=792.
-// x,y = موقع المحتوى داخل الصورة
-// offsetX,offsetY = إزاحة داخل الخلية المنطقية (من أعلى اليسار)
+// pivot (0.5, 0.9): نقطة الارتكاز — منتصف الأسفل (تحت القدمين).
+// تُستخدم لربط الشخصية بنقطة ثابتة على الشاشة (خط الأرض).
+//
+// FEET_Y: الموضع العمودي لأسفل القدمين داخل اللوحة المرجعية.
+// جميع الفريمات تُحاذى بحيث تكون أقدام الشخصية عند هذا المستوى.
+//
+// حساب spriteX و spriteY تلقائيًا:
+//   spriteX = (SOURCE_W - frameW) / 2   ← توسيط أفقي
+//   spriteY = FEET_Y - frameH           ← محاذاة الأسفل مع مستوى القدمين
 
-constexpr int ATLAS_CELL_W = 416;
-constexpr int ATLAS_CELL_H = 816;
+constexpr int SOURCE_W = 450;
+constexpr int SOURCE_H = 500;
+constexpr float PIVOT_X = 0.5f;
+constexpr float PIVOT_Y = 0.9f;
+constexpr int FEET_Y = 488; // = SOURCE_H - 12
+
+// ─── تعريف فريم داخل الأطلس ────────────────────────────────────
+// الإحداثيات (x, y, w, h) تم استخراجها من الحدود الفعلية غير الشفافة
+// داخل hunter_atlas.png الحالي (3328×3264).
+// spriteX و spriteY تُحسب تلقائيًا من الثوابت أعلاه.
 
 struct FrameDef {
     int x, y, w, h;
-    int offX, offY;
+    int durationMs;
 };
 
-// فريمات المشي يمينًا (مؤشرات 0-7)
-// تم توحيد offsetY=314 للفريمات الأطول من الوقوف (قص من الأعلى) لتثبيت الارتفاع.
+// ─── فريمات المشي الأساسية (الصف الأول فقط، متجهة لليمين) ───────────
+// الصف الثاني في الأطلس هو نسخة معكوسة من هذه الفريمات، لذلك لا نضمه
+// إلى دورة المشي حتى لا تختلط الجهات مع نظام flipX الحالي.
+
 constexpr std::array<FrameDef, 8> WALK_FRAMES = {{
-    {86,   314, 243, 478, 86,  314},   // 0 (قُصّ 5 بكسل من الأعلى)
-    {493,  314, 262, 478, 77,  314},   // 1 (قُصّ 3 بكسل من الأعلى)
-    {910,  314, 259, 478, 78,  314},   // 2 (قُصّ 6 بكسل من الأعلى)
-    {1336, 317, 240, 475, 88,  317},   // 3
-    {1755, 315, 234, 477, 91,  315},   // 4
-    {2169, 319, 238, 473, 89,  319},   // 5
-    {2583, 319, 241, 473, 87,  319},   // 6
-    {2999, 314, 242, 478, 87,  314},   // 7 (وقوف)
+    {86,   309, 243, 483, 80},    // walk_00
+    {493,  311, 262, 481, 80},    // walk_01
+    {910,  308, 259, 484, 80},    // walk_02
+    {1336, 317, 240, 475, 80},    // walk_03
+    {1755, 315, 234, 477, 80},    // walk_04
+    {2169, 319, 238, 473, 80},    // walk_05
+    {2583, 319, 241, 473, 80},    // walk_06
+    {2999, 314, 242, 478, 80},    // walk_07
 }};
 
-// فريمات الإطلاق العادي (مؤشرات 8-12)
-constexpr std::array<FrameDef, 5> SHOOT_FRAMES = {{
-    {64,   1937, 288, 487, 64,  305},  // 8
-    {487,  1979, 274, 445, 71,  347},  // 9
-    {859,  1875, 362, 549, 27,  243},  // 10
-    {1319, 1947, 274, 477, 71,  315},  // 11
-    {1726, 1782, 292, 642, 62,  150},  // 12
+// ─── فريمات الإطلاق للأمام (5 فريمات) ────────────────────────────
+
+constexpr std::array<FrameDef, 5> SHOOT_FORWARD_FRAMES = {{
+    {64,   1937, 288, 487, 70},   // shoot_forward_00
+    {487,  1979, 274, 445, 70},   // shoot_forward_01
+    {859,  1859, 376, 565, 70},   // shoot_forward_02
+    {1319, 1857, 450, 567, 70},   // shoot_forward_03
+    {1827, 1768, 304, 656, 90},   // shoot_forward_04
 }};
 
-// فريمات الإطلاق العالي (مؤشرات 13-17)
+// ─── فريمات الإطلاق للأعلى (5 فريمات) ────────────────────────────
+
 constexpr std::array<FrameDef, 5> SHOOT_UP_FRAMES = {{
-    {97,   2610, 221, 630, 97,  162},  // 13
-    {511,  2563, 225, 677, 95,  115},  // 14
-    {916,  2532, 248, 708, 84,  84},   // 15
-    {1329, 2485, 253, 755, 81,  37},   // 16
-    {1730, 2492, 284, 748, 66,  44},   // 17
+    {97,   2610, 221, 630, 70},   // shoot_up_00
+    {511,  2543, 241, 697, 70},   // shoot_up_01
+    {916,  2514, 266, 726, 70},   // shoot_up_02
+    {1329, 2465, 267, 775, 70},   // shoot_up_03
+    {1730, 2483, 297, 757, 90},   // shoot_up_04
 }};
 
 // ─── بناء AtlasFrame من FrameDef ────────────────────────────────
@@ -66,25 +81,26 @@ AtlasFrame makeFrame(const FrameDef& def)
         .y = def.y,
         .width = def.w,
         .height = def.h,
-        .offsetX = def.offX,
-        .offsetY = def.offY,
-        .sourceWidth = ATLAS_CELL_W,
-        .sourceHeight = ATLAS_CELL_H,
+        .sourceW = SOURCE_W,
+        .sourceH = SOURCE_H,
+        .spriteX = (SOURCE_W - def.w) / 2,
+        .spriteY = FEET_Y - def.h,
+        .pivotX = PIVOT_X,
+        .pivotY = PIVOT_Y,
+        .durationMs = def.durationMs,
     };
 }
 
-// ─── إضافة مقطع حركة ───────────────────────────────────────────
+// ─── إدارة المقاطع ──────────────────────────────────────────────
 
 void addClip(SpriteAtlasData& data,
              const std::string& key,
              std::initializer_list<int> frameIndices,
-             int fps,
              bool loop)
 {
     AnimationClip clip;
     clip.key = key;
     clip.frames.assign(frameIndices);
-    clip.fps = fps;
     clip.loop = loop;
     data.animations.emplace(key, std::move(clip));
 }
@@ -92,11 +108,10 @@ void addClip(SpriteAtlasData& data,
 void addDirectionalPair(SpriteAtlasData& data,
                         const std::string& baseName,
                         std::initializer_list<int> frameIndices,
-                        int fps,
                         bool loop)
 {
-    addClip(data, baseName + "_right", frameIndices, fps, loop);
-    addClip(data, baseName + "_left",  frameIndices, fps, loop);
+    addClip(data, baseName + "_right", frameIndices, loop);
+    addClip(data, baseName + "_left",  frameIndices, loop);
 }
 
 } // namespace
@@ -107,30 +122,30 @@ SpriteAtlasData createHunterAtlasData(int imageWidth, int imageHeight)
     data.imageWidth = imageWidth;
     data.imageHeight = imageHeight;
 
-    // 18 فريم: 8 مشي + 5 إطلاق عادي + 5 إطلاق عالي
-    data.frames.reserve(WALK_FRAMES.size() + SHOOT_FRAMES.size() + SHOOT_UP_FRAMES.size());
+    // 18 فريم: 8 مشي + 5 إطلاق أمامي + 5 إطلاق عالي
+    data.frames.reserve(
+        WALK_FRAMES.size() + SHOOT_FORWARD_FRAMES.size() + SHOOT_UP_FRAMES.size());
 
     for (const auto& f : WALK_FRAMES)
         data.frames.push_back(makeFrame(f));
 
-    for (const auto& f : SHOOT_FRAMES)
+    for (const auto& f : SHOOT_FORWARD_FRAMES)
         data.frames.push_back(makeFrame(f));
 
     for (const auto& f : SHOOT_UP_FRAMES)
         data.frames.push_back(makeFrame(f));
 
     // ─── مقاطع الحركة ──────────────────────────────────────────
-    // المشي والوقوف: نفس فريمات walk_right، flipX يعكس الاتجاه.
-    addDirectionalPair(data, "walk", {0, 1, 2, 3, 4, 5, 6, 7}, 8, true);
-    addDirectionalPair(data, "idle", {7}, 1, true);
+    addDirectionalPair(data, "walk",
+        {0, 1, 2, 3, 4, 5, 6, 7}, true);
 
-    // إطلاق عادي: أمامي ثم عكسي متدرج للعودة.
-    addDirectionalPair(data, "shoot",          {8, 9, 10, 11, 12},               14, false);
-    addDirectionalPair(data, "shoot_recover",  {12, 11, 10, 9, 8},              10, false);
+    addDirectionalPair(data, "idle", {7}, true);
 
-    // إطلاق عالي: أمامي ثم عكسي متدرج للعودة.
-    addDirectionalPair(data, "shoot_up",         {13, 14, 15, 16, 17},           14, false);
-    addDirectionalPair(data, "shoot_up_recover",  {17, 16, 15, 14, 13},         10, false);
+    addDirectionalPair(data, "shoot",
+        {8, 9, 10, 11, 12}, false);
+
+    addDirectionalPair(data, "shoot_up",
+        {13, 14, 15, 16, 17}, false);
 
     return data;
 }
