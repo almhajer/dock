@@ -102,6 +102,12 @@ void addClip(SpriteAtlasData& data,
     clip.key = key;
     clip.frames.assign(frameIndices);
     clip.loop = loop;
+
+    for (int frameIndex : clip.frames)
+    {
+        clip.totalDurationMs += data.frames[frameIndex].durationMs;
+    }
+
     data.animations.emplace(key, std::move(clip));
 }
 

@@ -10,13 +10,13 @@ namespace game {
 struct AnimationState {
     std::string currentClip;
     const AnimationClip* activeClip = nullptr;
-    float elapsed = 0.0f;
-    int currentFrameIndex = 0;
-    bool finished = false;
-    bool flipX = false;
+    float elapsed = 0.0f;      // الزمن المتراكم داخل الكليب بالثواني
+    int currentFrameIndex = 0; // فهرس الفريم الحالي داخل data.frames
+    bool finished = false;     // هل انتهى كليب غير دائري؟
+    bool flipX = false;        // هل يجب عكس UV أفقيًا عند الرسم؟
 };
 
-/// نظام حركة السبرايت - يبني بيانات الأطلس من atlas معروفة مسبقًا
+/// نظام حركة السبرايت المعتمد على أطلس مجهّز مسبقًا.
 class SpriteAnimation {
 public:
     SpriteAnimation() = default;
@@ -35,12 +35,6 @@ public:
 
     /// الحصول على فريم محدد من atlas
     const AtlasFrame* getFrame(int frameIndex) const;
-
-    /// الحصول على مقطع حركة بالاسم
-    const AnimationClip* getClip(const std::string& key) const;
-
-    /// بيانات الأطلس
-    const SpriteAtlasData& getData() const { return mData; }
 
 private:
     const AnimationClip* findClip(const std::string& key) const;

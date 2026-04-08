@@ -38,6 +38,7 @@ struct AnimationClip {
     std::string key;
     std::vector<int> frames;
     bool loop = true;
+    int totalDurationMs = 0; // مجموع مدد الفريمات داخل الكليب
 };
 
 /// بيانات أطلس السبرايت الكاملة

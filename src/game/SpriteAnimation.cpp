@@ -1,5 +1,6 @@
 #include "SpriteAnimation.h"
 
+#include <cmath>
 #include <utility>
 
 namespace game {
@@ -21,6 +22,33 @@ void resetAnimationState(AnimationState& state,
     state.elapsed = 0.0f;
     state.currentFrameIndex = 0;
     state.finished = false;
+    state.flipX = isLeftFacingClipKey(clipKey);
+}
+
+void clearAnimationState(AnimationState& state)
+{
+    state.currentClip.clear();
+    state.activeClip = nullptr;
+    state.elapsed = 0.0f;
+    state.currentFrameIndex = -1;
+    state.finished = true;
+    state.flipX = false;
+}
+
+/// يحافظ على الزمن الدوري داخل حدود الكليب حتى لا تتضخم قيمة elapsed
+/// بعد دقائق طويلة من التشغيل، وهو ما يحسن الثبات والدقة.
+float wrapLoopingElapsedMs(AnimationState& state, const AnimationClip& clip)
+{
+    const float totalMs = static_cast<float>(clip.totalDurationMs);
+    if (totalMs <= 0.0f)
+    {
+        state.elapsed = 0.0f;
+        return 0.0f;
+    }
+
+    const float wrappedMs = std::fmod(state.elapsed * 1000.0f, totalMs);
+    state.elapsed = wrappedMs / 1000.0f;
+    return wrappedMs;
 }
 
 /// حساب الفريم الحالي بناءً على المدة التراكمية لكل فريم.
@@ -43,69 +71,56 @@ int resolveFrameByDuration(const SpriteAtlasData& data,
     return -1; // تجاوز إجمالي المدة
 }
 
-/// حساب إجمالي مدة الكليب بالملي ثانية.
-float totalClipDurationMs(const SpriteAtlasData& data,
-                          const AnimationClip& clip)
-{
-    float total = 0.0f;
-    for (int idx : clip.frames)
-    {
-        total += static_cast<float>(data.frames[idx].durationMs);
-    }
-    return total;
-}
-
 } // namespace
 
 // ─── تعيين بيانات الأطلس ──────────────────────────────────────────
 
-void SpriteAnimation::setAtlasData(SpriteAtlasData data) {
+void SpriteAnimation::setAtlasData(SpriteAtlasData data)
+{
     mData = std::move(data);
 }
 
 // ─── تحديث الحالة ────────────────────────────────────────────────
 
-void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
+void SpriteAnimation::update(AnimationState& state, float deltaTime) const
+{
     const AnimationClip* clip = state.activeClip;
     if (clip == nullptr)
     {
         clip = findClip(state.currentClip);
         state.activeClip = clip;
     }
-    if (clip == nullptr || clip->frames.empty()) return;
+    if (clip == nullptr || clip->frames.empty())
+    {
+        return;
+    }
 
     state.elapsed += deltaTime;
 
-    const float elapsedMs = state.elapsed * 1000.0f;
+    float elapsedMs = state.elapsed * 1000.0f;
     const int clipLen = static_cast<int>(clip->frames.size());
-
-    int rawIndex = resolveFrameByDuration(mData, *clip, elapsedMs);
+    if (clip->loop && clip->totalDurationMs > 0 && elapsedMs >= static_cast<float>(clip->totalDurationMs))
+    {
+        elapsedMs = wrapLoopingElapsedMs(state, *clip);
+    }
 
     if (clip->loop)
     {
-        if (rawIndex < 0)
-        {
-            // لف الحلقة: حساب الموضع داخل الدورة التالية
-            const float totalMs = totalClipDurationMs(mData, *clip);
-            if (totalMs > 0.0f)
-            {
-                const float wrappedMs = std::fmod(elapsedMs, totalMs);
-                rawIndex = resolveFrameByDuration(mData, *clip, wrappedMs);
-                if (rawIndex < 0) rawIndex = clipLen - 1;
-            }
-            else
-            {
-                rawIndex = 0;
-            }
-        }
         state.finished = false;
     }
-    else
+
+    int rawIndex = resolveFrameByDuration(mData, *clip, elapsedMs);
+    if (rawIndex < 0)
     {
-        if (rawIndex < 0)
+        if (clip->loop)
+        {
+            rawIndex = 0;
+        }
+        else
         {
             rawIndex = clipLen - 1;
             state.finished = true;
+            state.elapsed = static_cast<float>(clip->totalDurationMs) / 1000.0f;
         }
     }
 
@@ -114,31 +129,35 @@ void SpriteAnimation::update(AnimationState& state, float deltaTime) const {
 
 // ─── بدء تشغيل مقطع ─────────────────────────────────────────────
 
-void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) const {
+void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) const
+{
     const AnimationClip* clip = findClip(clipKey);
-    if (state.currentClip == clipKey && !state.finished && state.activeClip == clip) return;
+    if (state.currentClip == clipKey && !state.finished && state.activeClip == clip)
+    {
+        return;
+    }
 
     if (clip == nullptr || clip->frames.empty())
     {
-        state.currentClip.clear();
-        state.activeClip = nullptr;
-        state.elapsed = 0.0f;
-        state.currentFrameIndex = -1;
-        state.finished = true;
+        clearAnimationState(state);
         return;
     }
 
     resetAnimationState(state, clipKey, clip);
-
     state.currentFrameIndex = clip->frames[0];
-    state.flipX = isLeftFacingClipKey(clipKey);
 }
 
 // ─── حساب UV للفريم ─────────────────────────────────────────────
 
-void SpriteAnimation::getFrameUV(int frameIndex, float& u0, float& u1, float& v0, float& v1) const {
+void SpriteAnimation::getFrameUV(int frameIndex,
+                                 float& u0,
+                                 float& u1,
+                                 float& v0,
+                                 float& v1) const
+{
     const AtlasFrame* frame = getFrame(frameIndex);
-    if (frame == nullptr) {
+    if (frame == nullptr)
+    {
         u0 = u1 = v0 = v1 = 0.0f;
         return;
     }
@@ -155,20 +174,19 @@ void SpriteAnimation::getFrameUV(int frameIndex, float& u0, float& u1, float& v0
     v1 = (static_cast<float>(frame->y + frame->height) - insetY) / imgH;
 }
 
-const AtlasFrame* SpriteAnimation::getFrame(int frameIndex) const {
-    if (frameIndex < 0 || frameIndex >= static_cast<int>(mData.frames.size())) {
+const AtlasFrame* SpriteAnimation::getFrame(int frameIndex) const
+{
+    if (frameIndex < 0 || frameIndex >= static_cast<int>(mData.frames.size()))
+    {
         return nullptr;
     }
     return &mData.frames[frameIndex];
 }
 
-// ─── الحصول على مقطع ────────────────────────────────────────────
+// ─── البحث عن مقطع ──────────────────────────────────────────────
 
-const AnimationClip* SpriteAnimation::getClip(const std::string& key) const {
-    return findClip(key);
-}
-
-const AnimationClip* SpriteAnimation::findClip(const std::string& key) const {
+const AnimationClip* SpriteAnimation::findClip(const std::string& key) const
+{
     auto it = mData.animations.find(key);
     return (it != mData.animations.end()) ? &it->second : nullptr;
 }

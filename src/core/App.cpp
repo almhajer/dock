@@ -8,12 +8,10 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
-#include <string_view>
 #include <vector>
 
 #ifdef __APPLE__
@@ -34,6 +32,94 @@ namespace core
             float y = 0.0f;
             bool valid = false;
         };
+
+        /// يجمع نية الحركة الأفقية في قيمة واحدة:
+        /// -1 = يسار، 0 = بدون حركة، +1 = يمين.
+        [[nodiscard]] int resolveMoveIntent(const Input& input)
+        {
+            int moveIntent = 0;
+            if (input.isKeyPressed(GLFW_KEY_A) || input.isKeyPressed(GLFW_KEY_LEFT))
+            {
+                --moveIntent;
+            }
+            if (input.isKeyPressed(GLFW_KEY_D) || input.isKeyPressed(GLFW_KEY_RIGHT))
+            {
+                ++moveIntent;
+            }
+            return std::clamp(moveIntent, -1, 1);
+        }
+
+        /// اتجاه الوقوف والتصويب يتبع موقع المؤشر حول مركز الصياد.
+        [[nodiscard]] bool resolveFacingLeftFromCursor(const CursorScreenPosition& cursor,
+                                                       float hunterX,
+                                                       bool fallbackFacingLeft)
+        {
+            if (!cursor.valid)
+            {
+                return fallbackFacingLeft;
+            }
+
+            if (cursor.x < hunterX)
+            {
+                return true;
+            }
+            if (cursor.x > hunterX)
+            {
+                return false;
+            }
+            return fallbackFacingLeft;
+        }
+
+        /// اتجاه المشي يتبع الإدخال المباشر بدل المؤشر.
+        [[nodiscard]] bool resolveFacingLeftFromMoveIntent(int moveIntent,
+                                                           bool fallbackFacingLeft)
+        {
+            if (moveIntent < 0)
+            {
+                return true;
+            }
+            if (moveIntent > 0)
+            {
+                return false;
+            }
+            return fallbackFacingLeft;
+        }
+
+        /// عند الوقوف يتبع الاتجاه المؤشر، وعند المشي يتبع المفاتيح.
+        [[nodiscard]] bool resolveIdleFacingLeft(int moveIntent,
+                                                 const CursorScreenPosition& cursor,
+                                                 float hunterX,
+                                                 bool fallbackFacingLeft)
+        {
+            if (moveIntent != 0)
+            {
+                return resolveFacingLeftFromMoveIntent(moveIntent, fallbackFacingLeft);
+            }
+
+            return resolveFacingLeftFromCursor(cursor, hunterX, fallbackFacingLeft);
+        }
+
+        void updateReloadState(bool& isReloading,
+                               float& reloadTimer,
+                               float deltaTime)
+        {
+            if (!isReloading)
+            {
+                return;
+            }
+
+            reloadTimer = std::max(0.0f, reloadTimer - deltaTime);
+            if (reloadTimer <= 0.0f)
+            {
+                isReloading = false;
+            }
+        }
+
+        [[nodiscard]] bool isWalkingClip(const game::AnimationState& state)
+        {
+            return state.currentClip == "walk_left" ||
+                   state.currentClip == "walk_right";
+        }
 
         [[nodiscard]] CursorScreenPosition resolveCursorScreenPosition(const Input& input,
                                                                       GLFWwindow* window)
@@ -278,28 +364,9 @@ namespace core
     void App::updateHunterMotion(float deltaTime)
     {
         const game::HunterActionTiming& actionTiming = game::hunterActionTiming();
+        updateReloadState(mIsReloading, mReloadTimer, deltaTime);
 
-        // تحديث مؤقت إعادة التعبئة
-        if (mIsReloading)
-        {
-            mReloadTimer = std::max(0.0f, mReloadTimer - deltaTime);
-            if (mReloadTimer <= 0.0f)
-            {
-                mIsReloading = false;
-            }
-        }
-
-        int moveIntent = 0;
-        if (mInput.isKeyPressed(GLFW_KEY_A) || mInput.isKeyPressed(GLFW_KEY_LEFT))
-        {
-            --moveIntent;
-        }
-        if (mInput.isKeyPressed(GLFW_KEY_D) || mInput.isKeyPressed(GLFW_KEY_RIGHT))
-        {
-            ++moveIntent;
-        }
-        moveIntent = std::clamp(moveIntent, -1, 1);
-
+        const int moveIntent = resolveMoveIntent(mInput);
         const bool reloadRequested = mInput.isKeyJustPressed(GLFW_KEY_R);
         const bool shotRequested = mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT) && !mIsReloading;
 
@@ -309,53 +376,6 @@ namespace core
         }
 
         const CursorScreenPosition cursor = resolveCursorScreenPosition(mInput, mWindow.getHandle());
-
-        const auto resolveAimFacingLeft = [this, &cursor](bool fallbackFacingLeft)
-        {
-            if (!cursor.valid)
-            {
-                return fallbackFacingLeft;
-            }
-
-            if (cursor.x < mHunterX)
-            {
-                return true;
-            }
-            if (cursor.x > mHunterX)
-            {
-                return false;
-            }
-            return fallbackFacingLeft;
-        };
-
-        const auto resolveMoveFacingLeft = [moveIntent](bool fallbackFacingLeft)
-        {
-            if (moveIntent < 0)
-            {
-                return true;
-            }
-            if (moveIntent > 0)
-            {
-                return false;
-            }
-            return fallbackFacingLeft;
-        };
-
-        const auto resolveShotFacingLeft = [&]()
-        {
-            return resolveAimFacingLeft(mFacingLeft);
-        };
-
-        const auto resolveIdleFacingLeft = [&]()
-        {
-            if (moveIntent != 0)
-            {
-                return resolveMoveFacingLeft(mFacingLeft);
-            }
-
-            return resolveAimFacingLeft(mFacingLeft);
-        };
-
         const auto playDirectionalClip = [this](const char* leftClipKey,
                                                 const char* rightClipKey,
                                                 bool facingLeft)
@@ -377,17 +397,16 @@ namespace core
 
         const auto startShot = [&](bool highShot)
         {
-            mShotFacingLeft = resolveShotFacingLeft();
-            mFacingLeft = mShotFacingLeft;
+            mFacingLeft = resolveFacingLeftFromCursor(cursor, mHunterX, mFacingLeft);
             mHunterPhase = highShot ? HunterPhase::ShootHigh : HunterPhase::Shoot;
 
             if (highShot)
             {
-                playDirectionalClip("shoot_up_left", "shoot_up_right", mShotFacingLeft);
+                playDirectionalClip("shoot_up_left", "shoot_up_right", mFacingLeft);
             }
             else
             {
-                playDirectionalClip("shoot_left", "shoot_right", mShotFacingLeft);
+                playDirectionalClip("shoot_left", "shoot_right", mFacingLeft);
             }
 
             mHunterShotSound.play();
@@ -395,7 +414,7 @@ namespace core
 
         const auto applyLocomotionClip = [&]()
         {
-            mFacingLeft = resolveIdleFacingLeft();
+            mFacingLeft = resolveIdleFacingLeft(moveIntent, cursor, mHunterX, mFacingLeft);
 
             if (moveIntent != 0)
             {
@@ -420,25 +439,8 @@ namespace core
             break;
 
         case HunterPhase::Shoot:
-            mSpriteAnim.update(mHunterState, deltaTime);
-            mFacingLeft = mShotFacingLeft;
-
-            if (shotRequested)
-            {
-                startShot(highShotRequested);
-            }
-            else if (mHunterState.finished)
-            {
-                mFacingLeft = mShotFacingLeft;
-                mHunterPhase = HunterPhase::Locomotion;
-                applyLocomotionState = true;
-                preserveShotFacingOnLocomotionEntry = true;
-            }
-            break;
-
         case HunterPhase::ShootHigh:
             mSpriteAnim.update(mHunterState, deltaTime);
-            mFacingLeft = mShotFacingLeft;
 
             if (shotRequested)
             {
@@ -446,7 +448,6 @@ namespace core
             }
             else if (mHunterState.finished)
             {
-                mFacingLeft = mShotFacingLeft;
                 mHunterPhase = HunterPhase::Locomotion;
                 applyLocomotionState = true;
                 preserveShotFacingOnLocomotionEntry = true;
@@ -458,8 +459,7 @@ namespace core
         {
             if (preserveShotFacingOnLocomotionEntry && moveIntent == 0)
             {
-                playDirectionalClip("idle_left", "idle_right", mShotFacingLeft);
-                mFacingLeft = mShotFacingLeft;
+                playDirectionalClip("idle_left", "idle_right", mFacingLeft);
             }
             else
             {
@@ -585,9 +585,7 @@ namespace core
         mLeftGroundPressure = std::max(0.0f, mLeftGroundPressure - deltaTime * FOOTPRINT_DECAY_PER_SECOND);
         mRightGroundPressure = std::max(0.0f, mRightGroundPressure - deltaTime * FOOTPRINT_DECAY_PER_SECOND);
 
-        const bool walking =
-            mHunterState.currentClip == "walk_left" ||
-            mHunterState.currentClip == "walk_right";
+        const bool walking = isWalkingClip(mHunterState);
 
         const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
         const game::AtlasFrame* frame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
