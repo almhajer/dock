@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "Timer.h"
 #include "../audio/SoundEffectPlayer.h"
+#include "../game/DuckSpriteAtlas.h"
 #include "../game/NatureSystem.h"
 #include "../ui/Localization.h"
 #include "../gfx/VulkanContext.h"
@@ -68,6 +69,9 @@ private:
     /// تحديث حركة الصياد في كل إطار
     void updateHunterMotion(float deltaTime);
 
+    /// تحديث حركة البطة الاستعراضية في كل إطار
+    void updateDuckMotion(float deltaTime);
+
     /// تحديث حالة الغيوم والأشجار والرياح
     void updateNatureSystem(float deltaTime);
 
@@ -79,6 +83,9 @@ private:
 
     /// تحديث طبقة عرض الصياد
     void updateHunterRenderData();
+
+    /// تحديث طبقة عرض البطة
+    void updateDuckRenderData();
 
     /// إرسال دفعات البيئة إلى Vulkan
     void updateNatureRenderData();
@@ -108,12 +115,15 @@ private:
     // أطلس الصياد الموحد وحالته
     game::SpriteAnimation mSpriteAnim;
     game::AnimationState mHunterState;
+    game::SpriteAnimation mDuckAnim;
+    game::AnimationState mDuckState;
     HunterPhase mHunterPhase = HunterPhase::Locomotion;
     std::string mAssetsPath;
 
     // معرّفات الطبقات داخل Vulkan
     gfx::VulkanContext::LayerId mGrassLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mHunterLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mDuckLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mSoilLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
 
     // كاش تخطيط العشب
@@ -133,7 +143,11 @@ private:
     float mHunterX = 0.0f;
     float mHunterSpeed = 0.8f;
     float mReloadTimer = 0.0f;
+    float mDuckX = -1.15f;
+    float mDuckY = -0.34f;
+    float mDuckFlightTime = 0.0f;
     bool mFacingLeft = false;
+    bool mDuckFacingLeft = false;
     bool mIsReloading = false;
     bool mRunning = false;
     bool mInitialized = false;

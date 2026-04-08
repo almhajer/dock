@@ -141,7 +141,14 @@ bool sameWindowLayout(const WindowMetrics& metrics, uint32_t cachedWidth, uint32
 
 float hunterLogicalHalfWidth(const game::AtlasFrame& frame, const WindowMetrics& metrics)
 {
-    return HUNTER_SCREEN_HALF_HEIGHT *
+    return spriteLogicalHalfWidth(frame, metrics, HUNTER_SCREEN_HALF_HEIGHT);
+}
+
+float spriteLogicalHalfWidth(const game::AtlasFrame& frame,
+                             const WindowMetrics& metrics,
+                             float logicalHalfHeight)
+{
+    return logicalHalfHeight *
            (static_cast<float>(frame.sourceW) /
             static_cast<float>(frame.sourceH)) /
            metrics.aspect;
@@ -170,28 +177,19 @@ gfx::TexturedQuad buildSoilQuad()
         gfx::QUAD_MATERIAL_PROCEDURAL_SOIL);
 }
 
-gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
-                                  float hunterX,
+gfx::TexturedQuad buildSpriteQuad(const game::AtlasFrame& frame,
+                                  float pivotScreenX,
+                                  float pivotScreenY,
+                                  float logicalHalfHeight,
                                   const WindowMetrics& metrics)
 {
-    // الحجم المنطقي الكامل (sourceSize) على الشاشة.
-    const float logicalHalfHeight = HUNTER_SCREEN_HALF_HEIGHT;
     const float logicalHeight = logicalHalfHeight * 2.0f;
-    const float logicalHalfWidth = hunterLogicalHalfWidth(frame, metrics);
+    const float logicalHalfWidth = spriteLogicalHalfWidth(frame, metrics, logicalHalfHeight);
     const float logicalWidth = logicalHalfWidth * 2.0f;
 
-    // موقع نقطة الارتكاز (pivot) على الشاشة.
-    // hunterX = الموقع الأفقي (منتصف الشخصية).
-    // groundY = خط الأرض — الأسفل = أعلى شريط التربة.
-    const float groundY = 1.0f - HUNTER_BOTTOM_MARGIN * 2.0f;
-    const float pivotScreenX = hunterX;
-    const float pivotScreenY = groundY;
+    const float srcLeft = pivotScreenX - frame.pivotX * logicalWidth;
+    const float srcTopY = pivotScreenY - frame.pivotY * logicalHeight;
 
-    // الحدود المنطقية لمستطيل sourceSize بالكامل.
-    const float srcLeft   = pivotScreenX - frame.pivotX * logicalWidth;
-    const float srcTopY   = pivotScreenY - frame.pivotY * logicalHeight;
-
-    // اقتطاع المستطيل المقصوص (spriteSourceSize) من داخل sourceSize.
     const float spriteNormX = static_cast<float>(frame.spriteX) / static_cast<float>(frame.sourceW);
     const float spriteNormY = static_cast<float>(frame.spriteY) / static_cast<float>(frame.sourceH);
     const float spriteNormW = static_cast<float>(frame.width) / static_cast<float>(frame.sourceW);
@@ -203,6 +201,14 @@ gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
     const float y1 = y0 + spriteNormH * logicalHeight;
 
     return gfx::makeTexturedQuad(gfx::makeScreenRect(x0, x1, y0, y1));
+}
+
+gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
+                                  float hunterX,
+                                  const WindowMetrics& metrics)
+{
+    const float groundY = 1.0f - HUNTER_BOTTOM_MARGIN * 2.0f;
+    return buildSpriteQuad(frame, hunterX, groundY, HUNTER_SCREEN_HALF_HEIGHT, metrics);
 }
 
 GrassLayout buildGrassLayout(const WindowMetrics& metrics)

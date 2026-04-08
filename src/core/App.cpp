@@ -25,6 +25,13 @@ namespace core
         constexpr float FOOTPRINT_DECAY_PER_SECOND = 1.85f;
         constexpr float FOOTPRINT_FOLLOW_PER_SECOND = 18.0f;
         constexpr float FOOT_CONTACT_THRESHOLD = 0.08f;
+        constexpr float DUCK_SCREEN_HALF_HEIGHT = 0.17f;
+        constexpr float DUCK_FLIGHT_LOOP_SECONDS = 7.2f;
+        constexpr float DUCK_TRAVEL_MARGIN = 0.22f;
+        constexpr float DUCK_BASE_Y = -0.34f;
+        constexpr float DUCK_WAVE_AMPLITUDE_PRIMARY = 0.08f;
+        constexpr float DUCK_WAVE_AMPLITUDE_SECONDARY = 0.03f;
+        constexpr float TAU = 6.28318530718f;
 
         struct CursorScreenPosition
         {
@@ -230,7 +237,17 @@ namespace core
             scene::kMaxGrassQuads);
         std::cout << "[Grass] تم تفعيل العشب الإجرائي عبر الشيدر" << std::endl;
 
+        const std::string duckSourcePath = mAssetsPath + "/sprite/duck.png";
+        const game::DuckAtlasSheet duckSheet = game::loadDuckAtlasSheetFromSourceImage(duckSourcePath);
+        mDuckAnim.setAtlasData(duckSheet.atlas);
+        mDuckLayerId = mVulkan.createTexturedLayerFromPixels(
+            duckSheet.pixels.data(),
+            duckSheet.imageWidth,
+            duckSheet.imageHeight,
+            1);
+
         mSpriteAnim.play(mHunterState, "idle_right");
+        mDuckAnim.play(mDuckState, "fly_right");
         mNatureSystem.initialize(scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight()));
 
         mInitialized = true;
@@ -320,11 +337,13 @@ namespace core
     void App::update(float deltaTime)
     {
         updateNatureSystem(deltaTime);
+        updateDuckMotion(deltaTime);
         updateHunterMotion(deltaTime);
         updateSoilRenderData();
         updateNatureRenderData();
         updateGrassRenderData();
         updateHunterRenderData();
+        updateDuckRenderData();
         updateGroundInteraction(deltaTime);
     }
 
@@ -469,6 +488,46 @@ namespace core
         }
     }
 
+    void App::updateDuckMotion(float deltaTime)
+    {
+        if (mDuckState.currentClip.empty())
+        {
+            return;
+        }
+
+        mDuckFlightTime += deltaTime;
+        if (mDuckFlightTime >= DUCK_FLIGHT_LOOP_SECONDS)
+        {
+            mDuckFlightTime = std::fmod(mDuckFlightTime, DUCK_FLIGHT_LOOP_SECONDS);
+        }
+
+        const float cycleT = mDuckFlightTime / DUCK_FLIGHT_LOOP_SECONDS;
+        const bool movingRight = cycleT < 0.5f;
+        const float legT = movingRight
+            ? cycleT * 2.0f
+            : (cycleT - 0.5f) * 2.0f;
+        const float travelT = movingRight ? legT : (1.0f - legT);
+        const float flightPhase = cycleT * TAU * 2.0f;
+
+        mDuckX = std::lerp(
+            -1.0f - DUCK_TRAVEL_MARGIN,
+            1.0f + DUCK_TRAVEL_MARGIN,
+            travelT);
+        mDuckY = DUCK_BASE_Y +
+            std::sin(flightPhase) * DUCK_WAVE_AMPLITUDE_PRIMARY +
+            std::sin(flightPhase * 0.5f + 0.85f) * DUCK_WAVE_AMPLITUDE_SECONDARY;
+
+        const bool facingLeft = !movingRight;
+        const char* clipKey = facingLeft ? "fly_left" : "fly_right";
+        if (mDuckFacingLeft != facingLeft || mDuckState.currentClip != clipKey)
+        {
+            mDuckFacingLeft = facingLeft;
+            mDuckAnim.play(mDuckState, clipKey);
+        }
+
+        mDuckAnim.update(mDuckState, deltaTime);
+    }
+
     void App::updateGrassRenderData()
     {
         if (mGrassLayerId == gfx::VulkanContext::INVALID_LAYER_ID)
@@ -578,6 +637,50 @@ namespace core
         gfx::TexturedQuad quad = scene::buildHunterQuad(*frame, mHunterX, metrics);
         quad.uv = uv;
         mVulkan.updateTexturedLayer(mHunterLayerId, quad);
+    }
+
+    void App::updateDuckRenderData()
+    {
+        if (mDuckLayerId == gfx::VulkanContext::INVALID_LAYER_ID)
+        {
+            return;
+        }
+
+        if (mDuckState.currentClip.empty())
+        {
+            mVulkan.clearTexturedLayer(mDuckLayerId);
+            return;
+        }
+
+        const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+        if (!metrics.valid())
+        {
+            mVulkan.clearTexturedLayer(mDuckLayerId);
+            return;
+        }
+
+        const game::AtlasFrame* frame = mDuckAnim.getFrame(mDuckState.currentFrameIndex);
+        if (frame == nullptr || frame->sourceW <= 0 || frame->sourceH <= 0)
+        {
+            mVulkan.clearTexturedLayer(mDuckLayerId);
+            return;
+        }
+
+        gfx::UvRect uv;
+        mDuckAnim.getFrameUV(mDuckState.currentFrameIndex, uv.u0, uv.u1, uv.v0, uv.v1);
+        if (mDuckState.flipX)
+        {
+            std::swap(uv.u0, uv.u1);
+        }
+
+        gfx::TexturedQuad quad = scene::buildSpriteQuad(
+            *frame,
+            mDuckX,
+            mDuckY,
+            DUCK_SCREEN_HALF_HEIGHT,
+            metrics);
+        quad.uv = uv;
+        mVulkan.updateTexturedLayer(mDuckLayerId, quad);
     }
 
     void App::updateGroundInteraction(float deltaTime)
