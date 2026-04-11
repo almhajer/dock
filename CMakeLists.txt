@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(DuckH VERSION 0.1.0 LANGUAGES CXX)
+project(Duck VERSION 0.1.0 LANGUAGES CXX)
 
 set(MACOS_APP_DISPLAY_NAME "Duck")
 set(MACOS_APP_BUNDLE_ID "com.duck.app")

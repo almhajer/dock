@@ -63,7 +63,7 @@ int main() {
         prepareWorkingDirectory();
 
         core::App::Config config;
-        config.window.title = "DuckH - صيد البط";
+        config.window.title = "Duck - صيد البط";
         config.window.width = 1600;
         config.window.height = 900;
 
