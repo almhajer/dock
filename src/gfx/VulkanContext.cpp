@@ -16,11 +16,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const std::vector<const char *> gfx::VulkanContext::VALIDATION_LAYERS = {
+const std::vector<const char*> gfx::VulkanContext::VALIDATION_LAYERS = {
     "VK_LAYER_KHRONOS_validation",
 };
 
-const std::vector<const char *> gfx::VulkanContext::DEVICE_EXTENSIONS = {
+const std::vector<const char*> gfx::VulkanContext::DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
@@ -52,11 +52,11 @@ constexpr std::size_t ENVIRONMENT_MAX_FOREGROUND_TREE_INSTANCES = 32;
 
 constexpr std::array<gfx::EnvironmentQuadVertex, gfx::ENVIRONMENT_BASE_VERTEX_COUNT> kEnvironmentQuadVertices = {{
     {-1.0f, -1.0f, 0.0f, 0.0f},
-    { 1.0f, -1.0f, 1.0f, 0.0f},
-    { 1.0f,  1.0f, 1.0f, 1.0f},
+    {1.0f, -1.0f, 1.0f, 0.0f},
+    {1.0f, 1.0f, 1.0f, 1.0f},
     {-1.0f, -1.0f, 0.0f, 0.0f},
-    { 1.0f,  1.0f, 1.0f, 1.0f},
-    {-1.0f,  1.0f, 0.0f, 1.0f},
+    {1.0f, 1.0f, 1.0f, 1.0f},
+    {-1.0f, 1.0f, 0.0f, 1.0f},
 }};
 
 std::vector<unsigned char> generateWindTexturePixels(int width, int height)
@@ -73,21 +73,17 @@ std::vector<unsigned char> generateWindTexturePixels(int width, int height)
             const float angleA = std::sin(2.0f * PI * (u * 1.0f + v * 0.35f));
             const float angleB = std::cos(2.0f * PI * (u * 0.5f - v * 1.3f));
             const float flowX = std::sin(2.0f * PI * (u * 1.2f + v * 0.18f)) +
-                                0.45f * std::sin(2.0f * PI * (u * 2.1f - v * 0.9f)) +
-                                0.25f * angleB;
+                                0.45f * std::sin(2.0f * PI * (u * 2.1f - v * 0.9f)) + 0.25f * angleB;
             const float flowY = std::cos(2.0f * PI * (v * 1.1f - u * 0.22f)) +
-                                0.45f * std::cos(2.0f * PI * (u * 1.6f + v * 1.8f)) +
-                                0.25f * angleA;
+                                0.45f * std::cos(2.0f * PI * (u * 1.6f + v * 1.8f)) + 0.25f * angleA;
 
             const float length = std::sqrt(flowX * flowX + flowY * flowY);
             const float invLength = (length > 0.0001f) ? 1.0f / length : 1.0f;
             const float dirX = flowX * invLength;
             const float dirY = flowY * invLength;
 
-            const float strength =
-                0.5f + 0.5f *
-                (0.55f * std::sin(2.0f * PI * (u * 0.8f + v * 1.4f)) +
-                 0.45f * std::cos(2.0f * PI * (u * 1.7f - v * 0.6f)));
+            const float strength = 0.5f + 0.5f * (0.55f * std::sin(2.0f * PI * (u * 0.8f + v * 1.4f)) +
+                                                  0.45f * std::cos(2.0f * PI * (u * 1.7f - v * 0.6f)));
 
             const std::size_t index =
                 (static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x)) * 4u;
@@ -122,8 +118,11 @@ std::vector<unsigned char> generateSunMaskPixels(int width, int height, const gf
             const float distanceToSun = std::sqrt(dx * dx + dy * dy);
             const float angle = std::atan2(dy, dx);
 
-            const float diskMask = 1.0f - std::clamp((distanceToSun - diskRadius * 0.92f) / std::max(diskRadius * 0.16f, 0.0001f), 0.0f, 1.0f);
-            const float coronaT = std::clamp((distanceToSun - diskRadius) / std::max(coronaRadius - diskRadius, 0.0001f), 0.0f, 1.0f);
+            const float diskMask =
+                1.0f -
+                std::clamp((distanceToSun - diskRadius * 0.92f) / std::max(diskRadius * 0.16f, 0.0001f), 0.0f, 1.0f);
+            const float coronaT =
+                std::clamp((distanceToSun - diskRadius) / std::max(coronaRadius - diskRadius, 0.0001f), 0.0f, 1.0f);
             const float corona = std::exp(-coronaT * falloff) * (distanceToSun >= diskRadius ? 1.0f : 0.0f);
             const float primary = std::pow(std::max(0.0f, std::cos(angle * 6.0f)), 10.0f);
             const float secondary = std::pow(std::max(0.0f, std::cos(angle * 12.0f + 0.25f)), 18.0f) * 0.5f;
@@ -155,7 +154,7 @@ VulkanContext::~VulkanContext()
     cleanup();
 }
 
-void VulkanContext::init(GLFWwindow *window, uint32_t width, uint32_t height)
+void VulkanContext::init(GLFWwindow* window, uint32_t width, uint32_t height)
 {
     mWindowHandle = window;
     mWidth = width;
@@ -203,7 +202,7 @@ void VulkanContext::cleanup()
 
     cleanupSwapchain();
 
-    for (auto &layer : mSpriteLayers)
+    for (auto& layer : mSpriteLayers)
     {
         destroyLayerResources(layer);
     }
@@ -254,9 +253,8 @@ void VulkanContext::cleanup()
 
     if (ENABLE_VALIDATION_LAYERS && mDebugMessenger != VK_NULL_HANDLE)
     {
-        auto destroyDebugMessenger =
-            reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-                vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT"));
+        auto destroyDebugMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT"));
         if (destroyDebugMessenger != nullptr)
         {
             destroyDebugMessenger(mInstance, mDebugMessenger, nullptr);
@@ -371,13 +369,8 @@ void VulkanContext::drawFrame()
     vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex = 0;
-    VkResult result = vkAcquireNextImageKHR(
-        mDevice,
-        mSwapchain,
-        UINT64_MAX,
-        mImageAvailableSemaphores[mCurrentFrame],
-        VK_NULL_HANDLE,
-        &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[mCurrentFrame],
+                                            VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -426,10 +419,8 @@ void VulkanContext::drawFrame()
         }
         if (mAtmosphereCloudUniformBuffersMapped[mCurrentFrame] != nullptr)
         {
-            std::memcpy(
-                mAtmosphereCloudUniformBuffersMapped[mCurrentFrame],
-                &mAtmosphereCloudOcclusionData,
-                sizeof(mAtmosphereCloudOcclusionData));
+            std::memcpy(mAtmosphereCloudUniformBuffersMapped[mCurrentFrame], &mAtmosphereCloudOcclusionData,
+                        sizeof(mAtmosphereCloudOcclusionData));
         }
     }
     vkResetCommandBuffer(mCommandBuffers[mCurrentFrame], 0);
@@ -478,39 +469,21 @@ void VulkanContext::drawFrame()
         vkCmdBindVertexBuffers(cmd, 0, 1, atmosphereVertexBuffers, atmosphereOffsets);
     }
 
-    if (mAtmosphereGodRayPipeline != VK_NULL_HANDLE &&
-        atmosphereReady &&
-        mAtmosphereGodRayDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
-        atmosphereLayouts != nullptr)
+    if (mAtmosphereGodRayPipeline != VK_NULL_HANDLE && atmosphereReady &&
+        mAtmosphereGodRayDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE && atmosphereLayouts != nullptr)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mAtmosphereGodRayPipeline);
-        vkCmdBindDescriptorSets(
-            cmd,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            atmosphereLayouts->godRayPipelineLayout,
-            0,
-            1,
-            &mAtmosphereGodRayDescriptorSets[mCurrentFrame],
-            0,
-            nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, atmosphereLayouts->godRayPipelineLayout, 0, 1,
+                                &mAtmosphereGodRayDescriptorSets[mCurrentFrame], 0, nullptr);
         vkCmdDraw(cmd, 3, 1, 0, 0);
     }
 
-    if (mAtmosphereSunPipeline != VK_NULL_HANDLE &&
-        atmosphereReady &&
-        mAtmosphereSunDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
-        atmosphereLayouts != nullptr)
+    if (mAtmosphereSunPipeline != VK_NULL_HANDLE && atmosphereReady &&
+        mAtmosphereSunDescriptorSets[mCurrentFrame] != VK_NULL_HANDLE && atmosphereLayouts != nullptr)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mAtmosphereSunPipeline);
-        vkCmdBindDescriptorSets(
-            cmd,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            atmosphereLayouts->sunPipelineLayout,
-            0,
-            1,
-            &mAtmosphereSunDescriptorSets[mCurrentFrame],
-            0,
-            nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, atmosphereLayouts->sunPipelineLayout, 0, 1,
+                                &mAtmosphereSunDescriptorSets[mCurrentFrame], 0, nullptr);
         vkCmdDraw(cmd, 3, 1, 0, 0);
     }
 
@@ -523,23 +496,16 @@ void VulkanContext::drawFrame()
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mSpritePipeline);
 
-        for (const auto &layer : mSpriteLayers)
+        for (const auto& layer : mSpriteLayers)
         {
-            if (layer.vertexCount == 0 || layer.vertexBuffer == VK_NULL_HANDLE ||
-                layer.descriptorSets.empty() || layer.descriptorSets[mCurrentFrame] == VK_NULL_HANDLE)
+            if (layer.vertexCount == 0 || layer.vertexBuffer == VK_NULL_HANDLE || layer.descriptorSets.empty() ||
+                layer.descriptorSets[mCurrentFrame] == VK_NULL_HANDLE)
             {
                 continue;
             }
 
-            vkCmdBindDescriptorSets(
-                cmd,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                mSpritePipelineLayout,
-                0,
-                1,
-                &layer.descriptorSets[mCurrentFrame],
-                0,
-                nullptr);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mSpritePipelineLayout, 0, 1,
+                                    &layer.descriptorSets[mCurrentFrame], 0, nullptr);
 
             VkBuffer vertexBuffers[] = {layer.vertexBuffer};
             VkDeviceSize offsets[] = {0};
@@ -549,8 +515,7 @@ void VulkanContext::drawFrame()
     };
 
     if ((mEnvironmentCloudPipeline != VK_NULL_HANDLE || mEnvironmentTreePipeline != VK_NULL_HANDLE) &&
-        hasEnvironmentResources() &&
-        !mEnvironmentAtlasLayer.descriptorSets.empty() &&
+        hasEnvironmentResources() && !mEnvironmentAtlasLayer.descriptorSets.empty() &&
         mEnvironmentAtlasLayer.descriptorSets[mCurrentFrame] != VK_NULL_HANDLE &&
         mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE)
     {
@@ -564,25 +529,13 @@ void VulkanContext::drawFrame()
             VkBuffer buffers[] = {mEnvironmentQuadVertexBuffer, batch.instanceBuffer};
             VkDeviceSize offsets[] = {0, 0};
             vkCmdBindVertexBuffers(cmd, 0, 2, buffers, offsets);
-            vkCmdDraw(
-                cmd,
-                static_cast<uint32_t>(ENVIRONMENT_BASE_VERTEX_COUNT),
-                batch.instanceCount,
-                0,
-                0);
+            vkCmdDraw(cmd, static_cast<uint32_t>(ENVIRONMENT_BASE_VERTEX_COUNT), batch.instanceCount, 0, 0);
         };
 
         auto bindEnvironmentDescriptor = [&]()
         {
-            vkCmdBindDescriptorSets(
-                cmd,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                mEnvironmentPipelineLayout,
-                0,
-                1,
-                &mEnvironmentAtlasLayer.descriptorSets[mCurrentFrame],
-                0,
-                nullptr);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mEnvironmentPipelineLayout, 0, 1,
+                                    &mEnvironmentAtlasLayer.descriptorSets[mCurrentFrame], 0, nullptr);
         };
 
         // الغيوم تُرسم أولًا بمسار مستقل وخفيف قبل الأشجار لتقليل تفرع الشيدر.
@@ -674,21 +627,18 @@ bool VulkanContext::isInitialized() const
     return mInitialized;
 }
 
-VulkanContext::LayerId VulkanContext::createTexturedLayer(const std::string &path, std::size_t maxQuads)
+VulkanContext::LayerId VulkanContext::createTexturedLayer(const std::string& path, std::size_t maxQuads)
 {
     return createTexturedLayerWithCallback(path, maxQuads, {});
 }
 
-VulkanContext::LayerId VulkanContext::createTexturedLayerFromPixels(const unsigned char *pixels,
-                                                                    int texW,
-                                                                    int texH,
+VulkanContext::LayerId VulkanContext::createTexturedLayerFromPixels(const unsigned char* pixels, int texW, int texH,
                                                                     std::size_t maxQuads)
 {
     return createLayerFromPixels(pixels, texW, texH, maxQuads);
 }
 
-VulkanContext::LayerId VulkanContext::createTexturedLayerWithCallback(const std::string &path,
-                                                                      std::size_t maxQuads,
+VulkanContext::LayerId VulkanContext::createTexturedLayerWithCallback(const std::string& path, std::size_t maxQuads,
                                                                       PixelCallback cb)
 {
     if (!mInitialized)
@@ -703,7 +653,7 @@ VulkanContext::LayerId VulkanContext::createTexturedLayerWithCallback(const std:
     int texW = 0;
     int texH = 0;
     int texChannels = 0;
-    stbi_uc *pixels = stbi_load(path.c_str(), &texW, &texH, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(path.c_str(), &texW, &texH, &texChannels, STBI_rgb_alpha);
     if (pixels == nullptr)
     {
         throw std::runtime_error("[Vulkan] فشل تحميل الصورة: " + path);
@@ -719,9 +669,7 @@ VulkanContext::LayerId VulkanContext::createTexturedLayerWithCallback(const std:
     return layerId;
 }
 
-VulkanContext::LayerId VulkanContext::createLayerFromPixels(const unsigned char *pixels,
-                                                            int texW,
-                                                            int texH,
+VulkanContext::LayerId VulkanContext::createLayerFromPixels(const unsigned char* pixels, int texW, int texH,
                                                             std::size_t maxQuads)
 {
     if (!mInitialized)
@@ -750,9 +698,9 @@ VulkanContext::LayerId VulkanContext::createLayerFromPixels(const unsigned char 
     return mSpriteLayers.size() - 1;
 }
 
-void VulkanContext::updateTexturedLayer(LayerId layerId, const std::vector<TexturedQuad> &quads)
+void VulkanContext::updateTexturedLayer(LayerId layerId, const std::vector<TexturedQuad>& quads)
 {
-    SpriteLayerResources &layer = getLayer(layerId);
+    SpriteLayerResources& layer = getLayer(layerId);
 
     if (layer.vertexBufferMapped == nullptr)
     {
@@ -766,7 +714,7 @@ void VulkanContext::updateTexturedLayer(LayerId layerId, const std::vector<Textu
 
     QuadVertex* vertexWritePtr = static_cast<QuadVertex*>(layer.vertexBufferMapped);
     std::size_t vertexCount = 0;
-    for (const TexturedQuad &quad : quads)
+    for (const TexturedQuad& quad : quads)
     {
         writeQuadVertices(quad, vertexWritePtr + vertexCount);
         vertexCount += QUAD_VERTEX_COUNT;
@@ -777,7 +725,7 @@ void VulkanContext::updateTexturedLayer(LayerId layerId, const std::vector<Textu
 
 void VulkanContext::updateTexturedLayer(LayerId layerId, const TexturedQuad& quad)
 {
-    SpriteLayerResources &layer = getLayer(layerId);
+    SpriteLayerResources& layer = getLayer(layerId);
 
     if (layer.vertexBufferMapped == nullptr)
     {
@@ -795,7 +743,7 @@ void VulkanContext::updateTexturedLayer(LayerId layerId, const TexturedQuad& qua
 
 void VulkanContext::clearTexturedLayer(LayerId layerId)
 {
-    SpriteLayerResources &layer = getLayer(layerId);
+    SpriteLayerResources& layer = getLayer(layerId);
     layer.vertexCount = 0;
 }
 
@@ -841,10 +789,7 @@ void VulkanContext::updateAtmosphereCloudOcclusion(const std::vector<Environment
     mAtmosphereCloudOcclusionData.params[0] = static_cast<float>(cloudIndex);
 }
 
-void VulkanContext::setGroundInteraction(float leftFootX,
-                                         float rightFootX,
-                                         float radius,
-                                         float leftPressure,
+void VulkanContext::setGroundInteraction(float leftFootX, float rightFootX, float radius, float leftPressure,
                                          float rightPressure)
 {
     mGroundInteractionA = {leftFootX, radius, leftPressure, 0.0f};
@@ -896,24 +841,19 @@ void VulkanContext::setupDebugMessenger()
     VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType =
-        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT,
-                                    VkDebugUtilsMessageTypeFlagsEXT,
-                                    const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
-                                    void *) -> VkBool32
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
+                                    const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*) -> VkBool32
     {
         std::cerr << "[Vulkan Validation] " << callbackData->pMessage << std::endl;
         return VK_FALSE;
     };
 
-    const auto createDebugMessenger =
-        reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-            vkGetInstanceProcAddr(mInstance, "vkCreateDebugUtilsMessengerEXT"));
+    const auto createDebugMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(mInstance, "vkCreateDebugUtilsMessengerEXT"));
     if (createDebugMessenger == nullptr ||
         createDebugMessenger(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
     {
@@ -921,7 +861,7 @@ void VulkanContext::setupDebugMessenger()
     }
 }
 
-void VulkanContext::createSurface(GLFWwindow *window)
+void VulkanContext::createSurface(GLFWwindow* window)
 {
     if (glfwCreateWindowSurface(mInstance, window, nullptr, &mSurface) != VK_SUCCESS)
     {
@@ -1028,12 +968,11 @@ SwapchainSupportDetails VulkanContext::querySwapchainSupport(VkPhysicalDevice de
     return details;
 }
 
-VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) const
+VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available) const
 {
-    for (const VkSurfaceFormatKHR &format : available)
+    for (const VkSurfaceFormatKHR& format : available)
     {
-        if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
-            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
             return format;
         }
@@ -1041,7 +980,7 @@ VkSurfaceFormatKHR VulkanContext::chooseSwapSurfaceFormat(const std::vector<VkSu
     return available.front();
 }
 
-VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &available) const
+VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available) const
 {
     for (VkPresentModeKHR presentMode : available)
     {
@@ -1053,8 +992,7 @@ VkPresentModeKHR VulkanContext::chooseSwapPresentMode(const std::vector<VkPresen
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VulkanContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
-                                           uint32_t width,
+VkExtent2D VulkanContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t width,
                                            uint32_t height) const
 {
     if (capabilities.currentExtent.width != UINT32_MAX)
@@ -1242,11 +1180,8 @@ void VulkanContext::createCommandBuffers()
 {
     if (!mCommandBuffers.empty())
     {
-        vkFreeCommandBuffers(
-            mDevice,
-            mCommandPool,
-            static_cast<uint32_t>(mCommandBuffers.size()),
-            mCommandBuffers.data());
+        vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()),
+                             mCommandBuffers.data());
         mCommandBuffers.clear();
     }
 
@@ -1276,7 +1211,7 @@ void VulkanContext::createSyncObjects()
     if (mImageAvailableSemaphores.empty())
     {
         mImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        for (VkSemaphore &semaphore : mImageAvailableSemaphores)
+        for (VkSemaphore& semaphore : mImageAvailableSemaphores)
         {
             if (vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
             {
@@ -1288,7 +1223,7 @@ void VulkanContext::createSyncObjects()
     if (mInFlightFences.empty())
     {
         mInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-        for (VkFence &fence : mInFlightFences)
+        for (VkFence& fence : mInFlightFences)
         {
             if (vkCreateFence(mDevice, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
             {
@@ -1304,7 +1239,7 @@ void VulkanContext::createSyncObjects()
     mRenderFinishedSemaphores.clear();
     mRenderFinishedSemaphores.resize(mSwapchainImages.size());
 
-    for (VkSemaphore &semaphore : mRenderFinishedSemaphores)
+    for (VkSemaphore& semaphore : mRenderFinishedSemaphores)
     {
         if (vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
         {
@@ -1363,14 +1298,12 @@ void VulkanContext::createWindUniformBuffers()
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        createBuffer(
-            bufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            mWindUniformBuffers[i],
-            mWindUniformBuffersMemory[i]);
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mWindUniformBuffers[i],
+                     mWindUniformBuffersMemory[i]);
 
-        if (vkMapMemory(mDevice, mWindUniformBuffersMemory[i], 0, bufferSize, 0, &mWindUniformBuffersMapped[i]) != VK_SUCCESS)
+        if (vkMapMemory(mDevice, mWindUniformBuffersMemory[i], 0, bufferSize, 0, &mWindUniformBuffersMapped[i]) !=
+            VK_SUCCESS)
         {
             throw std::runtime_error("[Vulkan] فشل ربط ذاكرة wind uniform buffer");
         }
@@ -1387,37 +1320,31 @@ void VulkanContext::createAtmosphereUniformBuffers()
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        createBuffer(
-            sunBufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            mSunUniformBuffers[i],
-            mSunUniformBuffersMemory[i]);
-        if (vkMapMemory(mDevice, mSunUniformBuffersMemory[i], 0, sunBufferSize, 0, &mSunUniformBuffersMapped[i]) != VK_SUCCESS)
+        createBuffer(sunBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mSunUniformBuffers[i],
+                     mSunUniformBuffersMemory[i]);
+        if (vkMapMemory(mDevice, mSunUniformBuffersMemory[i], 0, sunBufferSize, 0, &mSunUniformBuffersMapped[i]) !=
+            VK_SUCCESS)
         {
             throw std::runtime_error("[Atmosphere] فشل ربط Sun UBO");
         }
         std::memset(mSunUniformBuffersMapped[i], 0, static_cast<std::size_t>(sunBufferSize));
 
-        createBuffer(
-            godRayBufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            mGodRayUniformBuffers[i],
-            mGodRayUniformBuffersMemory[i]);
-        if (vkMapMemory(mDevice, mGodRayUniformBuffersMemory[i], 0, godRayBufferSize, 0, &mGodRayUniformBuffersMapped[i]) != VK_SUCCESS)
+        createBuffer(godRayBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     mGodRayUniformBuffers[i], mGodRayUniformBuffersMemory[i]);
+        if (vkMapMemory(mDevice, mGodRayUniformBuffersMemory[i], 0, godRayBufferSize, 0,
+                        &mGodRayUniformBuffersMapped[i]) != VK_SUCCESS)
         {
             throw std::runtime_error("[Atmosphere] فشل ربط God Ray UBO");
         }
         std::memset(mGodRayUniformBuffersMapped[i], 0, static_cast<std::size_t>(godRayBufferSize));
 
-        createBuffer(
-            cloudBufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            mAtmosphereCloudUniformBuffers[i],
-            mAtmosphereCloudUniformBuffersMemory[i]);
-        if (vkMapMemory(mDevice, mAtmosphereCloudUniformBuffersMemory[i], 0, cloudBufferSize, 0, &mAtmosphereCloudUniformBuffersMapped[i]) != VK_SUCCESS)
+        createBuffer(cloudBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     mAtmosphereCloudUniformBuffers[i], mAtmosphereCloudUniformBuffersMemory[i]);
+        if (vkMapMemory(mDevice, mAtmosphereCloudUniformBuffersMemory[i], 0, cloudBufferSize, 0,
+                        &mAtmosphereCloudUniformBuffersMapped[i]) != VK_SUCCESS)
         {
             throw std::runtime_error("[Atmosphere] فشل ربط Cloud Occlusion UBO");
         }
@@ -1434,17 +1361,14 @@ void VulkanContext::createAtmosphereVertexBuffer()
 
     constexpr std::array<FullscreenVertex, 3> vertices{{
         {-1.0f, -1.0f, 0.0f, 0.0f},
-        { 3.0f, -1.0f, 2.0f, 0.0f},
-        {-1.0f,  3.0f, 0.0f, 2.0f},
+        {3.0f, -1.0f, 2.0f, 0.0f},
+        {-1.0f, 3.0f, 0.0f, 2.0f},
     }};
 
     const VkDeviceSize bufferSize = sizeof(vertices);
-    createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        mAtmosphereVertexBuffer,
-        mAtmosphereVertexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mAtmosphereVertexBuffer,
+                 mAtmosphereVertexBufferMemory);
 
     void* mappedData = nullptr;
     if (vkMapMemory(mDevice, mAtmosphereVertexBufferMemory, 0, bufferSize, 0, &mappedData) != VK_SUCCESS)
@@ -1465,7 +1389,8 @@ void VulkanContext::createAtmosphereMaskTexture()
 
     constexpr int MASK_WIDTH = 256;
     constexpr int MASK_HEIGHT = 256;
-    const std::vector<unsigned char> pixels = generateSunMaskPixels(MASK_WIDTH, MASK_HEIGHT, kDefaultSunDiskUniformData);
+    const std::vector<unsigned char> pixels =
+        generateSunMaskPixels(MASK_WIDTH, MASK_HEIGHT, kDefaultSunDiskUniformData);
 
     mSunMaskTexture.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
     createLayerTextureImageFromPixels(mSunMaskTexture, pixels.data(), MASK_WIDTH, MASK_HEIGHT);
@@ -1736,8 +1661,7 @@ void VulkanContext::createAtmospherePipelines()
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    VkPipelineColorBlendAttachmentState additiveBlend =
-        AtmosphereRenderer::makeAdditiveBlendAttachment();
+    VkPipelineColorBlendAttachmentState additiveBlend = AtmosphereRenderer::makeAdditiveBlendAttachment();
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.attachmentCount = 1;
@@ -1745,10 +1669,9 @@ void VulkanContext::createAtmospherePipelines()
 
     const AtmospherePassLayouts& layouts = mAtmosphereRenderer.getLayouts();
 
-    auto createPipeline = [&](VkShaderModule fragmentModule,
-                              VkPipelineLayout pipelineLayout,
-                              VkPipeline& pipelineHandle,
-                              const char* errorMessage) {
+    auto createPipeline = [&](VkShaderModule fragmentModule, VkPipelineLayout pipelineLayout,
+                              VkPipeline& pipelineHandle, const char* errorMessage)
+    {
         shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
         shaderStages[1].module = fragmentModule;
@@ -1769,7 +1692,8 @@ void VulkanContext::createAtmospherePipelines()
         pipelineInfo.renderPass = mRenderPass;
         pipelineInfo.subpass = 0;
 
-        if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipelineHandle) != VK_SUCCESS)
+        if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipelineHandle) !=
+            VK_SUCCESS)
         {
             throw std::runtime_error(errorMessage);
         }
@@ -1777,16 +1701,10 @@ void VulkanContext::createAtmospherePipelines()
 
     try
     {
-        createPipeline(
-            godRayFragmentShaderModule,
-            layouts.godRayPipelineLayout,
-            mAtmosphereGodRayPipeline,
-            "[Atmosphere] فشل إنشاء pipeline للأشعة");
-        createPipeline(
-            sunFragmentShaderModule,
-            layouts.sunPipelineLayout,
-            mAtmosphereSunPipeline,
-            "[Atmosphere] فشل إنشاء pipeline للشمس");
+        createPipeline(godRayFragmentShaderModule, layouts.godRayPipelineLayout, mAtmosphereGodRayPipeline,
+                       "[Atmosphere] فشل إنشاء pipeline للأشعة");
+        createPipeline(sunFragmentShaderModule, layouts.sunPipelineLayout, mAtmosphereSunPipeline,
+                       "[Atmosphere] فشل إنشاء pipeline للشمس");
     }
     catch (...)
     {
@@ -1909,10 +1827,7 @@ void VulkanContext::createSpritePipeline()
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT |
-        VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT |
-        VK_COLOR_COMPONENT_A_BIT;
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_TRUE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -1979,7 +1894,8 @@ void VulkanContext::createEnvironmentPipeline()
 {
     if (mRenderPass == VK_NULL_HANDLE || mDescriptorSetLayout == VK_NULL_HANDLE)
     {
-        throw std::runtime_error("[Vulkan] لا يمكن إنشاء Environment Pipeline قبل تجهيز RenderPass و DescriptorSetLayout");
+        throw std::runtime_error(
+            "[Vulkan] لا يمكن إنشاء Environment Pipeline قبل تجهيز RenderPass و DescriptorSetLayout");
     }
 
     cleanupEnvironmentPipeline();
@@ -2050,10 +1966,7 @@ void VulkanContext::createEnvironmentPipeline()
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT |
-        VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT |
-        VK_COLOR_COMPONENT_A_BIT;
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_TRUE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -2122,17 +2035,13 @@ void VulkanContext::createEnvironmentPipeline()
         vkDestroyShaderModule(mDevice, vertexShaderModule, nullptr);
     };
 
-    createEnvironmentGraphicsPipeline(
-        "assets/shaders/vert/environment_cloud.vert.spv",
-        "assets/shaders/frag/environment_cloud.frag.spv",
-        mEnvironmentCloudPipeline,
-        "Environment Cloud Pipeline");
+    createEnvironmentGraphicsPipeline("assets/shaders/vert/environment_cloud.vert.spv",
+                                      "assets/shaders/frag/environment_cloud.frag.spv", mEnvironmentCloudPipeline,
+                                      "Environment Cloud Pipeline");
 
-    createEnvironmentGraphicsPipeline(
-        "assets/shaders/vert/environment_tree.vert.spv",
-        "assets/shaders/frag/environment_tree.frag.spv",
-        mEnvironmentTreePipeline,
-        "Environment Tree Pipeline");
+    createEnvironmentGraphicsPipeline("assets/shaders/vert/environment_tree.vert.spv",
+                                      "assets/shaders/frag/environment_tree.frag.spv", mEnvironmentTreePipeline,
+                                      "Environment Tree Pipeline");
 }
 
 void VulkanContext::createEnvironmentAtlasResources()
@@ -2177,12 +2086,9 @@ void VulkanContext::createEnvironmentQuadVertexBuffer()
     }
 
     const VkDeviceSize bufferSize = sizeof(kEnvironmentQuadVertices);
-    createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        mEnvironmentQuadVertexBuffer,
-        mEnvironmentQuadVertexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 mEnvironmentQuadVertexBuffer, mEnvironmentQuadVertexBufferMemory);
 
     void* mappedData = nullptr;
     if (vkMapMemory(mDevice, mEnvironmentQuadVertexBufferMemory, 0, bufferSize, 0, &mappedData) != VK_SUCCESS)
@@ -2214,12 +2120,9 @@ void VulkanContext::createEnvironmentInstanceBuffer(EnvironmentBatchResources& b
     const VkDeviceSize bufferSize =
         static_cast<VkDeviceSize>(sizeof(EnvironmentInstance)) * static_cast<VkDeviceSize>(maxInstances);
 
-    createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        batch.instanceBuffer,
-        batch.instanceBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, batch.instanceBuffer,
+                 batch.instanceBufferMemory);
 
     if (vkMapMemory(mDevice, batch.instanceBufferMemory, 0, bufferSize, 0, &batch.instanceBufferMapped) != VK_SUCCESS)
     {
@@ -2231,7 +2134,8 @@ void VulkanContext::createEnvironmentInstanceBuffer(EnvironmentBatchResources& b
     batch.instanceCount = 0;
 }
 
-void VulkanContext::updateEnvironmentBatch(EnvironmentBatchResources& batch, const std::vector<EnvironmentInstance>& instances)
+void VulkanContext::updateEnvironmentBatch(EnvironmentBatchResources& batch,
+                                           const std::vector<EnvironmentInstance>& instances)
 {
     if (batch.instanceBufferMapped == nullptr)
     {
@@ -2294,23 +2198,18 @@ void VulkanContext::destroyEnvironmentResources()
     destroyLayerResources(mEnvironmentAtlasLayer);
 }
 
-void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &layer,
-                                                      const unsigned char *pixels,
-                                                      int texW,
-                                                      int texH)
+void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources& layer, const unsigned char* pixels,
+                                                      int texW, int texH)
 {
     const VkDeviceSize imageSize = static_cast<VkDeviceSize>(texW) * static_cast<VkDeviceSize>(texH) * 4;
 
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingBufferMemory = VK_NULL_HANDLE;
-    createBuffer(
-        imageSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
 
-    void *mappedData = nullptr;
+    void* mappedData = nullptr;
     if (vkMapMemory(mDevice, stagingBufferMemory, 0, imageSize, 0, &mappedData) != VK_SUCCESS)
     {
         throw std::runtime_error("[Vulkan] فشل ربط staging buffer");
@@ -2362,12 +2261,10 @@ void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &laye
         throw std::runtime_error("[Vulkan] فشل ربط ذاكرة صورة النسيج");
     }
 
-    transitionImageLayout(layer.image, layer.imageFormat,
-                          VK_IMAGE_LAYOUT_UNDEFINED,
+    transitionImageLayout(layer.image, layer.imageFormat, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     copyBufferToImage(stagingBuffer, layer.image, static_cast<uint32_t>(texW), static_cast<uint32_t>(texH));
-    transitionImageLayout(layer.image, layer.imageFormat,
-                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    transitionImageLayout(layer.image, layer.imageFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
@@ -2376,7 +2273,7 @@ void VulkanContext::createLayerTextureImageFromPixels(SpriteLayerResources &laye
     std::cout << "[Vulkan] تم تحميل النسيج: " << texW << "x" << texH << std::endl;
 }
 
-void VulkanContext::createLayerTextureImageView(SpriteLayerResources &layer)
+void VulkanContext::createLayerTextureImageView(SpriteLayerResources& layer)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -2395,7 +2292,7 @@ void VulkanContext::createLayerTextureImageView(SpriteLayerResources &layer)
     }
 }
 
-void VulkanContext::createLayerTextureSampler(SpriteLayerResources &layer)
+void VulkanContext::createLayerTextureSampler(SpriteLayerResources& layer)
 {
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -2420,7 +2317,7 @@ void VulkanContext::createLayerTextureSampler(SpriteLayerResources &layer)
     }
 }
 
-void VulkanContext::createLayerDescriptors(SpriteLayerResources &layer)
+void VulkanContext::createLayerDescriptors(SpriteLayerResources& layer)
 {
     if (mWindTexture.imageView == VK_NULL_HANDLE || mWindTexture.sampler == VK_NULL_HANDLE)
     {
@@ -2497,26 +2394,18 @@ void VulkanContext::createLayerDescriptors(SpriteLayerResources &layer)
         descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrites[2].pImageInfo = &windImageInfo;
 
-        vkUpdateDescriptorSets(
-            mDevice,
-            static_cast<uint32_t>(descriptorWrites.size()),
-            descriptorWrites.data(),
-            0,
-            nullptr);
+        vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
+                               nullptr);
     }
 }
 
-void VulkanContext::createLayerVertexBuffer(SpriteLayerResources &layer)
+void VulkanContext::createLayerVertexBuffer(SpriteLayerResources& layer)
 {
-    const VkDeviceSize bufferSize =
-        static_cast<VkDeviceSize>(sizeof(QuadVertex)) * QUAD_VERTEX_COUNT * layer.maxQuads;
+    const VkDeviceSize bufferSize = static_cast<VkDeviceSize>(sizeof(QuadVertex)) * QUAD_VERTEX_COUNT * layer.maxQuads;
 
-    createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        layer.vertexBuffer,
-        layer.vertexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, layer.vertexBuffer,
+                 layer.vertexBufferMemory);
 
     if (vkMapMemory(mDevice, layer.vertexBufferMemory, 0, bufferSize, 0, &layer.vertexBufferMapped) != VK_SUCCESS)
     {
@@ -2527,7 +2416,7 @@ void VulkanContext::createLayerVertexBuffer(SpriteLayerResources &layer)
     layer.vertexCount = 0;
 }
 
-void VulkanContext::destroyLayerResources(SpriteLayerResources &layer)
+void VulkanContext::destroyLayerResources(SpriteLayerResources& layer)
 {
     if (layer.vertexBufferMapped != nullptr && layer.vertexBufferMemory != VK_NULL_HANDLE)
     {
@@ -2611,7 +2500,8 @@ void VulkanContext::destroyAtmosphereUniformBuffers()
             mGodRayUniformBuffersMemory[i] = VK_NULL_HANDLE;
         }
 
-        if (mAtmosphereCloudUniformBuffersMapped[i] != nullptr && mAtmosphereCloudUniformBuffersMemory[i] != VK_NULL_HANDLE)
+        if (mAtmosphereCloudUniformBuffersMapped[i] != nullptr &&
+            mAtmosphereCloudUniformBuffersMemory[i] != VK_NULL_HANDLE)
         {
             vkUnmapMemory(mDevice, mAtmosphereCloudUniformBuffersMemory[i]);
             mAtmosphereCloudUniformBuffersMapped[i] = nullptr;
@@ -2669,8 +2559,7 @@ void VulkanContext::destroyAtmosphereMaskTexture()
 
 void VulkanContext::updateWindUniformBuffer(uint32_t frameIndex, float timeSeconds)
 {
-    if (frameIndex >= static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) ||
-        mWindUniformBuffersMapped[frameIndex] == nullptr)
+    if (frameIndex >= static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) || mWindUniformBuffersMapped[frameIndex] == nullptr)
     {
         return;
     }
@@ -2711,11 +2600,11 @@ void VulkanContext::destroyWindTextureResources()
     destroyLayerResources(mWindTexture);
 }
 
-std::vector<const char *> VulkanContext::getRequiredExtensions() const
+std::vector<const char*> VulkanContext::getRequiredExtensions() const
 {
     uint32_t glfwExtensionCount = 0;
-    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
     if (ENABLE_VALIDATION_LAYERS)
     {
@@ -2732,10 +2621,10 @@ bool VulkanContext::checkValidationLayerSupport() const
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-    for (const char *layerName : VALIDATION_LAYERS)
+    for (const char* layerName : VALIDATION_LAYERS)
     {
         bool found = false;
-        for (const VkLayerProperties &layerProperties : availableLayers)
+        for (const VkLayerProperties& layerProperties : availableLayers)
         {
             if (std::strcmp(layerName, layerProperties.layerName) == 0)
             {
@@ -2759,10 +2648,10 @@ bool VulkanContext::checkDeviceExtensionSupport(VkPhysicalDevice device) const
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-    for (const char *requiredExtension : DEVICE_EXTENSIONS)
+    for (const char* requiredExtension : DEVICE_EXTENSIONS)
     {
         bool found = false;
-        for (const VkExtensionProperties &extension : availableExtensions)
+        for (const VkExtensionProperties& extension : availableExtensions)
         {
             if (std::strcmp(requiredExtension, extension.extensionName) == 0)
             {
@@ -2842,12 +2731,12 @@ QueueFamilyIndices VulkanContext::findQueueFamilies(VkPhysicalDevice device) con
     return indices;
 }
 
-VkShaderModule VulkanContext::createShaderModule(const std::vector<char> &code) const
+VkShaderModule VulkanContext::createShaderModule(const std::vector<char>& code) const
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule = VK_NULL_HANDLE;
     if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
@@ -2857,7 +2746,7 @@ VkShaderModule VulkanContext::createShaderModule(const std::vector<char> &code) 
     return shaderModule;
 }
 
-std::vector<char> VulkanContext::readFile(const std::string &path)
+std::vector<char> VulkanContext::readFile(const std::string& path)
 {
     std::ifstream file(path, std::ios::ate | std::ios::binary);
     if (!file.is_open())
@@ -2879,8 +2768,7 @@ uint32_t VulkanContext::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlag
 
     for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
     {
-        if ((typeFilter & (1u << i)) &&
-            (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        if ((typeFilter & (1u << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
         {
             return i;
         }
@@ -2889,7 +2777,7 @@ uint32_t VulkanContext::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlag
     throw std::runtime_error("[Vulkan] لم يُعثر على نوع ذاكرة مناسب");
 }
 
-VulkanContext::SpriteLayerResources &VulkanContext::getLayer(LayerId layerId)
+VulkanContext::SpriteLayerResources& VulkanContext::getLayer(LayerId layerId)
 {
     if (layerId >= mSpriteLayers.size())
     {
@@ -2898,7 +2786,7 @@ VulkanContext::SpriteLayerResources &VulkanContext::getLayer(LayerId layerId)
     return mSpriteLayers[layerId];
 }
 
-const VulkanContext::SpriteLayerResources &VulkanContext::getLayer(LayerId layerId) const
+const VulkanContext::SpriteLayerResources& VulkanContext::getLayer(LayerId layerId) const
 {
     if (layerId >= mSpriteLayers.size())
     {
@@ -2907,11 +2795,8 @@ const VulkanContext::SpriteLayerResources &VulkanContext::getLayer(LayerId layer
     return mSpriteLayers[layerId];
 }
 
-void VulkanContext::createBuffer(VkDeviceSize size,
-                                 VkBufferUsageFlags usage,
-                                 VkMemoryPropertyFlags properties,
-                                 VkBuffer &buffer,
-                                 VkDeviceMemory &memory)
+void VulkanContext::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+                                 VkBuffer& buffer, VkDeviceMemory& memory)
 {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -2980,9 +2865,7 @@ void VulkanContext::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
 }
 
-void VulkanContext::transitionImageLayout(VkImage image,
-                                          VkFormat /*format*/,
-                                          VkImageLayout oldLayout,
+void VulkanContext::transitionImageLayout(VkImage image, VkFormat /*format*/, VkImageLayout oldLayout,
                                           VkImageLayout newLayout)
 {
     VkCommandBufferAllocateInfo allocInfo{};
@@ -3022,8 +2905,7 @@ void VulkanContext::transitionImageLayout(VkImage image,
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
-    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
     {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -3035,17 +2917,7 @@ void VulkanContext::transitionImageLayout(VkImage image,
         throw std::runtime_error("[Vulkan] انتقال تخطيط غير مدعوم");
     }
 
-    vkCmdPipelineBarrier(
-        commandBuffer,
-        sourceStage,
-        destinationStage,
-        0,
-        0,
-        nullptr,
-        0,
-        nullptr,
-        1,
-        &barrier);
+    vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     vkEndCommandBuffer(commandBuffer);
 
@@ -3180,9 +3052,8 @@ bool VulkanContext::hasSpriteResources() const
 
 bool VulkanContext::hasEnvironmentResources() const
 {
-    return mEnvironmentAtlasLayer.imageView != VK_NULL_HANDLE &&
-        mEnvironmentAtlasLayer.sampler != VK_NULL_HANDLE &&
-        mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE;
+    return mEnvironmentAtlasLayer.imageView != VK_NULL_HANDLE && mEnvironmentAtlasLayer.sampler != VK_NULL_HANDLE &&
+           mEnvironmentQuadVertexBuffer != VK_NULL_HANDLE;
 }
 
 } // namespace gfx

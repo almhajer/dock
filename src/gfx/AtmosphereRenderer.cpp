@@ -9,10 +9,8 @@ namespace gfx
 namespace
 {
 
-VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device,
-                                                const VkDescriptorSetLayoutBinding* bindings,
-                                                uint32_t bindingCount,
-                                                const char* errorMessage)
+VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutBinding* bindings,
+                                                uint32_t bindingCount, const char* errorMessage)
 {
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -27,8 +25,7 @@ VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device,
     return layout;
 }
 
-VkPipelineLayout createPipelineLayout(VkDevice device,
-                                      VkDescriptorSetLayout descriptorSetLayout,
+VkPipelineLayout createPipelineLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout,
                                       const char* errorMessage)
 {
     VkPipelineLayoutCreateInfo layoutInfo{};
@@ -96,10 +93,7 @@ VkPipelineColorBlendAttachmentState AtmosphereRenderer::makeAdditiveBlendAttachm
 {
     VkPipelineColorBlendAttachmentState blend{};
     blend.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT |
-        VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT |
-        VK_COLOR_COMPONENT_A_BIT;
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     blend.blendEnable = VK_TRUE;
     blend.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -121,11 +115,9 @@ void AtmosphereRenderer::createDescriptorSetLayouts()
     sunBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     sunBindings[1].descriptorCount = 1;
     sunBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    mLayouts.sunDescriptorSetLayout = createDescriptorSetLayout(
-        mDevice,
-        sunBindings.data(),
-        static_cast<uint32_t>(sunBindings.size()),
-        "[Atmosphere] فشل إنشاء descriptor layout للشمس");
+    mLayouts.sunDescriptorSetLayout =
+        createDescriptorSetLayout(mDevice, sunBindings.data(), static_cast<uint32_t>(sunBindings.size()),
+                                  "[Atmosphere] فشل إنشاء descriptor layout للشمس");
 
     std::array<VkDescriptorSetLayoutBinding, 3> godRayBindings{};
     godRayBindings[0].binding = 0;
@@ -140,24 +132,18 @@ void AtmosphereRenderer::createDescriptorSetLayouts()
     godRayBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     godRayBindings[2].descriptorCount = 1;
     godRayBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    mLayouts.godRayDescriptorSetLayout = createDescriptorSetLayout(
-        mDevice,
-        godRayBindings.data(),
-        static_cast<uint32_t>(godRayBindings.size()),
-        "[Atmosphere] فشل إنشاء descriptor layout للأشعة الحجمية");
+    mLayouts.godRayDescriptorSetLayout =
+        createDescriptorSetLayout(mDevice, godRayBindings.data(), static_cast<uint32_t>(godRayBindings.size()),
+                                  "[Atmosphere] فشل إنشاء descriptor layout للأشعة الحجمية");
 }
 
 void AtmosphereRenderer::createPipelineLayouts()
 {
-    mLayouts.sunPipelineLayout = createPipelineLayout(
-        mDevice,
-        mLayouts.sunDescriptorSetLayout,
-        "[Atmosphere] فشل إنشاء pipeline layout للشمس");
+    mLayouts.sunPipelineLayout =
+        createPipelineLayout(mDevice, mLayouts.sunDescriptorSetLayout, "[Atmosphere] فشل إنشاء pipeline layout للشمس");
 
-    mLayouts.godRayPipelineLayout = createPipelineLayout(
-        mDevice,
-        mLayouts.godRayDescriptorSetLayout,
-        "[Atmosphere] فشل إنشاء pipeline layout للأشعة الحجمية");
+    mLayouts.godRayPipelineLayout = createPipelineLayout(mDevice, mLayouts.godRayDescriptorSetLayout,
+                                                         "[Atmosphere] فشل إنشاء pipeline layout للأشعة الحجمية");
 }
 
 void AtmosphereRenderer::destroyPipelineLayouts()

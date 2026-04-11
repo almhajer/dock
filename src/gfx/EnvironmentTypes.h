@@ -6,7 +6,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace gfx {
+namespace gfx
+{
 
 #pragma region EnvironmentConstants
 /*
@@ -17,7 +18,8 @@ inline constexpr std::size_t ENVIRONMENT_BASE_VERTEX_COUNT = 6;
 /*
  @brief نوع عنصر البيئة المرسوم في الشيدر.
  */
-enum class EnvironmentElementKind : uint32_t {
+enum class EnvironmentElementKind : uint32_t
+{
     Cloud = 0,
     Tree = 1,
 };
@@ -25,7 +27,8 @@ enum class EnvironmentElementKind : uint32_t {
 /*
  @brief معرّف السبرايت داخل أطلس البيئة.
  */
-enum class EnvironmentSpriteId : uint32_t {
+enum class EnvironmentSpriteId : uint32_t
+{
     CloudWide = 0,
     CloudTower = 1,
     CloudWisp = 2,
@@ -39,7 +42,8 @@ enum class EnvironmentSpriteId : uint32_t {
 /*
  هندسة quad ثابتة تُستخدم مع instancing لرسم عناصر البيئة.
  */
-struct EnvironmentQuadVertex {
+struct EnvironmentQuadVertex
+{
     /*
      الإحداثي الأفقي للرأس.
      */
@@ -64,7 +68,8 @@ struct EnvironmentQuadVertex {
 /*
  بيانات instance واحدة لعناصر البيئة: غيمة أو شجرة.
  */
-struct EnvironmentInstance {
+struct EnvironmentInstance
+{
     /*
      مركز العنصر أفقياً.
      */
@@ -169,7 +174,8 @@ struct EnvironmentInstance {
 /*
  دفعات البيئة مفصولة حسب النوع لتفادي خلط مسار الغيم مع مسار الشجر داخل نفس الـ shader.
  */
-struct EnvironmentRenderData {
+struct EnvironmentRenderData
+{
     /*
      دفعة الغيوم.
      */

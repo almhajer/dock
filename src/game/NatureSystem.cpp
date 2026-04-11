@@ -4,8 +4,10 @@
 #include <array>
 #include <cmath>
 
-namespace game {
-namespace {
+namespace game
+{
+namespace
+{
 
 constexpr float CLOUD_WRAP_PADDING = 0.28f;
 constexpr float TREE_ROOT_SINK = 0.012f;
@@ -13,9 +15,8 @@ constexpr float TREE_ROOT_SINK = 0.012f;
 float cloudAltitude(float bandHash, float offsetHash)
 {
     constexpr std::array<float, 4> LEVELS = {-0.94f, -0.82f, -0.68f, -0.54f};
-    const std::size_t levelIndex = std::min(
-        static_cast<std::size_t>(bandHash * static_cast<float>(LEVELS.size())),
-        LEVELS.size() - 1);
+    const std::size_t levelIndex =
+        std::min(static_cast<std::size_t>(bandHash * static_cast<float>(LEVELS.size())), LEVELS.size() - 1);
     return LEVELS[levelIndex] + (offsetHash - 0.5f) * 0.07f;
 }
 
@@ -46,14 +47,15 @@ void sortByDepth(std::vector<gfx::EnvironmentInstance>& instances)
         return;
     }
 
-    std::sort(instances.begin(), instances.end(), [](const gfx::EnvironmentInstance& lhs, const gfx::EnvironmentInstance& rhs)
-    {
-        if (lhs.parallax == rhs.parallax)
-        {
-            return lhs.centerY < rhs.centerY;
-        }
-        return lhs.parallax < rhs.parallax;
-    });
+    std::sort(instances.begin(), instances.end(),
+              [](const gfx::EnvironmentInstance& lhs, const gfx::EnvironmentInstance& rhs)
+              {
+                  if (lhs.parallax == rhs.parallax)
+                  {
+                      return lhs.centerY < rhs.centerY;
+                  }
+                  return lhs.parallax < rhs.parallax;
+              });
 }
 
 } // namespace
@@ -148,17 +150,13 @@ void NatureSystem::buildRenderData(const core::scene::WindowMetrics& metrics,
 
     if (!mBackgroundTreeRenderCache.empty())
     {
-        renderData.backgroundTreeInstances.insert(
-            renderData.backgroundTreeInstances.end(),
-            mBackgroundTreeRenderCache.begin(),
-            mBackgroundTreeRenderCache.end());
+        renderData.backgroundTreeInstances.insert(renderData.backgroundTreeInstances.end(),
+                                                  mBackgroundTreeRenderCache.begin(), mBackgroundTreeRenderCache.end());
     }
     if (!mForegroundTreeRenderCache.empty())
     {
-        renderData.foregroundTreeInstances.insert(
-            renderData.foregroundTreeInstances.end(),
-            mForegroundTreeRenderCache.begin(),
-            mForegroundTreeRenderCache.end());
+        renderData.foregroundTreeInstances.insert(renderData.foregroundTreeInstances.end(),
+                                                  mForegroundTreeRenderCache.begin(), mForegroundTreeRenderCache.end());
     }
 
     sortByDepth(renderData.cloudInstances);
@@ -333,20 +331,16 @@ void NatureSystem::updateClouds(float deltaTime, const core::scene::WindowMetric
     for (CloudState& cloud : mClouds)
     {
         const float gust = 0.88f + mWind.gustStrength * 0.18f;
-        const float travelWave =
-            std::sin(mWind.time * (0.08f + cloud.parallax * 0.02f) + cloud.verticalPhase) * 0.12f;
+        const float travelWave = std::sin(mWind.time * (0.08f + cloud.parallax * 0.02f) + cloud.verticalPhase) * 0.12f;
         const float randomDrift =
             std::cos(mWind.time * 0.05f + cloud.verticalPhase * 0.73f) * mWind.driftStrength * 0.26f;
-        cloud.x += (
-            mWind.direction * mWind.baseSpeed +
-            cloud.speed * cloud.heading * (0.94f + travelWave) +
-            randomDrift) *
+        cloud.x +=
+            (mWind.direction * mWind.baseSpeed + cloud.speed * cloud.heading * (0.94f + travelWave) + randomDrift) *
             gust * deltaTime;
-        cloud.y += (
-            std::sin(mWind.time * (0.07f + cloud.parallax * 0.02f) + cloud.verticalPhase) *
-            cloud.verticalDrift * 0.16f +
-            std::cos(mWind.time * 0.05f + cloud.verticalPhase * 0.6f) * mWind.driftStrength * 0.04f) *
-            deltaTime;
+        cloud.y += (std::sin(mWind.time * (0.07f + cloud.parallax * 0.02f) + cloud.verticalPhase) *
+                        cloud.verticalDrift * 0.16f +
+                    std::cos(mWind.time * 0.05f + cloud.verticalPhase * 0.6f) * mWind.driftStrength * 0.04f) *
+                   deltaTime;
 
         const float wrapWidth = cloud.width * 0.5f + CLOUD_WRAP_PADDING;
         if (cloud.x - wrapWidth > 1.28f)
@@ -362,9 +356,7 @@ void NatureSystem::updateClouds(float deltaTime, const core::scene::WindowMetric
     }
 }
 
-void NatureSystem::recycleCloud(CloudState& cloud,
-                                const core::scene::WindowMetrics& metrics,
-                                bool wrapToLeft,
+void NatureSystem::recycleCloud(CloudState& cloud, const core::scene::WindowMetrics& metrics, bool wrapToLeft,
                                 float randomSeed) const
 {
     const float value = randomSeed * 7.17f + cloud.verticalPhase;

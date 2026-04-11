@@ -8,7 +8,8 @@
 #include <limits.h>
 #endif
 
-namespace {
+namespace
+{
 
 #ifdef __APPLE__
 std::string bundleResourcesPath()
@@ -26,11 +27,8 @@ std::string bundleResourcesPath()
     }
 
     char path[PATH_MAX] = {};
-    const bool success = CFURLGetFileSystemRepresentation(
-        resourcesUrl,
-        true,
-        reinterpret_cast<UInt8*>(path),
-        sizeof(path));
+    const bool success =
+        CFURLGetFileSystemRepresentation(resourcesUrl, true, reinterpret_cast<UInt8*>(path), sizeof(path));
     CFRelease(resourcesUrl);
 
     return success ? std::string(path) : std::string{};
@@ -50,16 +48,17 @@ void prepareWorkingDirectory()
     std::filesystem::current_path(resourcesPath, error);
     if (error)
     {
-        std::cerr << "[Init] تعذر تغيير مجلد العمل إلى Resources: "
-                  << error.message() << std::endl;
+        std::cerr << "[Init] تعذر تغيير مجلد العمل إلى Resources: " << error.message() << std::endl;
     }
 #endif
 }
 
 } // namespace
 
-int main() {
-    try {
+int main()
+{
+    try
+    {
         prepareWorkingDirectory();
 
         core::App::Config config;
@@ -69,7 +68,9 @@ int main() {
 
         core::App app(config);
         app.run();
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e)
+    {
         std::cerr << "خطأ فادح: " << e.what() << std::endl;
         return 1;
     }

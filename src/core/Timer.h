@@ -2,14 +2,16 @@
 
 #include <chrono>
 
-namespace core {
+namespace core
+{
 
 /*
  مؤقت - يحسب الوقت بين الإطارات ومعدل الإطارات في الثانية
  */
-class Timer {
-public:
-    #pragma region PublicInterface
+class Timer
+{
+  public:
+#pragma region PublicInterface
     /*
      ينشئ المؤقت ويثبت لحظة البداية.
      */
@@ -34,10 +36,10 @@ public:
      عدد الإطارات في الثانية (محدّث كل نصف ثانية)
      */
     [[nodiscard]] int getFPS() const;
-    #pragma endregion PublicInterface
+#pragma endregion PublicInterface
 
-private:
-    #pragma region InternalTypes
+  private:
+#pragma region InternalTypes
     /*
      ساعة التوقيت الأساسية المعتمدة داخل المؤقت.
      */
@@ -47,44 +49,44 @@ private:
      نوع النقطة الزمنية الراجع من الساعة.
      */
     using TimePoint = Clock::time_point;
-    #pragma endregion InternalTypes
+#pragma endregion InternalTypes
 
-    #pragma region InternalState
+#pragma region InternalState
     /*
      لحظة بدء المؤقت.
      */
-    TimePoint mStartTime;      // لحظة بدء المؤقت
+    TimePoint mStartTime; // لحظة بدء المؤقت
 
     /*
      لحظة تحديث الإطار السابق.
      */
-    TimePoint mLastTime;       // لحظة آخر إطار
+    TimePoint mLastTime; // لحظة آخر إطار
 
     /*
      لحظة آخر تحديث محسوب لمعدل الإطارات.
      */
-    TimePoint mLastFPSTime;    // لحظة آخر تحديث للـ FPS
+    TimePoint mLastFPSTime; // لحظة آخر تحديث للـ FPS
 
     /*
      الزمن بين الإطار الحالي والسابق.
      */
-    float mDeltaTime = 0.0f;   // الوقت بين الإطارات
+    float mDeltaTime = 0.0f; // الوقت بين الإطارات
 
     /*
      الزمن الكلي منذ بدء التطبيق.
      */
-    float mTotalTime = 0.0f;   // الوقت الكلي
+    float mTotalTime = 0.0f; // الوقت الكلي
 
     /*
      قيمة FPS الأخيرة المحسوبة.
      */
-    int mFPS = 0;              // معدل الإطارات الحالي
+    int mFPS = 0; // معدل الإطارات الحالي
 
     /*
      عداد الإطارات المستخدم لحساب FPS.
      */
-    int mFrameCount = 0;       // عداد الإطارات لحساب FPS
-    #pragma endregion InternalState
+    int mFrameCount = 0; // عداد الإطارات لحساب FPS
+#pragma endregion InternalState
 };
 
 } // namespace core

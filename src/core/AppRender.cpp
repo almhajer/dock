@@ -7,8 +7,10 @@
 #include <array>
 #include <vector>
 
-namespace core {
-namespace {
+namespace core
+{
+namespace
+{
 
 /*
  * ثوابت آثار القدمين معزولة هنا لأنها تخص العرض الأرضي فقط
@@ -34,8 +36,7 @@ void App::updateSoilRenderData()
         return;
     }
 
-    const scene::WindowMetrics metrics =
-        scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
     if (!metrics.valid())
     {
         mSoilLayoutWidth = 0;
@@ -61,8 +62,7 @@ void App::updateGrassRenderData()
         return;
     }
 
-    const scene::WindowMetrics metrics =
-        scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
     if (!metrics.valid())
     {
         mGrassLayoutWidth = 0;
@@ -101,25 +101,22 @@ void App::updateGrassRenderData()
 
 void App::updateNatureRenderData()
 {
-    const scene::WindowMetrics metrics =
-        scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
     if (!metrics.valid())
     {
         mEnvironmentRenderData.cloudInstances.clear();
         mEnvironmentRenderData.backgroundTreeInstances.clear();
         mEnvironmentRenderData.foregroundTreeInstances.clear();
-        mVulkan.updateEnvironmentBatches(
-            mEnvironmentRenderData.cloudInstances,
-            mEnvironmentRenderData.backgroundTreeInstances,
-            mEnvironmentRenderData.foregroundTreeInstances);
+        mVulkan.updateEnvironmentBatches(mEnvironmentRenderData.cloudInstances,
+                                         mEnvironmentRenderData.backgroundTreeInstances,
+                                         mEnvironmentRenderData.foregroundTreeInstances);
         return;
     }
 
     mNatureSystem.buildRenderData(metrics, mEnvironmentRenderData);
-    mVulkan.updateEnvironmentBatches(
-        mEnvironmentRenderData.cloudInstances,
-        mEnvironmentRenderData.backgroundTreeInstances,
-        mEnvironmentRenderData.foregroundTreeInstances);
+    mVulkan.updateEnvironmentBatches(mEnvironmentRenderData.cloudInstances,
+                                     mEnvironmentRenderData.backgroundTreeInstances,
+                                     mEnvironmentRenderData.foregroundTreeInstances);
 }
 
 void App::updateHunterRenderData()
@@ -134,8 +131,7 @@ void App::updateHunterRenderData()
         return;
     }
 
-    const scene::WindowMetrics metrics =
-        scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
     if (!metrics.valid())
     {
         return;
@@ -181,8 +177,7 @@ void App::updateDuckRenderData()
         return;
     }
 
-    const scene::WindowMetrics metrics =
-        scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
     if (!metrics.valid())
     {
         mVulkan.clearTexturedLayer(mDuckLayerId);
@@ -207,12 +202,7 @@ void App::updateDuckRenderData()
         std::swap(uv.v0, uv.v1);
     }
 
-    gfx::TexturedQuad quad = scene::buildSpriteQuad(
-        *frame,
-        mDuckX,
-        mDuckY,
-        duckplay::kDuckScreenHalfHeight,
-        metrics);
+    gfx::TexturedQuad quad = scene::buildSpriteQuad(*frame, mDuckX, mDuckY, duckplay::kDuckScreenHalfHeight, metrics);
     quad.uv = uv;
     quad.alpha = mDuckAlpha;
     quad.rotationRadians = mDuckRotation;
@@ -221,18 +211,14 @@ void App::updateDuckRenderData()
 
 void App::updateGroundInteraction(float deltaTime)
 {
-    mLeftGroundPressure =
-        std::max(0.0f, mLeftGroundPressure - deltaTime * kFootprintDecayPerSecond);
-    mRightGroundPressure =
-        std::max(0.0f, mRightGroundPressure - deltaTime * kFootprintDecayPerSecond);
+    mLeftGroundPressure = std::max(0.0f, mLeftGroundPressure - deltaTime * kFootprintDecayPerSecond);
+    mRightGroundPressure = std::max(0.0f, mRightGroundPressure - deltaTime * kFootprintDecayPerSecond);
 
     const bool walking = hunterplay::isWalkingClip(mHunterState);
 
-    const scene::WindowMetrics metrics =
-        scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
     const game::AtlasFrame* frame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
-    if (walking && metrics.valid() &&
-        frame != nullptr && frame->sourceW > 0 && frame->sourceH > 0)
+    if (walking && metrics.valid() && frame != nullptr && frame->sourceW > 0 && frame->sourceH > 0)
     {
         const float logicalHalfWidth = scene::hunterLogicalHalfWidth(*frame, metrics);
         const float hunterWidth = logicalHalfWidth * 2.0f;
@@ -241,8 +227,7 @@ void App::updateGroundInteraction(float deltaTime)
         const float rightTargetPressure = scene::resolvePressure(gait, false);
         const float leftFootTargetX = scene::resolveFootTargetX(mHunterX, hunterWidth, gait, true);
         const float rightFootTargetX = scene::resolveFootTargetX(mHunterX, hunterWidth, gait, false);
-        const float followFactor =
-            std::clamp(deltaTime * kFootprintFollowPerSecond, 0.0f, 1.0f);
+        const float followFactor = std::clamp(deltaTime * kFootprintFollowPerSecond, 0.0f, 1.0f);
 
         mGroundFootRadius = std::max(hunterWidth * 0.16f, 0.05f);
 
@@ -253,9 +238,7 @@ void App::updateGroundInteraction(float deltaTime)
                 mLeftGroundX = leftFootTargetX;
             }
             mLeftGroundX += (leftFootTargetX - mLeftGroundX) * followFactor;
-            mLeftGroundPressure = std::max(
-                mLeftGroundPressure,
-                leftTargetPressure * leftTargetPressure);
+            mLeftGroundPressure = std::max(mLeftGroundPressure, leftTargetPressure * leftTargetPressure);
         }
 
         if (rightTargetPressure > kFootContactThreshold)
@@ -265,18 +248,12 @@ void App::updateGroundInteraction(float deltaTime)
                 mRightGroundX = rightFootTargetX;
             }
             mRightGroundX += (rightFootTargetX - mRightGroundX) * followFactor;
-            mRightGroundPressure = std::max(
-                mRightGroundPressure,
-                rightTargetPressure * rightTargetPressure);
+            mRightGroundPressure = std::max(mRightGroundPressure, rightTargetPressure * rightTargetPressure);
         }
     }
 
-    mVulkan.setGroundInteraction(
-        mLeftGroundX,
-        mRightGroundX,
-        mGroundFootRadius,
-        mLeftGroundPressure,
-        mRightGroundPressure);
+    mVulkan.setGroundInteraction(mLeftGroundX, mRightGroundX, mGroundFootRadius, mLeftGroundPressure,
+                                 mRightGroundPressure);
 }
 
 void App::render()

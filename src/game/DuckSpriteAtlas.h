@@ -5,14 +5,16 @@
 #include <string>
 #include <vector>
 
-namespace game {
+namespace game
+{
 
 #pragma region AtlasTypes
 /*
  أطلس البطة النهائي داخل الذاكرة:
  صورة RGBA جاهزة للرفع إلى GPU + بيانات الفريمات والأنيميشن.
  */
-struct DuckAtlasSheet {
+struct DuckAtlasSheet
+{
     /*
      وصف الأطلس والفريمات والكليبات الناتجة.
      */
@@ -40,15 +42,13 @@ struct DuckAtlasSheet {
  يبني بيانات أطلس البطة الإنتاجي:
  11 فريم مرتبة إلى fly (أول 6) ثم hit (آخر 5).
  */
-[[nodiscard]] SpriteAtlasData createDuckAtlasData(int imageWidth,
-                                                  int imageHeight,
+[[nodiscard]] SpriteAtlasData createDuckAtlasData(int imageWidth, int imageHeight,
                                                   const std::vector<AtlasFrame>& frames);
 
 /*
  يبني أطلس البطة الإنتاجي من بكسلات الصورة الأصلية `duck.png`.
  */
-[[nodiscard]] DuckAtlasSheet createDuckAtlasSheetFromPixels(const unsigned char* sourcePixels,
-                                                            int sourceWidth,
+[[nodiscard]] DuckAtlasSheet createDuckAtlasSheetFromPixels(const unsigned char* sourcePixels, int sourceWidth,
                                                             int sourceHeight);
 
 /*

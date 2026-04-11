@@ -1,14 +1,14 @@
 #include "Timer.h"
 
-namespace core {
+namespace core
+{
 
-Timer::Timer()
-    : mStartTime(Clock::now())
-    , mLastTime(Clock::now())
-    , mLastFPSTime(Clock::now()) {
+Timer::Timer() : mStartTime(Clock::now()), mLastTime(Clock::now()), mLastFPSTime(Clock::now())
+{
 }
 
-void Timer::update() {
+void Timer::update()
+{
     auto currentTime = Clock::now();
 
     // حساب الوقت بين الإطارات
@@ -22,22 +22,26 @@ void Timer::update() {
 
     // تحديث FPS كل نصف ثانية
     float timeSinceLastFPS = std::chrono::duration<float>(currentTime - mLastFPSTime).count();
-    if (timeSinceLastFPS >= 0.5f) {
+    if (timeSinceLastFPS >= 0.5f)
+    {
         mFPS = static_cast<int>(mFrameCount / timeSinceLastFPS);
         mFrameCount = 0;
         mLastFPSTime = currentTime;
     }
 }
 
-float Timer::getDeltaTime() const {
+float Timer::getDeltaTime() const
+{
     return mDeltaTime;
 }
 
-float Timer::getTotalTime() const {
+float Timer::getTotalTime() const
+{
     return mTotalTime;
 }
 
-int Timer::getFPS() const {
+int Timer::getFPS() const
+{
     return mFPS;
 }
 

@@ -4,7 +4,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace gfx {
+namespace gfx
+{
 
 /*
  @brief نوع مادة quad القياسي عند استخدام خامة عادية.
@@ -34,7 +35,8 @@ inline constexpr std::size_t QUAD_VERTEX_COUNT = QUAD_VERTICAL_SEGMENTS * 6;
 /*
  @brief مستطيل إحداثيات UV داخل الخامة.
  */
-struct UvRect {
+struct UvRect
+{
     /*
      @brief بداية الإحداثي الأفقي داخل الخامة.
      */
@@ -59,7 +61,8 @@ struct UvRect {
 /*
  @brief مستطيل الموضع على الشاشة في الفضاء المنطقي.
  */
-struct ScreenRect {
+struct ScreenRect
+{
     /*
      @brief الحد الأيسر للمستطيل.
      */
@@ -84,7 +87,8 @@ struct ScreenRect {
 /*
  @brief quad مرسوم بخامة واحدة مع خصائص الشفافية والرياح والدوران.
  */
-struct TexturedQuad {
+struct TexturedQuad
+{
     /*
      @brief أبعاد quad على الشاشة.
      */
@@ -129,7 +133,8 @@ struct TexturedQuad {
 /*
  @brief رأس واحد داخل المثلثات الناتجة من quad.
  */
-struct QuadVertex {
+struct QuadVertex
+{
     /*
      @brief الإحداثي الأفقي للرأس.
      */
@@ -180,7 +185,8 @@ struct QuadVertex {
  @brief يرجع مستطيل UV كامل يغطي الخامة كلها.
  @return مستطيل UV من (0,0) إلى (1,1).
  */
-[[nodiscard]] inline constexpr UvRect fullUvRect() {
+[[nodiscard]] inline constexpr UvRect fullUvRect()
+{
     return {0.0f, 1.0f, 0.0f, 1.0f};
 }
 
@@ -192,7 +198,8 @@ struct QuadVertex {
  @param bottom الحد السفلي.
  @return مستطيل الشاشة.
  */
-[[nodiscard]] inline constexpr ScreenRect makeScreenRect(float left, float right, float top, float bottom) {
+[[nodiscard]] inline constexpr ScreenRect makeScreenRect(float left, float right, float top, float bottom)
+{
     return {left, right, top, bottom};
 }
 
@@ -208,16 +215,12 @@ struct QuadVertex {
  @param rotationRadians زاوية الدوران.
  @return quad جاهز للرسم.
  */
-[[nodiscard]] inline constexpr TexturedQuad makeTexturedQuad(
-    ScreenRect screen,
-    UvRect uv = fullUvRect(),
-    float alpha = 1.0f,
-    float windWeight = 0.0f,
-    float windPhase = 0.0f,
-    float windResponse = 0.0f,
-    float materialType = QUAD_MATERIAL_TEXTURED,
-    float rotationRadians = 0.0f
-) {
+[[nodiscard]] inline constexpr TexturedQuad makeTexturedQuad(ScreenRect screen, UvRect uv = fullUvRect(),
+                                                             float alpha = 1.0f, float windWeight = 0.0f,
+                                                             float windPhase = 0.0f, float windResponse = 0.0f,
+                                                             float materialType = QUAD_MATERIAL_TEXTURED,
+                                                             float rotationRadians = 0.0f)
+{
     return {screen, uv, alpha, windWeight, windPhase, windResponse, materialType, rotationRadians};
 }
 
@@ -228,7 +231,8 @@ struct QuadVertex {
  @param factor معامل الاستيفاء بين 0 و 1.
  @return القيمة المستوفاة.
  */
-[[nodiscard]] inline float lerpFloat(float startValue, float endValue, float factor) {
+[[nodiscard]] inline float lerpFloat(float startValue, float endValue, float factor)
+{
     return startValue + (endValue - startValue) * factor;
 }
 
@@ -237,7 +241,8 @@ struct QuadVertex {
  @param t الموضع النسبي بين 0 و 1.
  @return وزن الرياح الملساء.
  */
-[[nodiscard]] inline float easedWindWeight(float t) {
+[[nodiscard]] inline float easedWindWeight(float t)
+{
     return t * t * (3.0f - 2.0f * t);
 }
 
@@ -246,14 +251,16 @@ struct QuadVertex {
  @param quad quad المراد تحويله إلى رؤوس.
  @param vertices مؤشر إلى مصفوفة الرؤوس بحجم QUAD_VERTEX_COUNT على الأقل.
  */
-inline void writeQuadVertices(const TexturedQuad& quad, QuadVertex* vertices) {
+inline void writeQuadVertices(const TexturedQuad& quad, QuadVertex* vertices)
+{
     std::size_t vertexIndex = 0;
     const float centerX = (quad.screen.x0 + quad.screen.x1) * 0.5f;
     const float centerY = (quad.screen.y0 + quad.screen.y1) * 0.5f;
     const float cosAngle = std::cos(quad.rotationRadians);
     const float sinAngle = std::sin(quad.rotationRadians);
 
-    const auto rotatePoint = [&](float x, float y) {
+    const auto rotatePoint = [&](float x, float y)
+    {
         const float localX = x - centerX;
         const float localY = y - centerY;
         return std::array<float, 2>{
@@ -262,7 +269,8 @@ inline void writeQuadVertices(const TexturedQuad& quad, QuadVertex* vertices) {
         };
     };
 
-    for (std::size_t segment = 0; segment < QUAD_VERTICAL_SEGMENTS; ++segment) {
+    for (std::size_t segment = 0; segment < QUAD_VERTICAL_SEGMENTS; ++segment)
+    {
         const float topT = static_cast<float>(segment) / static_cast<float>(QUAD_VERTICAL_SEGMENTS);
         const float bottomT = static_cast<float>(segment + 1) / static_cast<float>(QUAD_VERTICAL_SEGMENTS);
 
@@ -279,12 +287,18 @@ inline void writeQuadVertices(const TexturedQuad& quad, QuadVertex* vertices) {
         const auto bottomRight = rotatePoint(quad.screen.x1, yBottom);
         const auto bottomLeft = rotatePoint(quad.screen.x0, yBottom);
 
-        vertices[vertexIndex++] = {topLeft[0], topLeft[1], quad.uv.u0, vTop, quad.alpha, topWeight, quad.windPhase, quad.windResponse, quad.materialType};
-        vertices[vertexIndex++] = {topRight[0], topRight[1], quad.uv.u1, vTop, quad.alpha, topWeight, quad.windPhase, quad.windResponse, quad.materialType};
-        vertices[vertexIndex++] = {bottomRight[0], bottomRight[1], quad.uv.u1, vBottom, quad.alpha, bottomWeight, quad.windPhase, quad.windResponse, quad.materialType};
-        vertices[vertexIndex++] = {topLeft[0], topLeft[1], quad.uv.u0, vTop, quad.alpha, topWeight, quad.windPhase, quad.windResponse, quad.materialType};
-        vertices[vertexIndex++] = {bottomRight[0], bottomRight[1], quad.uv.u1, vBottom, quad.alpha, bottomWeight, quad.windPhase, quad.windResponse, quad.materialType};
-        vertices[vertexIndex++] = {bottomLeft[0], bottomLeft[1], quad.uv.u0, vBottom, quad.alpha, bottomWeight, quad.windPhase, quad.windResponse, quad.materialType};
+        vertices[vertexIndex++] = {topLeft[0],     topLeft[1],        quad.uv.u0,       vTop, quad.alpha, topWeight,
+                                   quad.windPhase, quad.windResponse, quad.materialType};
+        vertices[vertexIndex++] = {topRight[0],    topRight[1],       quad.uv.u1,       vTop, quad.alpha, topWeight,
+                                   quad.windPhase, quad.windResponse, quad.materialType};
+        vertices[vertexIndex++] = {bottomRight[0], bottomRight[1], quad.uv.u1,        vBottom,          quad.alpha,
+                                   bottomWeight,   quad.windPhase, quad.windResponse, quad.materialType};
+        vertices[vertexIndex++] = {topLeft[0],     topLeft[1],        quad.uv.u0,       vTop, quad.alpha, topWeight,
+                                   quad.windPhase, quad.windResponse, quad.materialType};
+        vertices[vertexIndex++] = {bottomRight[0], bottomRight[1], quad.uv.u1,        vBottom,          quad.alpha,
+                                   bottomWeight,   quad.windPhase, quad.windResponse, quad.materialType};
+        vertices[vertexIndex++] = {bottomLeft[0], bottomLeft[1],  quad.uv.u0,        vBottom,          quad.alpha,
+                                   bottomWeight,  quad.windPhase, quad.windResponse, quad.materialType};
     }
 }
 
@@ -293,7 +307,8 @@ inline void writeQuadVertices(const TexturedQuad& quad, QuadVertex* vertices) {
  @param quad quad المراد تحويله إلى رؤوس.
  @return مصفوفة الرؤوس بحجم QUAD_VERTEX_COUNT.
  */
-[[nodiscard]] inline std::array<QuadVertex, QUAD_VERTEX_COUNT> buildQuadVertices(const TexturedQuad& quad) {
+[[nodiscard]] inline std::array<QuadVertex, QUAD_VERTEX_COUNT> buildQuadVertices(const TexturedQuad& quad)
+{
     std::array<QuadVertex, QUAD_VERTEX_COUNT> vertices{};
     writeQuadVertices(quad, vertices.data());
     return vertices;

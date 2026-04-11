@@ -4,13 +4,15 @@
 
 #include <vector>
 
-namespace gfx {
+namespace gfx
+{
 
 #pragma region AtlasTypes
 /*
  @brief صورة أطلس بيئة جاهزة للرفع إلى GPU.
  */
-struct EnvironmentAtlasBitmap {
+struct EnvironmentAtlasBitmap
+{
     /*
      @brief عرض الصورة الناتجة.
      */

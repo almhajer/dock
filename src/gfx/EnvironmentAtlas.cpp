@@ -4,8 +4,10 @@
 #include <algorithm>
 #include <cmath>
 
-namespace gfx {
-namespace {
+namespace gfx
+{
+namespace
+{
 
 constexpr int ATLAS_CELL_SIZE = 256;
 constexpr int ATLAS_COLUMNS = 3;
@@ -13,7 +15,8 @@ constexpr int ATLAS_ROWS = 2;
 constexpr int ATLAS_WIDTH = ATLAS_COLUMNS * ATLAS_CELL_SIZE;
 constexpr int ATLAS_HEIGHT = ATLAS_ROWS * ATLAS_CELL_SIZE;
 
-struct SpriteAtlasEntry {
+struct SpriteAtlasEntry
+{
     EnvironmentSpriteId spriteId;
     EnvironmentElementKind kind;
     int x;
@@ -23,21 +26,29 @@ struct SpriteAtlasEntry {
 };
 
 constexpr std::array<SpriteAtlasEntry, 6> ATLAS_ENTRIES = {{
-    {EnvironmentSpriteId::CloudWide, EnvironmentElementKind::Cloud, 0 * ATLAS_CELL_SIZE, 0, ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
-    {EnvironmentSpriteId::CloudTower, EnvironmentElementKind::Cloud, 1 * ATLAS_CELL_SIZE, 0, ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
-    {EnvironmentSpriteId::CloudWisp, EnvironmentElementKind::Cloud, 2 * ATLAS_CELL_SIZE, 0, ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
-    {EnvironmentSpriteId::TreeRound, EnvironmentElementKind::Tree, 0 * ATLAS_CELL_SIZE, 1 * ATLAS_CELL_SIZE, ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
-    {EnvironmentSpriteId::TreeTall, EnvironmentElementKind::Tree, 1 * ATLAS_CELL_SIZE, 1 * ATLAS_CELL_SIZE, ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
-    {EnvironmentSpriteId::TreeLean, EnvironmentElementKind::Tree, 2 * ATLAS_CELL_SIZE, 1 * ATLAS_CELL_SIZE, ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
+    {EnvironmentSpriteId::CloudWide, EnvironmentElementKind::Cloud, 0 * ATLAS_CELL_SIZE, 0, ATLAS_CELL_SIZE,
+     ATLAS_CELL_SIZE},
+    {EnvironmentSpriteId::CloudTower, EnvironmentElementKind::Cloud, 1 * ATLAS_CELL_SIZE, 0, ATLAS_CELL_SIZE,
+     ATLAS_CELL_SIZE},
+    {EnvironmentSpriteId::CloudWisp, EnvironmentElementKind::Cloud, 2 * ATLAS_CELL_SIZE, 0, ATLAS_CELL_SIZE,
+     ATLAS_CELL_SIZE},
+    {EnvironmentSpriteId::TreeRound, EnvironmentElementKind::Tree, 0 * ATLAS_CELL_SIZE, 1 * ATLAS_CELL_SIZE,
+     ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
+    {EnvironmentSpriteId::TreeTall, EnvironmentElementKind::Tree, 1 * ATLAS_CELL_SIZE, 1 * ATLAS_CELL_SIZE,
+     ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
+    {EnvironmentSpriteId::TreeLean, EnvironmentElementKind::Tree, 2 * ATLAS_CELL_SIZE, 1 * ATLAS_CELL_SIZE,
+     ATLAS_CELL_SIZE, ATLAS_CELL_SIZE},
 }};
 
-struct Color {
+struct Color
+{
     float r = 0.0f;
     float g = 0.0f;
     float b = 0.0f;
 };
 
-struct Vec2 {
+struct Vec2
+{
     float x = 0.0f;
     float y = 0.0f;
 };
@@ -153,12 +164,7 @@ float lineMask(const Vec2& from, const Vec2& to, const Vec2& point, float thickn
     return 1.0f - smooth01((distance - thickness) / std::max(feather, 0.0001f));
 }
 
-void blendPixel(std::vector<unsigned char>& pixels,
-                int atlasWidth,
-                int x,
-                int y,
-                const Color& color,
-                float alpha)
+void blendPixel(std::vector<unsigned char>& pixels, int atlasWidth, int x, int y, const Color& color, float alpha)
 {
     if (x < 0 || y < 0)
     {
@@ -181,10 +187,7 @@ void blendPixel(std::vector<unsigned char>& pixels,
         return;
     }
 
-    const auto dstColor = [&](std::size_t component)
-    {
-        return static_cast<float>(pixels[index + component]) / 255.0f;
-    };
+    const auto dstColor = [&](std::size_t component) { return static_cast<float>(pixels[index + component]) / 255.0f; };
 
     const float outR = (color.r * alpha + dstColor(0) * dstAlpha * (1.0f - alpha)) / outAlpha;
     const float outG = (color.g * alpha + dstColor(1) * dstAlpha * (1.0f - alpha)) / outAlpha;
@@ -232,8 +235,10 @@ void drawCloudCell(std::vector<unsigned char>& pixels, const SpriteAtlasEntry& e
             float density = 0.0f;
 
             // الجسم الأساسي للغيمة بيضوي ومغلق حتى لا تظهر أي حواف مقطوعة.
-            const float baseBody = ellipseMask(localX - 0.50f, localY - 0.48f, 0.36f * widthBias, 0.23f * roundness, 0.24f);
-            const float coreBody = ellipseMask(localX - 0.50f, localY - 0.47f, 0.30f * widthBias, 0.19f * roundness, 0.28f);
+            const float baseBody =
+                ellipseMask(localX - 0.50f, localY - 0.48f, 0.36f * widthBias, 0.23f * roundness, 0.24f);
+            const float coreBody =
+                ellipseMask(localX - 0.50f, localY - 0.47f, 0.30f * widthBias, 0.19f * roundness, 0.28f);
             coverage = baseBody;
             density = coreBody * 0.52f + baseBody * 0.18f;
 
@@ -267,15 +272,18 @@ void drawCloudCell(std::vector<unsigned char>& pixels, const SpriteAtlasEntry& e
             }
 
             // غلاف بيضوي عام يمنع شكل القص ويجعل الأطراف ناعمة ومستمرة في كل الاتجاهات.
-            const float outerEnvelope = ellipseMask(localX - 0.50f, localY - 0.47f, 0.41f * widthBias, 0.28f * roundness, 0.22f);
-            const float innerEnvelope = ellipseMask(localX - 0.50f, localY - 0.47f, 0.34f * widthBias, 0.23f * roundness, 0.26f);
+            const float outerEnvelope =
+                ellipseMask(localX - 0.50f, localY - 0.47f, 0.41f * widthBias, 0.28f * roundness, 0.22f);
+            const float innerEnvelope =
+                ellipseMask(localX - 0.50f, localY - 0.47f, 0.34f * widthBias, 0.23f * roundness, 0.26f);
             coverage = std::max(coverage, baseBody * 0.92f);
             coverage = saturate(coverage * (0.68f + outerEnvelope * 0.32f));
             density += innerEnvelope * 0.22f;
 
             const float edgeNoise = fbm({uv.x * 7.8f + seed * 0.4f, uv.y * 8.2f - seed * 0.3f}, seed + 9.0f);
             const float erosion = 0.04f + (0.5f - edgeNoise) * 0.03f;
-            coverage = saturate((coverage * (0.92f + outerEnvelope * 0.08f) - erosion) / std::max(1.0f - erosion, 0.0001f));
+            coverage =
+                saturate((coverage * (0.92f + outerEnvelope * 0.08f) - erosion) / std::max(1.0f - erosion, 0.0001f));
             density = saturate((density * 0.24f + coverage * 0.94f) * (0.96f + edgeNoise * 0.04f));
             if (coverage <= 0.001f)
             {
@@ -285,7 +293,8 @@ void drawCloudCell(std::vector<unsigned char>& pixels, const SpriteAtlasEntry& e
             const float topLight = smooth01((0.82f - localY) / 0.72f);
             const float coreLight = smooth01((density - 0.16f) / 0.60f);
             const float underside = smooth01((localY - 0.60f) / 0.20f);
-            const float silverLining = smooth01((0.22f - localY) / 0.16f) * smooth01((0.88f - abs(localX - 0.5f) * 1.6f) / 0.88f);
+            const float silverLining =
+                smooth01((0.22f - localY) / 0.16f) * smooth01((0.88f - abs(localX - 0.5f) * 1.6f) / 0.88f);
             Color color = mixColor(shadowBottom, lightMid, topLight * 0.72f + coreLight * 0.18f);
             color = mixColor(color, shadowCore, underside * 0.58f);
             color = mixColor(color, lightTop, silverLining * 0.24f);
@@ -296,10 +305,7 @@ void drawCloudCell(std::vector<unsigned char>& pixels, const SpriteAtlasEntry& e
     }
 }
 
-void drawTreeCell(std::vector<unsigned char>& pixels,
-                  const SpriteAtlasEntry& entry,
-                  float seed,
-                  float canopyStretch,
+void drawTreeCell(std::vector<unsigned char>& pixels, const SpriteAtlasEntry& entry, float seed, float canopyStretch,
                   float trunkLean)
 {
     const Color trunkDark = {0.20f, 0.14f, 0.07f};
@@ -329,7 +335,8 @@ void drawTreeCell(std::vector<unsigned char>& pixels,
             float trunkMask = 0.0f;
             trunkMask = std::max(trunkMask, lineMask(root, mid, uv, trunkWidth, trunkWidth * 0.85f));
             trunkMask = std::max(trunkMask, lineMask(mid, crownBase, uv, trunkWidth * 0.74f, trunkWidth * 0.80f));
-            trunkMask = std::max(trunkMask, ellipseMask(localX - root.x, localY - root.y, trunkBaseWidth * 1.55f, 0.06f, 0.22f));
+            trunkMask = std::max(trunkMask,
+                                 ellipseMask(localX - root.x, localY - root.y, trunkBaseWidth * 1.55f, 0.06f, 0.22f));
 
             float branchMask = 0.0f;
             for (int branchIndex = 0; branchIndex < 5; ++branchIndex)
@@ -340,7 +347,8 @@ void drawTreeCell(std::vector<unsigned char>& pixels,
                     mixValue(mid.x, crownBase.x, branchMix),
                     mixValue(mid.y, crownBase.y, branchMix),
                 };
-                const float direction = ((branchIndex % 2 == 0) ? -1.0f : 1.0f) * (0.84f + hash01(branchSeed + 1.0f) * 0.44f);
+                const float direction =
+                    ((branchIndex % 2 == 0) ? -1.0f : 1.0f) * (0.84f + hash01(branchSeed + 1.0f) * 0.44f);
                 const Vec2 end = {
                     start.x + direction * (0.13f + hash01(branchSeed + 2.0f) * 0.14f) + trunkLean * 0.04f,
                     start.y - (0.05f + hash01(branchSeed + 3.0f) * 0.10f),
@@ -368,8 +376,7 @@ void drawTreeCell(std::vector<unsigned char>& pixels,
                 const float span = static_cast<float>(blobIndex) / 3.0f;
                 const float centerX = crownBase.x + (span - 0.5f) * (0.22f + canopyStretch * 0.08f) +
                                       (hash01(blobSeed + 1.7f) - 0.5f) * 0.05f;
-                const float centerY = 0.30f - std::sin(span * 3.1415926f) * 0.05f -
-                                      hash01(blobSeed + 4.4f) * 0.05f;
+                const float centerY = 0.30f - std::sin(span * 3.1415926f) * 0.05f - hash01(blobSeed + 4.4f) * 0.05f;
                 const float radiusX = (0.10f + hash01(blobSeed + 7.2f) * 0.08f) * (0.86f + canopyStretch * 0.18f);
                 const float radiusY = 0.09f + hash01(blobSeed + 9.8f) * 0.08f;
                 const float blob = ellipseMask(localX - centerX, localY - centerY, radiusX, radiusY, 0.25f);
@@ -386,7 +393,8 @@ void drawTreeCell(std::vector<unsigned char>& pixels,
                     mixValue(mid.x, crownBase.x, branchMix),
                     mixValue(mid.y, crownBase.y, branchMix),
                 };
-                const float direction = ((branchIndex % 2 == 0) ? -1.0f : 1.0f) * (0.84f + hash01(branchSeed + 1.0f) * 0.44f);
+                const float direction =
+                    ((branchIndex % 2 == 0) ? -1.0f : 1.0f) * (0.84f + hash01(branchSeed + 1.0f) * 0.44f);
                 const Vec2 end = {
                     start.x + direction * (0.13f + hash01(branchSeed + 2.0f) * 0.14f) + trunkLean * 0.04f,
                     start.y - (0.05f + hash01(branchSeed + 3.0f) * 0.10f),
@@ -405,24 +413,18 @@ void drawTreeCell(std::vector<unsigned char>& pixels,
                     end.y - (0.01f + hash01(branchSeed + 6.0f) * 0.03f),
                 };
 
-                const float outerLeafMask = ellipseMask(
-                    localX - outerLeaf.x,
-                    localY - outerLeaf.y,
-                    (0.07f + hash01(branchSeed + 7.0f) * 0.06f) * (0.88f + canopyStretch * 0.18f),
-                    0.07f + hash01(branchSeed + 8.0f) * 0.05f,
-                    0.28f);
-                const float midLeafMask = ellipseMask(
-                    localX - midLeaf.x,
-                    localY - midLeaf.y,
-                    (0.06f + hash01(branchSeed + 9.0f) * 0.05f) * (0.86f + canopyStretch * 0.16f),
-                    0.06f + hash01(branchSeed + 10.0f) * 0.05f,
-                    0.30f);
-                const float tipLeafMask = ellipseMask(
-                    localX - tipLeaf.x,
-                    localY - tipLeaf.y,
-                    (0.08f + hash01(branchSeed + 11.0f) * 0.06f) * (0.92f + canopyStretch * 0.20f),
-                    0.08f + hash01(branchSeed + 12.0f) * 0.06f,
-                    0.28f);
+                const float outerLeafMask =
+                    ellipseMask(localX - outerLeaf.x, localY - outerLeaf.y,
+                                (0.07f + hash01(branchSeed + 7.0f) * 0.06f) * (0.88f + canopyStretch * 0.18f),
+                                0.07f + hash01(branchSeed + 8.0f) * 0.05f, 0.28f);
+                const float midLeafMask =
+                    ellipseMask(localX - midLeaf.x, localY - midLeaf.y,
+                                (0.06f + hash01(branchSeed + 9.0f) * 0.05f) * (0.86f + canopyStretch * 0.16f),
+                                0.06f + hash01(branchSeed + 10.0f) * 0.05f, 0.30f);
+                const float tipLeafMask =
+                    ellipseMask(localX - tipLeaf.x, localY - tipLeaf.y,
+                                (0.08f + hash01(branchSeed + 11.0f) * 0.06f) * (0.92f + canopyStretch * 0.20f),
+                                0.08f + hash01(branchSeed + 12.0f) * 0.06f, 0.28f);
 
                 canopyCoverage = std::max(canopyCoverage, outerLeafMask);
                 canopyCoverage = std::max(canopyCoverage, midLeafMask);
@@ -434,7 +436,8 @@ void drawTreeCell(std::vector<unsigned char>& pixels,
             const float edgeCut = 0.14f + (0.5f - canopyNoise) * 0.10f;
             canopyCoverage = saturate((canopyCoverage - edgeCut) / std::max(1.0f - edgeCut, 0.0001f));
             canopyDensity = saturate((canopyDensity * 0.42f + canopyCoverage * 0.84f) * (0.92f + canopyNoise * 0.12f));
-            const float holeNoise = valueNoise({localX * 12.0f + seed * 0.3f, localY * 11.0f + seed * 0.7f}, seed + 47.0f);
+            const float holeNoise =
+                valueNoise({localX * 12.0f + seed * 0.3f, localY * 11.0f + seed * 0.7f}, seed + 47.0f);
             const float innerHole = smooth01((holeNoise - 0.88f) / 0.10f) * smooth01((canopyDensity - 0.46f) / 0.24f);
             canopyCoverage *= 1.0f - innerHole * 0.30f;
             if (canopyCoverage <= 0.01f)

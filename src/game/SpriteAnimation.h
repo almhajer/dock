@@ -4,13 +4,15 @@
 
 #include <string>
 
-namespace game {
+namespace game
+{
 
 #pragma region StateTypes
 /*
  حالة الحركة الحالية
  */
-struct AnimationState {
+struct AnimationState
+{
     /*
      اسم الكليب الجاري تشغيله.
      */
@@ -24,7 +26,7 @@ struct AnimationState {
     /*
      الزمن المتراكم داخل الكليب.
      */
-    float elapsed = 0.0f;      // الزمن المتراكم داخل الكليب بالثواني
+    float elapsed = 0.0f; // الزمن المتراكم داخل الكليب بالثواني
 
     /*
      فهرس الفريم الحالي داخل الأطلس.
@@ -34,21 +36,22 @@ struct AnimationState {
     /*
      هل انتهى الكليب غير الدائري؟
      */
-    bool finished = false;     // هل انتهى كليب غير دائري؟
+    bool finished = false; // هل انتهى كليب غير دائري؟
 
     /*
      هل يجب عكس UV أفقياً؟
      */
-    bool flipX = false;        // هل يجب عكس UV أفقيًا عند الرسم؟
+    bool flipX = false; // هل يجب عكس UV أفقيًا عند الرسم؟
 };
 #pragma endregion StateTypes
 
 /*
  نظام حركة السبرايت المعتمد على أطلس مجهّز مسبقًا.
  */
-class SpriteAnimation {
-public:
-    #pragma region PublicInterface
+class SpriteAnimation
+{
+  public:
+#pragma region PublicInterface
     /*
      ينشئ مشغل الأنيميشن بحالة فارغة.
      */
@@ -78,22 +81,22 @@ public:
      الحصول على فريم محدد من atlas
      */
     const AtlasFrame* getFrame(int frameIndex) const;
-    #pragma endregion PublicInterface
+#pragma endregion PublicInterface
 
-private:
-    #pragma region InternalHelpers
+  private:
+#pragma region InternalHelpers
     /*
      يبحث عن كليب بالحقل النصي المفتاحي.
      */
     const AnimationClip* findClip(const std::string& key) const;
-    #pragma endregion InternalHelpers
+#pragma endregion InternalHelpers
 
-    #pragma region InternalState
+#pragma region InternalState
     /*
      البيانات الكاملة للأطلس الجاري استخدامه.
      */
     SpriteAtlasData mData;
-    #pragma endregion InternalState
+#pragma endregion InternalState
 };
 
 } // namespace game

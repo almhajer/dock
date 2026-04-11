@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace core::duckplay {
+namespace core::duckplay
+{
 
 float smoothstep01(float t)
 {
@@ -20,27 +21,21 @@ float remapTravelPhase(float t)
         return smoothstep01(localT) * kDuckLaunchDistanceRatio;
     }
 
-    const float localT =
-        (t - kDuckLaunchPhaseRatio) / (1.0f - kDuckLaunchPhaseRatio);
-    return kDuckLaunchDistanceRatio +
-        smoothstep01(localT) * (1.0f - kDuckLaunchDistanceRatio);
+    const float localT = (t - kDuckLaunchPhaseRatio) / (1.0f - kDuckLaunchPhaseRatio);
+    return kDuckLaunchDistanceRatio + smoothstep01(localT) * (1.0f - kDuckLaunchDistanceRatio);
 }
 
 float cubicBezier1D(float p0, float p1, float p2, float p3, float t)
 {
     const float oneMinusT = 1.0f - t;
-    return oneMinusT * oneMinusT * oneMinusT * p0 +
-           3.0f * oneMinusT * oneMinusT * t * p1 +
-           3.0f * oneMinusT * t * t * p2 +
-           t * t * t * p3;
+    return oneMinusT * oneMinusT * oneMinusT * p0 + 3.0f * oneMinusT * oneMinusT * t * p1 +
+           3.0f * oneMinusT * t * t * p2 + t * t * t * p3;
 }
 
 float cubicBezierTangent1D(float p0, float p1, float p2, float p3, float t)
 {
     const float oneMinusT = 1.0f - t;
-    return 3.0f * oneMinusT * oneMinusT * (p1 - p0) +
-           6.0f * oneMinusT * t * (p2 - p1) +
-           3.0f * t * t * (p3 - p2);
+    return 3.0f * oneMinusT * oneMinusT * (p1 - p0) + 6.0f * oneMinusT * t * (p2 - p1) + 3.0f * t * t * (p3 - p2);
 }
 
 void holdDuckOnGroundHitFrame(game::AnimationState& state)
@@ -51,8 +46,7 @@ void holdDuckOnGroundHitFrame(game::AnimationState& state)
         return;
     }
 
-    const std::size_t groundedFrameIndex =
-        (clip->frames.size() >= 4u) ? 3u : (clip->frames.size() - 1u);
+    const std::size_t groundedFrameIndex = (clip->frames.size() >= 4u) ? 3u : (clip->frames.size() - 1u);
     state.currentFrameIndex = clip->frames[groundedFrameIndex];
     state.finished = true;
 }

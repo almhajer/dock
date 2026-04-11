@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <cmath>
 
-namespace core::hunterplay {
-namespace {
+namespace core::hunterplay
+{
+namespace
+{
 
 /*
  @brief اتجاه المشي يتبع المفاتيح مباشرة عند وجود إدخال حركة.
@@ -14,8 +16,7 @@ namespace {
  @param fallbackFacingLeft الاتجاه الافتراضي عند السكون.
  @return true إذا كان الصياد يتجه يساراً.
  */
-[[nodiscard]] bool resolveFacingLeftFromMoveIntent(int moveIntent,
-                                                   bool fallbackFacingLeft)
+[[nodiscard]] bool resolveFacingLeftFromMoveIntent(int moveIntent, bool fallbackFacingLeft)
 {
     if (moveIntent < 0)
     {
@@ -44,9 +45,7 @@ int resolveMoveIntent(const Input& input)
     return std::clamp(moveIntent, -1, 1);
 }
 
-bool resolveFacingLeftFromCursor(const CursorScreenPosition& cursor,
-                                 float hunterScreenX,
-                                 bool fallbackFacingLeft)
+bool resolveFacingLeftFromCursor(const CursorScreenPosition& cursor, float hunterScreenX, bool fallbackFacingLeft)
 {
     if (!cursor.valid)
     {
@@ -64,9 +63,7 @@ bool resolveFacingLeftFromCursor(const CursorScreenPosition& cursor,
     return fallbackFacingLeft;
 }
 
-bool resolveIdleFacingLeft(int moveIntent,
-                           const CursorScreenPosition& cursor,
-                           float hunterScreenX,
+bool resolveIdleFacingLeft(int moveIntent, const CursorScreenPosition& cursor, float hunterScreenX,
                            bool fallbackFacingLeft)
 {
     if (moveIntent != 0)
@@ -93,8 +90,7 @@ void updateReloadState(bool& isReloading, float& reloadTimer, float deltaTime)
 
 bool isWalkingClip(const game::AnimationState& state)
 {
-    return state.currentClip == "walk_left" ||
-           state.currentClip == "walk_right";
+    return state.currentClip == "walk_left" || state.currentClip == "walk_right";
 }
 
 void holdHunterOnShotStartFrame(game::AnimationState& state)
@@ -125,14 +121,8 @@ CursorScreenPosition resolveCursorScreenPosition(const Input& input, GLFWwindow*
         return cursor;
     }
 
-    const float clampedMouseX = std::clamp(
-        input.getMouseX(),
-        0.0f,
-        static_cast<float>(windowWidth));
-    const float clampedMouseY = std::clamp(
-        input.getMouseY(),
-        0.0f,
-        static_cast<float>(windowHeight));
+    const float clampedMouseX = std::clamp(input.getMouseX(), 0.0f, static_cast<float>(windowWidth));
+    const float clampedMouseY = std::clamp(input.getMouseY(), 0.0f, static_cast<float>(windowHeight));
 
     cursor.x = (clampedMouseX / static_cast<float>(windowWidth)) * 2.0f - 1.0f;
     cursor.y = (clampedMouseY / static_cast<float>(windowHeight)) * 2.0f - 1.0f;
@@ -140,11 +130,8 @@ CursorScreenPosition resolveCursorScreenPosition(const Input& input, GLFWwindow*
     return cursor;
 }
 
-bool shouldUseHighShootPose(const Input& input,
-                            GLFWwindow* window,
-                            float hunterScreenX,
-                            const scene::WindowMetrics& metrics,
-                            const game::AtlasFrame* frame)
+bool shouldUseHighShootPose(const Input& input, GLFWwindow* window, float hunterScreenX,
+                            const scene::WindowMetrics& metrics, const game::AtlasFrame* frame)
 {
     if (!metrics.valid() || frame == nullptr || frame->sourceW <= 0 || frame->sourceH <= 0)
     {
@@ -159,8 +146,7 @@ bool shouldUseHighShootPose(const Input& input,
 
     const gfx::TexturedQuad hunterQuad = scene::buildHunterQuad(*frame, hunterScreenX, metrics);
     const float aimOriginX = hunterScreenX;
-    const float aimOriginY = hunterQuad.screen.y0 +
-        (hunterQuad.screen.y1 - hunterQuad.screen.y0) * 0.34f;
+    const float aimOriginY = hunterQuad.screen.y0 + (hunterQuad.screen.y1 - hunterQuad.screen.y0) * 0.34f;
     const float dx = cursor.x - aimOriginX;
     const float dy = cursor.y - aimOriginY;
 

@@ -5,14 +5,16 @@
 
 struct GLFWwindow;
 
-namespace core {
+namespace core
+{
 
 /*
  مدير الإدخال - يتتبع حالة لوحة المفاتيح والماوس
  */
-class Input {
-public:
-    #pragma region PublicInterface
+class Input
+{
+  public:
+#pragma region PublicInterface
     /*
      ينشئ مدير الإدخال بحالته الافتراضية.
      */
@@ -64,19 +66,19 @@ public:
      */
     [[nodiscard]] float getMouseDeltaX() const;
     [[nodiscard]] float getMouseDeltaY() const;
-    #pragma endregion PublicInterface
+#pragma endregion PublicInterface
 
-private:
-    #pragma region CallbackBridge
+  private:
+#pragma region CallbackBridge
     /*
      ردود نداء GLFW (friends للوصول للبيانات الخاصة)
      */
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void cursorPosCallback(GLFWwindow* window, double cursorX, double cursorY);
-    #pragma endregion CallbackBridge
+#pragma endregion CallbackBridge
 
-    #pragma region InternalState
+#pragma region InternalState
     /*
      مقبض نافذة GLFW المرتبط بالإدخال.
      */
@@ -137,7 +139,7 @@ private:
      فرق الحركة العمودي للمؤشر منذ آخر إطار.
      */
     float mMouseDeltaY = 0.0f;
-    #pragma endregion InternalState
+#pragma endregion InternalState
 };
 
 } // namespace core

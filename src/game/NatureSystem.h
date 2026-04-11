@@ -7,12 +7,14 @@
 #include <cstdint>
 #include <vector>
 
-namespace game {
+namespace game
+{
 
 /*
  @brief بيانات الحقل الهوائي المؤثر على عناصر البيئة.
  */
-struct WindField {
+struct WindField
+{
     /*
      @brief الزمن التراكمي للنظام الهوائي.
      */
@@ -38,7 +40,8 @@ struct WindField {
 /*
  @brief حالة غيمة واحدة داخل البيئة.
  */
-struct CloudState {
+struct CloudState
+{
     /*
      @brief موضع الغيمة الأفقي.
      */
@@ -92,7 +95,8 @@ struct CloudState {
 /*
  @brief حالة شجرة واحدة داخل البيئة.
  */
-struct TreeState {
+struct TreeState
+{
     /*
      @brief موضع الشجرة الأفقي.
      */
@@ -142,9 +146,10 @@ struct TreeState {
 /*
  نظام البيئة المسؤول عن تحديث الغيوم والأشجار وبناء دفعات الرسم فقط.
  */
-class NatureSystem {
-public:
-    #pragma region PublicInterface
+class NatureSystem
+{
+  public:
+#pragma region PublicInterface
     /*
      @brief يهيئ توزيع عناصر البيئة لأول مرة.
      @param metrics قياسات النافذة المنطقية.
@@ -163,12 +168,11 @@ public:
      @param metrics قياسات النافذة المنطقية.
      @param renderData مرجع حاوية دفعات الرسم المخرجة.
      */
-    void buildRenderData(const core::scene::WindowMetrics& metrics,
-                         gfx::EnvironmentRenderData& renderData) const;
-    #pragma endregion PublicInterface
+    void buildRenderData(const core::scene::WindowMetrics& metrics, gfx::EnvironmentRenderData& renderData) const;
+#pragma endregion PublicInterface
 
-private:
-    #pragma region InternalHelpers
+  private:
+#pragma region InternalHelpers
     /*
      @brief يعيد بناء توزيع البيئة عند تغير أبعاد المشهد.
      @param metrics قياسات النافذة المنطقية.
@@ -194,7 +198,8 @@ private:
      @param wrapToLeft هل يجب التفاف الغيمة إلى الطرف الأيسر؟
      @param randomSeed بذرة عشوائية لإعادة توليد خصائص الغيمة.
      */
-    void recycleCloud(CloudState& cloud, const core::scene::WindowMetrics& metrics, bool wrapToLeft, float randomSeed) const;
+    void recycleCloud(CloudState& cloud, const core::scene::WindowMetrics& metrics, bool wrapToLeft,
+                      float randomSeed) const;
 
     /*
      @brief دالة هاش بسيطة لإنتاج عشوائية حتمية.
@@ -202,9 +207,9 @@ private:
      @return قيمة عشوائية بين 0 و 1.
      */
     [[nodiscard]] static float hash01(float value);
-    #pragma endregion InternalHelpers
+#pragma endregion InternalHelpers
 
-    #pragma region InternalState
+#pragma region InternalState
     /*
      @brief هل تمت تهيئة البيئة؟
      */
@@ -249,7 +254,7 @@ private:
      @brief كاش دفعة الأشجار الأمامية.
      */
     std::vector<gfx::EnvironmentInstance> mForegroundTreeRenderCache;
-    #pragma endregion InternalState
+#pragma endregion InternalState
 };
 
 } // namespace game

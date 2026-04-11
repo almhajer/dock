@@ -1,0 +1,77 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+BreakBeforeBraces: Allman
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+ColumnLimit: 120
+
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeAssignmentOperators: true
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesInAngles: Never
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+IndentCaseLabels: false
+IndentCaseBlocks: false
+
+AlignTrailingComments: true
+AlignOperands: Align
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Left
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+
+BinPackArguments: true
+BinPackParameters: true
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 4
+
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+ReflowComments: true
+
+PackConstructorInitializers: BinPack

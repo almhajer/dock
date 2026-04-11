@@ -7,8 +7,10 @@
 #include <memory>
 #include <new>
 
-namespace audio {
-namespace {
+namespace audio
+{
+namespace
+{
 
 #pragma region InternalState
 /*
@@ -19,9 +21,10 @@ constexpr float DEFAULT_EFFECT_VOLUME = 0.42f;
 /*
  حالة التشغيل الفعلية مخفية عن الترويسة حتى يبقى المشغل C++ عاديًا.
  */
-struct PlayerState {
-    ma_engine engine {};
-    ma_sound sound {};
+struct PlayerState
+{
+    ma_engine engine{};
+    ma_sound sound{};
     bool engineInitialized = false;
     bool soundInitialized = false;
 };
@@ -82,23 +85,18 @@ bool SoundEffectPlayer::load(const std::string& path)
     const ma_result engineResult = ma_engine_init(nullptr, &state->engine);
     if (engineResult != MA_SUCCESS)
     {
-        std::cerr << "[Audio] تعذر تهيئة محرك الصوت للمؤثر: " << resolvedPathString
-                  << " (ma_result=" << engineResult << ")" << std::endl;
+        std::cerr << "[Audio] تعذر تهيئة محرك الصوت للمؤثر: " << resolvedPathString << " (ma_result=" << engineResult
+                  << ")" << std::endl;
         return false;
     }
     state->engineInitialized = true;
 
-    const ma_result soundResult = ma_sound_init_from_file(
-        &state->engine,
-        resolvedPathString.c_str(),
-        MA_SOUND_FLAG_DECODE,
-        nullptr,
-        nullptr,
-        &state->sound);
+    const ma_result soundResult = ma_sound_init_from_file(&state->engine, resolvedPathString.c_str(),
+                                                          MA_SOUND_FLAG_DECODE, nullptr, nullptr, &state->sound);
     if (soundResult != MA_SUCCESS)
     {
-        std::cerr << "[Audio] تعذر تحميل المؤثر الصوتي: " << resolvedPathString
-                  << " (ma_result=" << soundResult << ")" << std::endl;
+        std::cerr << "[Audio] تعذر تحميل المؤثر الصوتي: " << resolvedPathString << " (ma_result=" << soundResult << ")"
+                  << std::endl;
         cleanupState(*state);
         return false;
     }

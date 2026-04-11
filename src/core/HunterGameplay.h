@@ -38,7 +38,7 @@ struct CursorScreenPosition
  @param input مرجع حالة الإدخال الحالية.
  @return -1 لليسار، 0 للسكون، +1 لليمين.
  */
-[[nodiscard]] int resolveMoveIntent(const Input &input);
+[[nodiscard]] int resolveMoveIntent(const Input& input);
 
 /*
  @brief يحدد اتجاه الصياد بناءً على مكان المؤشر حول مركزه الحالي.
@@ -47,8 +47,7 @@ struct CursorScreenPosition
  @param fallbackFacingLeft الاتجاه الافتراضي عند عدم صلاحية المؤشر.
  @return true إذا كان الصياد يتجه يساراً.
  */
-[[nodiscard]] bool resolveFacingLeftFromCursor(const CursorScreenPosition &cursor,
-                                               float hunterScreenX,
+[[nodiscard]] bool resolveFacingLeftFromCursor(const CursorScreenPosition& cursor, float hunterScreenX,
                                                bool fallbackFacingLeft);
 
 /*
@@ -59,9 +58,7 @@ struct CursorScreenPosition
  @param fallbackFacingLeft الاتجاه الافتراضي.
  @return true إذا كان الصياد يتجه يساراً.
  */
-[[nodiscard]] bool resolveIdleFacingLeft(int moveIntent,
-                                         const CursorScreenPosition &cursor,
-                                         float hunterScreenX,
+[[nodiscard]] bool resolveIdleFacingLeft(int moveIntent, const CursorScreenPosition& cursor, float hunterScreenX,
                                          bool fallbackFacingLeft);
 
 /*
@@ -70,20 +67,20 @@ struct CursorScreenPosition
  @param reloadTimer مرجع المؤقت المتبقي.
  @param deltaTime الزمن المنقضي منذ آخر إطار.
  */
-void updateReloadState(bool &isReloading, float &reloadTimer, float deltaTime);
+void updateReloadState(bool& isReloading, float& reloadTimer, float deltaTime);
 
 /*
  @brief يكشف هل كليب الصياد الحالي هو مشي فعلاً.
  @param state حالة الرسم المتحرك الحالية.
  @return true إذا كان الكليب مشياً.
  */
-[[nodiscard]] bool isWalkingClip(const game::AnimationState &state);
+[[nodiscard]] bool isWalkingClip(const game::AnimationState& state);
 
 /*
  @brief يثبت الصياد على أول فريم في كليب الإطلاق أثناء مرحلة الانتظار.
  @param state مرجع حالة الرسم المتحرك لتعديل الفريم.
  */
-void holdHunterOnShotStartFrame(game::AnimationState &state);
+void holdHunterOnShotStartFrame(game::AnimationState& state);
 #pragma endregion MovementHelpers
 
 #pragma region AimHelpers
@@ -93,8 +90,7 @@ void holdHunterOnShotStartFrame(game::AnimationState &state);
  @param window مقبض نافذة GLFW.
  @return موضع المؤشر مع علامة الصلاحية.
  */
-[[nodiscard]] CursorScreenPosition resolveCursorScreenPosition(const Input &input,
-                                                               GLFWwindow *window);
+[[nodiscard]] CursorScreenPosition resolveCursorScreenPosition(const Input& input, GLFWwindow* window);
 
 /*
  @brief يقرر هل يلزم استخدام وضعية الإطلاق العالي اعتماداً على زاوية التصويب.
@@ -105,11 +101,8 @@ void holdHunterOnShotStartFrame(game::AnimationState &state);
  @param frame مؤشر إلى فريم الأطلس المرجعي.
  @return true إذا كانت زاوية التصويب تقتضي الوضعية العالية.
  */
-[[nodiscard]] bool shouldUseHighShootPose(const Input &input,
-                                          GLFWwindow *window,
-                                          float hunterScreenX,
-                                          const scene::WindowMetrics &metrics,
-                                          const game::AtlasFrame *frame);
+[[nodiscard]] bool shouldUseHighShootPose(const Input& input, GLFWwindow* window, float hunterScreenX,
+                                          const scene::WindowMetrics& metrics, const game::AtlasFrame* frame);
 #pragma endregion AimHelpers
 
 } // namespace core::hunterplay

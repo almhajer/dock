@@ -20,7 +20,8 @@ struct SunDiskUniformData
     /*
      @brief موضع الشمس ونصف قطر القرص والهالة.
      */
-    alignas(16) std::array<float, 4> sunDisk = {0.82f, 0.18f, 0.06f, 0.18f};          // xy = screen pos, z = disk radius, w = corona radius
+    alignas(16) std::array<float, 4> sunDisk = {0.82f, 0.18f, 0.06f,
+                                                0.18f}; // xy = screen pos, z = disk radius, w = corona radius
     /*
      @brief لون الشمس وشدة الإضاءة.
      */
@@ -28,7 +29,8 @@ struct SunDiskUniformData
     /*
      @brief شكل الحافة والهالة والنعومة.
      */
-    alignas(16) std::array<float, 4> appearance = {0.58f, 12.0f, 0.02f, 0.0f};        // x = limb darkening, y = corona falloff, z = softness, w = mask only
+    alignas(16) std::array<float, 4> appearance = {
+        0.58f, 12.0f, 0.02f, 0.0f}; // x = limb darkening, y = corona falloff, z = softness, w = mask only
 };
 
 /*
@@ -58,11 +60,14 @@ struct AtmosphereCloudOcclusionData
     /*
      @brief مستطيلات تموضع الغيوم على الشاشة.
      */
-    alignas(16) std::array<std::array<float, 4>, ATMOSPHERE_MAX_CLOUD_OCCLUDERS> cloudRects{}; // xy = center uv, zw = half size uv
+    alignas(16) std::array<std::array<float, 4>,
+                           ATMOSPHERE_MAX_CLOUD_OCCLUDERS> cloudRects{}; // xy = center uv, zw = half size uv
     /*
      @brief شكل كل غيمة من حيث الشفافية والطور والنعومة.
      */
-    alignas(16) std::array<std::array<float, 4>, ATMOSPHERE_MAX_CLOUD_OCCLUDERS> cloudShape{}; // x = alpha, y = phase, z = softness, w = parallax
+    alignas(
+        16) std::array<std::array<float, 4>,
+                       ATMOSPHERE_MAX_CLOUD_OCCLUDERS> cloudShape{}; // x = alpha, y = phase, z = softness, w = parallax
 };
 
 /*
@@ -113,8 +118,8 @@ struct AtmospherePassLayouts
 
 class AtmosphereRenderer
 {
-public:
-    #pragma region PublicInterface
+  public:
+#pragma region PublicInterface
     /*
      @brief ينشئ الكائن بحالة افتراضية فارغة.
      */
@@ -163,10 +168,10 @@ public:
      @return حالة الربط الإضافي المناسب للإضافة اللونية.
      */
     [[nodiscard]] static VkPipelineColorBlendAttachmentState makeAdditiveBlendAttachment();
-    #pragma endregion PublicInterface
+#pragma endregion PublicInterface
 
-private:
-    #pragma region InternalHelpers
+  private:
+#pragma region InternalHelpers
     /*
      @brief ينشئ تخطيطات descriptor sets.
      */
@@ -186,9 +191,9 @@ private:
      @brief يدمر descriptor set layouts الحالية.
      */
     void destroyDescriptorSetLayouts();
-    #pragma endregion InternalHelpers
+#pragma endregion InternalHelpers
 
-    #pragma region InternalState
+#pragma region InternalState
     /*
      @brief جهاز Vulkan المستخدم.
      */
@@ -208,7 +213,7 @@ private:
      @brief هل تمت التهيئة بنجاح؟
      */
     bool mInitialized = false;
-    #pragma endregion InternalState
+#pragma endregion InternalState
 };
 
 } // namespace gfx

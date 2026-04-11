@@ -5,57 +5,56 @@
 
 struct GLFWwindow;
 
-namespace core {
+namespace core
+{
 
 /*
  نافذة اللعبة - تغليف لنافذة GLFW مع إدارة دورة الحياة
  */
-class Window {
-public:
-    #pragma region PublicTypes
+class Window
+{
+  public:
+#pragma region PublicTypes
     /*
      إعدادات النافذة
      */
-    struct Config {
+    struct Config
+    {
         /*
          عنوان النافذة الظاهر للمستخدم.
          */
-        std::string title;                 // عنوان النافذة
+        std::string title; // عنوان النافذة
 
         /*
          العرض المطلوب عند الإنشاء.
          */
-        uint32_t width;                    // العرض بالبكسل
+        uint32_t width; // العرض بالبكسل
 
         /*
          الارتفاع المطلوب عند الإنشاء.
          */
-        uint32_t height;                   // الارتفاع بالبكسل
+        uint32_t height; // الارتفاع بالبكسل
 
         /*
          هل يبدأ التطبيق بملء الشاشة؟
          */
-        bool fullscreen;                   // ملء الشاشة
+        bool fullscreen; // ملء الشاشة
 
         /*
          هل يسمح بتغيير الحجم؟
          */
-        bool resizable;                    // قابلة لتغيير الحجم
+        bool resizable; // قابلة لتغيير الحجم
 
         /*
          هل تُفعّل المزامنة العمودية؟
          */
-        bool vsync;                        // مزامنة عمودية
+        bool vsync; // مزامنة عمودية
 
-        Config()
-            : title("DuckH")
-            , width(1600)
-            , height(900)
-            , fullscreen(false)
-            , resizable(true)
-            , vsync(true) {}
+        Config() : title("DuckH"), width(1600), height(900), fullscreen(false), resizable(true), vsync(true)
+        {
+        }
     };
-    #pragma endregion PublicTypes
+#pragma endregion PublicTypes
 
     /*
      ينشئ النافذة ويهيئ GLFW حسب الإعدادات.
@@ -117,15 +116,15 @@ public:
      */
     [[nodiscard]] bool isCursorVisible() const;
 
-private:
-    #pragma region InternalCallbacks
+  private:
+#pragma region InternalCallbacks
     /*
      رد نداء تغيير حجم النافذة
      */
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
-    #pragma endregion InternalCallbacks
+#pragma endregion InternalCallbacks
 
-    #pragma region InternalState
+#pragma region InternalState
     /*
      مقبض نافذة GLFW الخام.
      */
@@ -150,7 +149,7 @@ private:
      هل المؤشر ظاهر للمستخدم؟
      */
     bool mCursorVisible = true;
-    #pragma endregion InternalState
+#pragma endregion InternalState
 };
 
 } // namespace core

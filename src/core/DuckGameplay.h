@@ -2,7 +2,8 @@
 
 #include "../game/SpriteAnimation.h"
 
-namespace core::duckplay {
+namespace core::duckplay
+{
 
 #pragma region MotionConstants
 /*

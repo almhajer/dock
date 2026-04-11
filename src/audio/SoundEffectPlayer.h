@@ -2,14 +2,16 @@
 
 #include <string>
 
-namespace audio {
+namespace audio
+{
 
 /*
  مشغل مؤثرات صوتية خفيف لعينات قصيرة مثل صوت إطلاق النار.
  */
-class SoundEffectPlayer {
-public:
-    #pragma region PublicInterface
+class SoundEffectPlayer
+{
+  public:
+#pragma region PublicInterface
     /*
      @brief ينشئ المشغل بحالة فارغة جاهزة للتحميل اللاحق.
      */
@@ -64,15 +66,15 @@ public:
      هل المؤثر يعمل حاليًا؟
      */
     [[nodiscard]] bool isPlaying() const;
-    #pragma endregion PublicInterface
+#pragma endregion PublicInterface
 
-private:
-    #pragma region InternalState
+  private:
+#pragma region InternalState
     /*
      @brief مقبض داخلي إلى حالة miniaudio المخفية عن الترويسة.
      */
     void* mState = nullptr;
-    #pragma endregion InternalState
+#pragma endregion InternalState
 };
 
 } // namespace audio

@@ -7,7 +7,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace core::scene {
+namespace core::scene
+{
 
 #pragma region LayoutConstants
 /*
@@ -20,7 +21,8 @@ inline constexpr std::size_t kMaxGrassQuads = 240;
 /*
  @brief يحدد طبقة العمق المراد بناء العشب لها.
  */
-enum class GrassDepthLayer {
+enum class GrassDepthLayer
+{
     Background,
     Midground,
     Foreground,
@@ -29,7 +31,8 @@ enum class GrassDepthLayer {
 /*
  @brief القياسات المشتقة من حجم النافذة لاستعمالها في الحسابات المنطقية.
  */
-struct WindowMetrics {
+struct WindowMetrics
+{
     /*
      @brief عرض النافذة بالبكسل.
      */
@@ -58,7 +61,8 @@ struct WindowMetrics {
     /*
      @brief يتحقق أن المقاسات صالحة لبناء التخطيط.
      */
-    [[nodiscard]] bool valid() const {
+    [[nodiscard]] bool valid() const
+    {
         return width > 0 && height > 0 && widthF >= 1.0f && heightF >= 1.0f;
     }
 };
@@ -66,7 +70,8 @@ struct WindowMetrics {
 /*
  @brief بيانات توزيع بلاطات العشب قبل تحويلها إلى quads فعلية.
  */
-struct GrassLayout {
+struct GrassLayout
+{
     /*
      @brief عرض البلاطة المنطقية الواحدة.
      */
@@ -119,9 +124,7 @@ bool sameWindowLayout(const WindowMetrics& metrics, uint32_t cachedWidth, uint32
  @param logicalHalfHeight نصف الارتفاع المنطقي.
  @return نصف العرض المنطقي.
  */
-float spriteLogicalHalfWidth(const game::AtlasFrame& frame,
-                             const WindowMetrics& metrics,
-                             float logicalHalfHeight);
+float spriteLogicalHalfWidth(const game::AtlasFrame& frame, const WindowMetrics& metrics, float logicalHalfHeight);
 
 /*
  @brief يحسب نصف عرض الصياد المنطقي بالاعتماد على نفس قواعد السبرايت العامة.
@@ -160,11 +163,8 @@ gfx::TexturedQuad buildSoilQuad();
  @param metrics قياسات النافذة المنطقية.
  @return quad السبرايت الجاهز للرسم.
  */
-gfx::TexturedQuad buildSpriteQuad(const game::AtlasFrame& frame,
-                                  float pivotScreenX,
-                                  float pivotScreenY,
-                                  float logicalHalfHeight,
-                                  const WindowMetrics& metrics);
+gfx::TexturedQuad buildSpriteQuad(const game::AtlasFrame& frame, float pivotScreenX, float pivotScreenY,
+                                  float logicalHalfHeight, const WindowMetrics& metrics);
 
 /*
  @brief يبني quad الصياد بمحاذاة الأرض الحالية.
@@ -173,9 +173,7 @@ gfx::TexturedQuad buildSpriteQuad(const game::AtlasFrame& frame,
  @param metrics قياسات النافذة المنطقية.
  @return quad الصياد الجاهز للرسم.
  */
-gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
-                                  float hunterScreenX,
-                                  const WindowMetrics& metrics);
+gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame, float hunterScreenX, const WindowMetrics& metrics);
 #pragma endregion QuadBuilders
 
 #pragma region GrassBuilders
@@ -194,11 +192,8 @@ GrassLayout buildGrassLayout(const WindowMetrics& metrics);
  @param layer طبقة العمق.
  @param maxQuads الحد الأقصى لعدد quads.
  */
-void appendGrassQuads(std::vector<gfx::TexturedQuad>& quads,
-                      const GrassLayout& layout,
-                      int tileIndex,
-                      GrassDepthLayer layer,
-                      std::size_t maxQuads = kMaxGrassQuads);
+void appendGrassQuads(std::vector<gfx::TexturedQuad>& quads, const GrassLayout& layout, int tileIndex,
+                      GrassDepthLayer layer, std::size_t maxQuads = kMaxGrassQuads);
 #pragma endregion GrassBuilders
 
 #pragma region FootPlacement

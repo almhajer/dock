@@ -3,8 +3,10 @@
 #include <cmath>
 #include <utility>
 
-namespace game {
-namespace {
+namespace game
+{
+namespace
+{
 
 constexpr float kTexelInset = 0.5f;
 
@@ -13,9 +15,7 @@ bool isLeftFacingClipKey(const std::string& clipKey)
     return clipKey.size() >= 5 && clipKey.compare(clipKey.size() - 5, 5, "_left") == 0;
 }
 
-void resetAnimationState(AnimationState& state,
-                         const std::string& clipKey,
-                         const AnimationClip* clip)
+void resetAnimationState(AnimationState& state, const std::string& clipKey, const AnimationClip* clip)
 {
     state.currentClip = clipKey;
     state.activeClip = clip;
@@ -57,9 +57,7 @@ float wrapLoopingElapsedMs(AnimationState& state, const AnimationClip& clip)
  حساب الفريم الحالي بناءً على المدة التراكمية لكل فريم.
  تُرجع فهرس الفريم داخل الكليب، أو -1 إذا تجاوز إجمالي المدة.
  */
-int resolveFrameByDuration(const SpriteAtlasData& data,
-                           const AnimationClip& clip,
-                           float elapsedMs)
+int resolveFrameByDuration(const SpriteAtlasData& data, const AnimationClip& clip, float elapsedMs)
 {
     float accumulated = 0.0f;
     const int count = static_cast<int>(clip.frames.size());
@@ -153,11 +151,7 @@ void SpriteAnimation::play(AnimationState& state, const std::string& clipKey) co
 
 // ─── حساب UV للفريم ─────────────────────────────────────────────
 
-void SpriteAnimation::getFrameUV(int frameIndex,
-                                 float& u0,
-                                 float& u1,
-                                 float& v0,
-                                 float& v1) const
+void SpriteAnimation::getFrameUV(int frameIndex, float& u0, float& u1, float& v0, float& v1) const
 {
     const AtlasFrame* frame = getFrame(frameIndex);
     if (frame == nullptr)

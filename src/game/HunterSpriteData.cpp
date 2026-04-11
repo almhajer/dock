@@ -1,7 +1,9 @@
 #include "HunterSpriteData.h"
 
-namespace game {
-namespace {
+namespace game
+{
+namespace
+{
 
 const HunterActionTiming HUNTER_ACTION_TIMING = {
     .reloadDurationSeconds = 0.65f,

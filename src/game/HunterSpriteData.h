@@ -1,12 +1,14 @@
 #pragma once
 
-namespace game {
+namespace game
+{
 
 #pragma region TimingTypes
 /*
  توقيتات حركة الصياد المستخدمة فعليًا داخل التطبيق.
  */
-struct HunterActionTiming {
+struct HunterActionTiming
+{
     /*
      @brief مدة إعادة التلقيم اليدوية بالثواني.
      */

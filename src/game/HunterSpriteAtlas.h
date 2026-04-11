@@ -2,7 +2,8 @@
 
 #include "SpriteAtlas.h"
 
-namespace game {
+namespace game
+{
 
 #pragma region AtlasBuilders
 /*

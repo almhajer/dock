@@ -12,31 +12,36 @@
 #include <random>
 #include <string>
 
-namespace core {
+namespace core
+{
 
 /*
  حلقة التطبيق الرئيسية - تنسق بين النافذة والإدخال واللعبة
  */
-class App {
-public:
-    #pragma region PublicTypes
+class App
+{
+  public:
+#pragma region PublicTypes
     /*
      إعدادات التطبيق
      */
-    struct Config {
+    struct Config
+    {
         /*
          إعدادات نافذة التطبيق.
          */
-        Window::Config window;             // إعدادات النافذة
+        Window::Config window; // إعدادات النافذة
 
         /*
          مسار مجلد الأصول الأساسي.
          */
-        std::string assetsPath;            // مسار مجلد الأصول
+        std::string assetsPath; // مسار مجلد الأصول
 
-        Config() : assetsPath("assets") {}
+        Config() : assetsPath("assets")
+        {
+        }
     };
-    #pragma endregion PublicTypes
+#pragma endregion PublicTypes
 
     /*
      ينشئ التطبيق ويبدأ تهيئة أنظمته.
@@ -52,7 +57,7 @@ public:
     App(const App&) = delete;
     App& operator=(const App&) = delete;
 
-    #pragma region PublicLifecycle
+#pragma region PublicLifecycle
     /*
      بدء حلقة التطبيق (تستمر حتى إغلاق النافذة)
      */
@@ -78,18 +83,18 @@ public:
     [[nodiscard]] Timer& getTimer();
     [[nodiscard]] const Timer& getTimer() const;
 
-    #pragma endregion PublicLifecycle
+#pragma endregion PublicLifecycle
 
-private:
-    #pragma region PrivateTypes
+  private:
+#pragma region PrivateTypes
     /*
      مرحلة حركة الصياد الحالية
      */
     enum class HunterPhase : unsigned char
     {
-        Locomotion,        // مشي أو وقوف
-        Shoot,             // تسلسل الإطلاق العادي
-        ShootHigh,         // تسلسل الإطلاق العالي
+        Locomotion, // مشي أو وقوف
+        Shoot,      // تسلسل الإطلاق العادي
+        ShootHigh,  // تسلسل الإطلاق العالي
     };
 
     /*
@@ -97,13 +102,13 @@ private:
      */
     enum class DuckPhase : unsigned char
     {
-        Flying,            // تطير في السماء
-        Falling,           // أُصيبت وتسقط
-        Grounded,          // وصلت الأرض وتنتظر الاختفاء
+        Flying,   // تطير في السماء
+        Falling,  // أُصيبت وتسقط
+        Grounded, // وصلت الأرض وتنتظر الاختفاء
     };
-    #pragma endregion PrivateTypes
+#pragma endregion PrivateTypes
 
-    #pragma region PrivateLifecycle
+#pragma region PrivateLifecycle
     /*
      تهيئة الأنظمة الفرعية
      */
@@ -183,9 +188,9 @@ private:
      كشف لغة النظام تلقائيًا
      */
 
-    #pragma endregion PrivateLifecycle
+#pragma endregion PrivateLifecycle
 
-    #pragma region CoreComponents
+#pragma region CoreComponents
     // مكونات التطبيق الأساسية
 
     /*
@@ -231,9 +236,9 @@ private:
      دفعات البيئة الجاهزة للرسم.
      */
     gfx::EnvironmentRenderData mEnvironmentRenderData;
-    #pragma endregion CoreComponents
+#pragma endregion CoreComponents
 
-    #pragma region AnimationState
+#pragma region AnimationState
     // أطلس الصياد الموحد وحالته
 
     /*
@@ -270,9 +275,9 @@ private:
      مسار مجلد الأصول الجاري استخدامه.
      */
     std::string mAssetsPath;
-    #pragma endregion AnimationState
+#pragma endregion AnimationState
 
-    #pragma region RenderLayerIds
+#pragma region RenderLayerIds
     // معرّفات الطبقات داخل Vulkan
 
     /*
@@ -294,9 +299,9 @@ private:
      معرّف طبقة التربة.
      */
     gfx::VulkanContext::LayerId mSoilLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
-    #pragma endregion RenderLayerIds
+#pragma endregion RenderLayerIds
 
-    #pragma region LayoutCache
+#pragma region LayoutCache
     // كاش تخطيط العشب
 
     /*
@@ -318,9 +323,9 @@ private:
      آخر ارتفاع محسوب لتخطيط التربة.
      */
     uint32_t mSoilLayoutHeight = 0;
-    #pragma endregion LayoutCache
+#pragma endregion LayoutCache
 
-    #pragma region GroundInteractionState
+#pragma region GroundInteractionState
     // بيانات تفاعل القدمين مع الأرض
 
     /*
@@ -347,9 +352,9 @@ private:
      نصف قطر تأثير القدم على الأرض.
      */
     float mGroundFootRadius = 0.06f;
-    #pragma endregion GroundInteractionState
+#pragma endregion GroundInteractionState
 
-    #pragma region HunterAndDuckState
+#pragma region HunterAndDuckState
     // حالة الصياد الحالية
 
     /*
@@ -501,7 +506,7 @@ private:
      مولّد العشوائية الخاص بمسارات البطة.
      */
     std::mt19937 mDuckRandomEngine;
-    #pragma endregion HunterAndDuckState
+#pragma endregion HunterAndDuckState
 };
 
 } // namespace core
