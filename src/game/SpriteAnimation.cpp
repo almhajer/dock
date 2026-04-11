@@ -35,8 +35,10 @@ void clearAnimationState(AnimationState& state)
     state.flipX = false;
 }
 
-/// يحافظ على الزمن الدوري داخل حدود الكليب حتى لا تتضخم قيمة elapsed
-/// بعد دقائق طويلة من التشغيل، وهو ما يحسن الثبات والدقة.
+/*
+ يحافظ على الزمن الدوري داخل حدود الكليب حتى لا تتضخم قيمة elapsed
+ بعد دقائق طويلة من التشغيل، وهو ما يحسن الثبات والدقة.
+ */
 float wrapLoopingElapsedMs(AnimationState& state, const AnimationClip& clip)
 {
     const float totalMs = static_cast<float>(clip.totalDurationMs);
@@ -51,8 +53,10 @@ float wrapLoopingElapsedMs(AnimationState& state, const AnimationClip& clip)
     return wrappedMs;
 }
 
-/// حساب الفريم الحالي بناءً على المدة التراكمية لكل فريم.
-/// تُرجع فهرس الفريم داخل الكليب، أو -1 إذا تجاوز إجمالي المدة.
+/*
+ حساب الفريم الحالي بناءً على المدة التراكمية لكل فريم.
+ تُرجع فهرس الفريم داخل الكليب، أو -1 إذا تجاوز إجمالي المدة.
+ */
 int resolveFrameByDuration(const SpriteAtlasData& data,
                            const AnimationClip& clip,
                            float elapsedMs)

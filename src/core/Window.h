@@ -7,28 +7,44 @@ struct GLFWwindow;
 
 namespace core {
 
-/// نافذة اللعبة - تغليف لنافذة GLFW مع إدارة دورة الحياة
+/*
+ نافذة اللعبة - تغليف لنافذة GLFW مع إدارة دورة الحياة
+ */
 class Window {
 public:
     #pragma region PublicTypes
-    /// إعدادات النافذة
+    /*
+     إعدادات النافذة
+     */
     struct Config {
-        /// عنوان النافذة الظاهر للمستخدم.
+        /*
+         عنوان النافذة الظاهر للمستخدم.
+         */
         std::string title;                 // عنوان النافذة
 
-        /// العرض المطلوب عند الإنشاء.
+        /*
+         العرض المطلوب عند الإنشاء.
+         */
         uint32_t width;                    // العرض بالبكسل
 
-        /// الارتفاع المطلوب عند الإنشاء.
+        /*
+         الارتفاع المطلوب عند الإنشاء.
+         */
         uint32_t height;                   // الارتفاع بالبكسل
 
-        /// هل يبدأ التطبيق بملء الشاشة؟
+        /*
+         هل يبدأ التطبيق بملء الشاشة؟
+         */
         bool fullscreen;                   // ملء الشاشة
 
-        /// هل يسمح بتغيير الحجم؟
+        /*
+         هل يسمح بتغيير الحجم؟
+         */
         bool resizable;                    // قابلة لتغيير الحجم
 
-        /// هل تُفعّل المزامنة العمودية؟
+        /*
+         هل تُفعّل المزامنة العمودية؟
+         */
         bool vsync;                        // مزامنة عمودية
 
         Config()
@@ -41,64 +57,98 @@ public:
     };
     #pragma endregion PublicTypes
 
-    /// ينشئ النافذة ويهيئ GLFW حسب الإعدادات.
+    /*
+     ينشئ النافذة ويهيئ GLFW حسب الإعدادات.
+     */
     explicit Window(const Config& config = {});
 
-    /// يغلق النافذة ويحرر موارد GLFW المرتبطة بها.
+    /*
+     يغلق النافذة ويحرر موارد GLFW المرتبطة بها.
+     */
     ~Window();
 
     // منع النسخ لأن النافذة مورد وحيد
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
 
-    /// هل النافذة مفتوحة ولم يُطلب إغلاقها؟
+    /*
+     هل النافذة مفتوحة ولم يُطلب إغلاقها؟
+     */
     [[nodiscard]] bool isOpen() const;
 
-    /// معالجة أحداث النافذة (إدخال، تغيير حجم...)
+    /*
+     معالجة أحداث النافذة (إدخال، تغيير حجم...)
+     */
     void pollEvents();
 
-    /// انتظار حتى يحين وقت الإطار التالي (إذا كان VSync مفعّلًا)
+    /*
+     انتظار حتى يحين وقت الإطار التالي (إذا كان VSync مفعّلًا)
+     */
     void waitEvents();
 
-    /// الحصول على مقبض GLFW الخام (للاستخدام مع Vulkan)
+    /*
+     الحصول على مقبض GLFW الخام (للاستخدام مع Vulkan)
+     */
     [[nodiscard]] GLFWwindow* getHandle() const;
 
-    /// أبعاد النافذة الحالية
+    /*
+     أبعاد النافذة الحالية
+     */
     [[nodiscard]] uint32_t getWidth() const;
     [[nodiscard]] uint32_t getHeight() const;
 
-    /// هل تغيّر حجم النافذة منذ آخر فحص؟ (يُعاد ضبطه بعد القراءة)
+    /*
+     هل تغيّر حجم النافذة منذ آخر فحص؟ (يُعاد ضبطه بعد القراءة)
+     */
     [[nodiscard]] bool wasResized();
 
-    /// تعيين VSync
+    /*
+     تعيين VSync
+     */
     void setVSync(bool enabled);
 
-    /// إظهار/إخفاء مؤشر الماوس
+    /*
+     إظهار/إخفاء مؤشر الماوس
+     */
     void setCursorVisible(bool visible);
 
-    /// هل المؤشر مرئي؟
+    /*
+     هل المؤشر مرئي؟
+     */
     [[nodiscard]] bool isCursorVisible() const;
 
 private:
     #pragma region InternalCallbacks
-    /// رد نداء تغيير حجم النافذة
+    /*
+     رد نداء تغيير حجم النافذة
+     */
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     #pragma endregion InternalCallbacks
 
     #pragma region InternalState
-    /// مقبض نافذة GLFW الخام.
+    /*
+     مقبض نافذة GLFW الخام.
+     */
     GLFWwindow* mHandle = nullptr;
 
-    /// العرض الحالي للنافذة.
+    /*
+     العرض الحالي للنافذة.
+     */
     uint32_t mWidth = 0;
 
-    /// الارتفاع الحالي للنافذة.
+    /*
+     الارتفاع الحالي للنافذة.
+     */
     uint32_t mHeight = 0;
 
-    /// هل تم تغيير الحجم منذ آخر فحص؟
+    /*
+     هل تم تغيير الحجم منذ آخر فحص؟
+     */
     bool mResized = false;
 
-    /// هل المؤشر ظاهر للمستخدم؟
+    /*
+     هل المؤشر ظاهر للمستخدم؟
+     */
     bool mCursorVisible = true;
     #pragma endregion InternalState
 };

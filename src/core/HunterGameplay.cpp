@@ -8,10 +8,12 @@
 namespace core::hunterplay {
 namespace {
 
-/// @brief اتجاه المشي يتبع المفاتيح مباشرة عند وجود إدخال حركة.
-/// @param moveIntent نية الحركة من resolveMoveIntent.
-/// @param fallbackFacingLeft الاتجاه الافتراضي عند السكون.
-/// @return true إذا كان الصياد يتجه يساراً.
+/*
+ @brief اتجاه المشي يتبع المفاتيح مباشرة عند وجود إدخال حركة.
+ @param moveIntent نية الحركة من resolveMoveIntent.
+ @param fallbackFacingLeft الاتجاه الافتراضي عند السكون.
+ @return true إذا كان الصياد يتجه يساراً.
+ */
 [[nodiscard]] bool resolveFacingLeftFromMoveIntent(int moveIntent,
                                                    bool fallbackFacingLeft)
 {

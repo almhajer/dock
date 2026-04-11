@@ -1,7 +1,0 @@
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/Duck.dir
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/edit_cache.dir
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/rebuild_cache.dir
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/list_install_components.dir
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/install.dir
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/install/local.dir
-/Users/abdulkafi/Desktop/dock/build-release/CMakeFiles/install/strip.dir

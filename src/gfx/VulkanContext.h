@@ -17,7 +17,9 @@ struct GLFWwindow;
 namespace gfx
 {
 
-    /// تفاصيل عائلة الطوابير (Graphics, Present)
+    /*
+     تفاصيل عائلة الطوابير (Graphics, Present)
+     */
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphicsFamily;
@@ -29,7 +31,9 @@ namespace gfx
         }
     };
 
-    /// تفاصيل قدرات السوابتشين
+    /*
+     تفاصيل قدرات السوابتشين
+     */
     struct SwapchainSupportDetails
     {
         VkSurfaceCapabilitiesKHR capabilities;
@@ -37,7 +41,9 @@ namespace gfx
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-    /// سياق Vulkan الكامل - يدير Instance, Device, Swapchain, Pipeline, RenderPass
+    /*
+     سياق Vulkan الكامل - يدير Instance, Device, Swapchain, Pipeline, RenderPass
+     */
     class VulkanContext
     {
     public:
@@ -52,57 +58,85 @@ namespace gfx
         VulkanContext(const VulkanContext &) = delete;
         VulkanContext &operator=(const VulkanContext &) = delete;
 
-        /// تهيئة Vulkan بالكامل (instance → device → swapchain → pipeline)
+        /*
+         تهيئة Vulkan بالكامل (instance → device → swapchain → pipeline)
+         */
         void init(GLFWwindow *window, uint32_t width, uint32_t height);
 
-        /// تنظيف كل موارد Vulkan
+        /*
+         تنظيف كل موارد Vulkan
+         */
         void cleanup();
 
-        /// إعادة إنشاء السوابتشين عند تغيير حجم النافذة
+        /*
+         إعادة إنشاء السوابتشين عند تغيير حجم النافذة
+         */
         void onResize(uint32_t newWidth, uint32_t newHeight);
 
-        /// رسم إطار واحد (acquire → submit → present)
+        /*
+         رسم إطار واحد (acquire → submit → present)
+         */
         void drawFrame();
 
-        /// انتظار انتهاء جميع أوامر GPU
+        /*
+         انتظار انتهاء جميع أوامر GPU
+         */
         void waitIdle();
 
-        /// هل التهيئة تمت بنجاح؟
+        /*
+         هل التهيئة تمت بنجاح؟
+         */
         [[nodiscard]] bool isInitialized() const;
 
         using PixelCallback = std::function<void(int w, int h, const unsigned char* pixels)>;
 
-        /// إنشاء طبقة رسم textured quads من ملف صورة
+        /*
+         إنشاء طبقة رسم textured quads من ملف صورة
+         */
         [[nodiscard]] LayerId createTexturedLayer(const std::string &path, std::size_t maxQuads);
 
-        /// إنشاء طبقة رسم textured quads من بكسلات جاهزة في الذاكرة
+        /*
+         إنشاء طبقة رسم textured quads من بكسلات جاهزة في الذاكرة
+         */
         [[nodiscard]] LayerId createTexturedLayerFromPixels(const unsigned char *pixels,
                                                             int texW,
                                                             int texH,
                                                             std::size_t maxQuads);
 
-        /// إنشاء طبقة رسم textured quads مع callback لمعالجة البكسلات قبل رفعها إلى GPU
+        /*
+         إنشاء طبقة رسم textured quads مع callback لمعالجة البكسلات قبل رفعها إلى GPU
+         */
         [[nodiscard]] LayerId createTexturedLayerWithCallback(const std::string &path,
                                                               std::size_t maxQuads,
                                                               PixelCallback cb);
 
-        /// تحديث quads الخاصة بطبقة معينة
+        /*
+         تحديث quads الخاصة بطبقة معينة
+         */
         void updateTexturedLayer(LayerId layerId, const std::vector<TexturedQuad> &quads);
 
-        /// تحديث طبقة تحتوي quad واحد فقط بدون إنشاء حاويات مؤقتة
+        /*
+         تحديث طبقة تحتوي quad واحد فقط بدون إنشاء حاويات مؤقتة
+         */
         void updateTexturedLayer(LayerId layerId, const TexturedQuad& quad);
 
-        /// تفريغ الطبقة بسرعة عندما لا نحتاج أي رؤوس للرسم
+        /*
+         تفريغ الطبقة بسرعة عندما لا نحتاج أي رؤوس للرسم
+         */
         void clearTexturedLayer(LayerId layerId);
 
-        /// تحديث موضع وتأثير القدمين على شريط العشب/التربة
+        /*
+         تحديث موضع وتأثير القدمين على شريط العشب/التربة
+         */
         void setGroundInteraction(float leftFootX,
                                   float rightFootX,
                                   float radius,
                                   float leftPressure,
                                   float rightPressure);
 
-        /// تحديث دفعات البيئة المرسومة بالـ instancing بعد فصل الغيوم عن الأشجار.
+        /*
+         تحديث دفعات البيئة المرسومة بالـ instancing بعد فصل الغيوم عن الأشجار.
+         */
         void updateEnvironmentBatches(const std::vector<EnvironmentInstance>& cloudInstances,
                                       const std::vector<EnvironmentInstance>& backgroundTreeInstances,
                                       const std::vector<EnvironmentInstance>& foregroundTreeInstances);
@@ -213,7 +247,9 @@ namespace gfx
         void destroyEnvironmentBatch(EnvironmentBatchResources& batch);
         void updateAtmosphereCloudOcclusion(const std::vector<EnvironmentInstance>& cloudInstances);
 
-        /// تنظيف السوابتشين فقط (لإعادة إنشائها)
+        /*
+         تنظيف السوابتشين فقط (لإعادة إنشائها)
+         */
         void cleanupSwapchain();
         void recreateSwapchain();
 

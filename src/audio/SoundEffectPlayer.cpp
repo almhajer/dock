@@ -11,10 +11,14 @@ namespace audio {
 namespace {
 
 #pragma region InternalState
-/// @brief قيمة الشدة الافتراضية للمؤثرات القصيرة حتى لا تطغى على بقية المشهد.
+/*
+ @brief قيمة الشدة الافتراضية للمؤثرات القصيرة حتى لا تطغى على بقية المشهد.
+ */
 constexpr float DEFAULT_EFFECT_VOLUME = 0.42f;
 
-/// حالة التشغيل الفعلية مخفية عن الترويسة حتى يبقى المشغل C++ عاديًا.
+/*
+ حالة التشغيل الفعلية مخفية عن الترويسة حتى يبقى المشغل C++ عاديًا.
+ */
 struct PlayerState {
     ma_engine engine {};
     ma_sound sound {};
@@ -46,15 +50,19 @@ void cleanupState(PlayerState& state)
 } // namespace
 
 #pragma region Lifecycle
-/// @brief يحرر المشغل كل الموارد المرتبطة بالحالة الداخلية.
+/*
+ @brief يحرر المشغل كل الموارد المرتبطة بالحالة الداخلية.
+ */
 SoundEffectPlayer::~SoundEffectPlayer()
 {
     reset();
 }
 
-/// @brief يحمّل ملفاً صوتياً قصيراً ويجهزه للتشغيل الفوري.
-/// @param path مسار الملف الصوتي على القرص.
-/// @return true إذا نجح التحميل.
+/*
+ @brief يحمّل ملفاً صوتياً قصيراً ويجهزه للتشغيل الفوري.
+ @param path مسار الملف الصوتي على القرص.
+ @return true إذا نجح التحميل.
+ */
 bool SoundEffectPlayer::load(const std::string& path)
 {
     reset();
@@ -104,7 +112,9 @@ bool SoundEffectPlayer::load(const std::string& path)
 #pragma endregion Lifecycle
 
 #pragma region PlaybackControl
-/// @brief يشغل المؤثر مرة واحدة بدءاً من أول العينة.
+/*
+ @brief يشغل المؤثر مرة واحدة بدءاً من أول العينة.
+ */
 void SoundEffectPlayer::play()
 {
     PlayerState* state = stateFromHandle(mState);
@@ -120,7 +130,9 @@ void SoundEffectPlayer::play()
     ma_sound_start(&state->sound);
 }
 
-/// @brief يشغل المؤثر على حلقة متكررة متزامنة مع بداية العنصر.
+/*
+ @brief يشغل المؤثر على حلقة متكررة متزامنة مع بداية العنصر.
+ */
 void SoundEffectPlayer::playLooped()
 {
     PlayerState* state = stateFromHandle(mState);
@@ -129,14 +141,18 @@ void SoundEffectPlayer::playLooped()
         return;
     }
 
-    /* نعيد الصوت للبداية عند بدء الحلقة حتى تتطابق البداية مع ظهور العنصر. */
+    /*
+     نعيد الصوت للبداية عند بدء الحلقة حتى تتطابق البداية مع ظهور العنصر.
+     */
     ma_sound_set_looping(&state->sound, MA_TRUE);
     ma_sound_stop(&state->sound);
     ma_sound_seek_to_pcm_frame(&state->sound, 0);
     ma_sound_start(&state->sound);
 }
 
-/// @brief يوقف التشغيل الحالي ويعيد المؤثر إلى البداية.
+/*
+ @brief يوقف التشغيل الحالي ويعيد المؤثر إلى البداية.
+ */
 void SoundEffectPlayer::stop()
 {
     PlayerState* state = stateFromHandle(mState);
@@ -149,7 +165,9 @@ void SoundEffectPlayer::stop()
     ma_sound_seek_to_pcm_frame(&state->sound, 0);
 }
 
-/// @brief يحرر الحالة الداخلية ويزيل المورد المحمل من الذاكرة.
+/*
+ @brief يحرر الحالة الداخلية ويزيل المورد المحمل من الذاكرة.
+ */
 void SoundEffectPlayer::reset()
 {
     std::unique_ptr<PlayerState> state(stateFromHandle(mState));
@@ -164,16 +182,20 @@ void SoundEffectPlayer::reset()
 #pragma endregion PlaybackControl
 
 #pragma region StateQueries
-/// @brief يحدد إن كان هناك ملف صوتي صالح محمّل داخل المشغل.
-/// @return true إذا كان هناك مؤثر محمل.
+/*
+ @brief يحدد إن كان هناك ملف صوتي صالح محمّل داخل المشغل.
+ @return true إذا كان هناك مؤثر محمل.
+ */
 bool SoundEffectPlayer::isLoaded() const
 {
     const PlayerState* state = static_cast<const PlayerState*>(mState);
     return state != nullptr && state->soundInitialized;
 }
 
-/// @brief يحدد إن كان المؤثر في حالة تشغيل لحظية الآن.
-/// @return true إذا كان المؤثر يعمل حالياً.
+/*
+ @brief يحدد إن كان المؤثر في حالة تشغيل لحظية الآن.
+ @return true إذا كان المؤثر يعمل حالياً.
+ */
 bool SoundEffectPlayer::isPlaying() const
 {
     const PlayerState* state = static_cast<const PlayerState*>(mState);

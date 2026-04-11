@@ -5,7 +5,9 @@
 namespace core::duckplay {
 
 #pragma region MotionConstants
-/// @brief ثوابت سلوك البطة مجمعة هنا حتى تبقى قرارات الحركة والاختفاء والإصابة في مكان واحد واضح.
+/*
+ @brief ثوابت سلوك البطة مجمعة هنا حتى تبقى قرارات الحركة والاختفاء والإصابة في مكان واحد واضح.
+ */
 inline constexpr float kDuckScreenHalfHeight = 0.17f;
 inline constexpr float kDuckTravelMargin = 0.22f;
 inline constexpr float kDuckTopSpawnMargin = 0.06f;
@@ -37,36 +39,46 @@ inline constexpr float kPi = 3.14159265359f;
 #pragma endregion MotionConstants
 
 #pragma region MotionHelpers
-/// @brief منحنى ناعم بين 0 و 1 لتجنب الحركات الميكانيكية الحادة.
-/// @param t القيمة الداخلة بين 0 و 1.
-/// @return القيمة الملساء بين 0 و 1.
+/*
+ @brief منحنى ناعم بين 0 و 1 لتجنب الحركات الميكانيكية الحادة.
+ @param t القيمة الداخلة بين 0 و 1.
+ @return القيمة الملساء بين 0 و 1.
+ */
 [[nodiscard]] float smoothstep01(float t);
 
-/// @brief يبطئ بداية الرحلة ثم يسمح بالتسارع التدريجي بعد الإقلاع.
-/// @param t طور الرحلة بين 0 و 1.
-/// @return الطور المعاد رسمه بين 0 و 1.
+/*
+ @brief يبطئ بداية الرحلة ثم يسمح بالتسارع التدريجي بعد الإقلاع.
+ @param t طور الرحلة بين 0 و 1.
+ @return الطور المعاد رسمه بين 0 و 1.
+ */
 [[nodiscard]] float remapTravelPhase(float t);
 
-/// @brief يحسب موضعاً على منحنى Bezier رباعي النقاط.
-/// @param p0 نقطة التحكم الأولى (البداية).
-/// @param p1 نقطة التحكم الثانية.
-/// @param p2 نقطة التحكم الثالثة.
-/// @param p3 نقطة التحكم الرابعة (النهاية).
-/// @param t معامل الاستيفاء بين 0 و 1.
-/// @return الموضع على المنحنى.
+/*
+ @brief يحسب موضعاً على منحنى Bezier رباعي النقاط.
+ @param p0 نقطة التحكم الأولى (البداية).
+ @param p1 نقطة التحكم الثانية.
+ @param p2 نقطة التحكم الثالثة.
+ @param p3 نقطة التحكم الرابعة (النهاية).
+ @param t معامل الاستيفاء بين 0 و 1.
+ @return الموضع على المنحنى.
+ */
 [[nodiscard]] float cubicBezier1D(float p0, float p1, float p2, float p3, float t);
 
-/// @brief يعطي ميل المنحنى نفسه لاشتقاق زاوية الطيران.
-/// @param p0 نقطة التحكم الأولى (البداية).
-/// @param p1 نقطة التحكم الثانية.
-/// @param p2 نقطة التحكم الثالثة.
-/// @param p3 نقطة التحكم الرابعة (النهاية).
-/// @param t معامل الاستيفاء بين 0 و 1.
-/// @return قيمة الميل عند t.
+/*
+ @brief يعطي ميل المنحنى نفسه لاشتقاق زاوية الطيران.
+ @param p0 نقطة التحكم الأولى (البداية).
+ @param p1 نقطة التحكم الثانية.
+ @param p2 نقطة التحكم الثالثة.
+ @param p3 نقطة التحكم الرابعة (النهاية).
+ @param t معامل الاستيفاء بين 0 و 1.
+ @return قيمة الميل عند t.
+ */
 [[nodiscard]] float cubicBezierTangent1D(float p0, float p1, float p2, float p3, float t);
 
-/// @brief يثبت البطة على فريم الإصابة الأرضي المعتمد بعد السقوط.
-/// @param state مرجع حالة الرسم المتحرك لتعديل الفريم.
+/*
+ @brief يثبت البطة على فريم الإصابة الأرضي المعتمد بعد السقوط.
+ @param state مرجع حالة الرسم المتحرك لتعديل الفريم.
+ */
 void holdDuckOnGroundHitFrame(game::AnimationState& state);
 #pragma endregion MotionHelpers
 
