@@ -5,6 +5,7 @@ namespace {
 
 const HunterActionTiming HUNTER_ACTION_TIMING = {
     .reloadDurationSeconds = 0.65f,
+    .shotRecoveryDurationSeconds = 1.0f,
 };
 
 } // namespace

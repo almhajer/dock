@@ -6,6 +6,7 @@
 
 namespace game {
 
+#pragma region AtlasTypes
 /// فريم واحد داخل أطلس السبرايت
 ///
 /// نظام الإحداثيات: top-left (الأصل في الزاوية العلوية اليسرى).
@@ -35,18 +36,33 @@ struct AtlasFrame {
 
 /// مقطع حركة مثل: walk_right, idle_left
 struct AnimationClip {
+    /// اسم الكليب.
     std::string key;
+
+    /// فهارس الفريمات التابعة للكليب.
     std::vector<int> frames;
+
+    /// هل الكليب دائري؟
     bool loop = true;
+
+    /// مجموع مدد فريمات الكليب.
     int totalDurationMs = 0; // مجموع مدد الفريمات داخل الكليب
 };
 
 /// بيانات أطلس السبرايت الكاملة
 struct SpriteAtlasData {
+    /// عرض صورة الأطلس.
     int imageWidth = 0;
+
+    /// ارتفاع صورة الأطلس.
     int imageHeight = 0;
+
+    /// جميع الفريمات المتاحة داخل الأطلس.
     std::vector<AtlasFrame> frames;
+
+    /// جميع الكليبات المعرفة فوق الفريمات.
     std::unordered_map<std::string, AnimationClip> animations;
 };
+#pragma endregion AtlasTypes
 
 } // namespace game

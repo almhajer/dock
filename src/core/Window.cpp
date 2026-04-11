@@ -3,9 +3,52 @@
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 
+#ifdef __APPLE__
+#include <CoreGraphics/CGSession.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 namespace core {
 
+namespace {
+
+#ifdef __APPLE__
+[[nodiscard]] bool sessionFlagIsTrue(CFDictionaryRef sessionInfo, const void* key)
+{
+    if (sessionInfo == nullptr || key == nullptr)
+    {
+        return false;
+    }
+
+    const void* value = CFDictionaryGetValue(sessionInfo, key);
+    return value == kCFBooleanTrue;
+}
+
+[[nodiscard]] bool hasGuiSession()
+{
+    CFDictionaryRef sessionInfo = CGSessionCopyCurrentDictionary();
+    if (sessionInfo == nullptr)
+    {
+        return false;
+    }
+
+    const bool onConsole = sessionFlagIsTrue(sessionInfo, kCGSessionOnConsoleKey);
+    const bool loginDone = sessionFlagIsTrue(sessionInfo, kCGSessionLoginDoneKey);
+    CFRelease(sessionInfo);
+    return onConsole && loginDone;
+}
+#endif
+
+} // namespace
+
 Window::Window(const Config& config) {
+#ifdef __APPLE__
+    if (!hasGuiSession()) {
+        throw std::runtime_error(
+            "يتطلب تشغيل DuckH جلسة macOS رسومية نشطة. شغّل التطبيق من Finder أو عبر open، وليس من SSH أو sudo أو خدمة خلفية.");
+    }
+#endif
+
     // تهيئة GLFW
     if (!glfwInit()) {
         throw std::runtime_error("فشل تهيئة GLFW");

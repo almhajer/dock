@@ -4,9 +4,11 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -16,25 +18,20 @@
 namespace game {
 namespace {
 
-constexpr int SOURCE_COLUMNS = 6;
-constexpr int USED_ROWS = 4;
-constexpr int FRAME_COUNT = SOURCE_COLUMNS * USED_ROWS;
-constexpr int FRAME_WIDTH = 256;
-constexpr int FRAME_HEIGHT = 256;
-constexpr int FRAME_COLUMNS = 6;
-constexpr int FRAME_ROWS = 4;
+constexpr int FRAME_COUNT = 11;
+constexpr int FRAME_COLUMNS = 4;
 constexpr int OUTPUT_SAFE_WIDTH = 224;
 constexpr int OUTPUT_SAFE_HEIGHT = 224;
-constexpr int ANCHOR_MIN_AREA = 6000;
 constexpr int COMPONENT_MIN_AREA = 6;
+constexpr int ANCHOR_MIN_AREA = 6000;
 constexpr int ANCHOR_MERGE_MARGIN_X = 72;
 constexpr int ANCHOR_MERGE_MARGIN_Y = 72;
+constexpr int CELL_PADDING = 2;
 constexpr float PIVOT_X = 0.5f;
 constexpr float PIVOT_Y = 0.5f;
-constexpr bool MIRROR_SOURCE_FRAMES = true;
 
 struct FrameDef {
-    int durationMs;
+    int durationMs = 80;
 };
 
 struct PixelCoord {
@@ -59,36 +56,37 @@ struct RawFrame {
     std::vector<unsigned char> pixels;
 };
 
-// الترتيب يطابق الأطلس الإنتاجي الناتج من duck.png:
-// fly  0-7
-// hit  8-11
-// fall 12-19
-// dead 20-23
-constexpr std::array<FrameDef, FRAME_COUNT> FRAME_DEFS = {{
-    {70}, {65}, {65}, {65}, {75}, {65}, {65}, {70},
-    {65}, {65}, {70}, {80},
-    {75}, {75}, {80}, {80}, {80}, {80}, {85}, {90},
-    {95}, {110}, {125}, {140},
-}};
+struct FrameSize {
+    int width = 0;
+    int height = 0;
+};
 
-AtlasFrame makeFrame(int frameIndex, const FrameDef& def)
-{
-    const int row = frameIndex / FRAME_COLUMNS;
-    const int col = frameIndex % FRAME_COLUMNS;
-    return AtlasFrame{
-        .x = col * FRAME_WIDTH,
-        .y = row * FRAME_HEIGHT,
-        .width = FRAME_WIDTH,
-        .height = FRAME_HEIGHT,
-        .sourceW = FRAME_WIDTH,
-        .sourceH = FRAME_HEIGHT,
-        .spriteX = 0,
-        .spriteY = 0,
-        .pivotX = PIVOT_X,
-        .pivotY = PIVOT_Y,
-        .durationMs = def.durationMs,
-    };
-}
+struct ReferenceFrame {
+    int canvasWidth = 0;
+    int canvasHeight = 0;
+    int bboxX = 0;
+    int bboxY = 0;
+    int bboxWidth = 0;
+    int bboxHeight = 0;
+};
+
+struct PreparedFrame {
+    int width = 0;
+    int height = 0;
+    int sourceW = 0;
+    int sourceH = 0;
+    int spriteX = 0;
+    int spriteY = 0;
+    std::vector<unsigned char> pixels;
+};
+
+[[nodiscard]] std::vector<ReferenceFrame> makeFallbackReferenceFrames(
+    const std::vector<RawFrame>& sourceFrames);
+
+constexpr std::array<FrameDef, FRAME_COUNT> FRAME_DEFS = {{
+    {140}, {140}, {140}, {140}, {140}, {140},
+    {160}, {160}, {160}, {160}, {160},
+}};
 
 [[nodiscard]] std::size_t pixelOffset(int width, int x, int y)
 {
@@ -268,21 +266,15 @@ AtlasFrame makeFrame(int frameIndex, const FrameDef& def)
 
     std::vector<int> selected;
     selected.reserve(FRAME_COUNT);
-    for (int rowIndex = 0; rowIndex < static_cast<int>(rows.size()) && rowIndex < USED_ROWS; ++rowIndex)
+    for (const std::vector<int>& row : rows)
     {
-        const std::vector<int>& row = rows[rowIndex];
-        for (int colIndex = 0;
-             colIndex < static_cast<int>(row.size()) && colIndex < SOURCE_COLUMNS;
-             ++colIndex)
-        {
-            selected.push_back(row[colIndex]);
-        }
+        selected.insert(selected.end(), row.begin(), row.end());
     }
 
     if (static_cast<int>(selected.size()) != FRAME_COUNT)
     {
         throw std::runtime_error(
-            "[Duck] تعذر استخراج 24 فريمًا من duck.png بعد ترتيب المكونات الرئيسية.");
+            "[Duck] تعذر استخراج 11 فريمًا من duck.png بعد ترتيب المكونات الرئيسية.");
     }
 
     return selected;
@@ -392,37 +384,13 @@ AtlasFrame makeFrame(int frameIndex, const FrameDef& def)
     return frame;
 }
 
-[[nodiscard]] RawFrame mirrorFrameHorizontally(const RawFrame& frame)
-{
-    RawFrame mirrored;
-    mirrored.width = frame.width;
-    mirrored.height = frame.height;
-    mirrored.pixels.assign(frame.pixels.size(), 0u);
-
-    for (int y = 0; y < frame.height; ++y)
-    {
-        for (int x = 0; x < frame.width; ++x)
-        {
-            const std::size_t srcOffset = pixelOffset(frame.width, x, y);
-            const std::size_t dstOffset =
-                pixelOffset(mirrored.width, mirrored.width - 1 - x, y);
-            mirrored.pixels[dstOffset + 0u] = frame.pixels[srcOffset + 0u];
-            mirrored.pixels[dstOffset + 1u] = frame.pixels[srcOffset + 1u];
-            mirrored.pixels[dstOffset + 2u] = frame.pixels[srcOffset + 2u];
-            mirrored.pixels[dstOffset + 3u] = frame.pixels[srcOffset + 3u];
-        }
-    }
-
-    return mirrored;
-}
-
-struct FrameSize {
-    int width = 0;
-    int height = 0;
-};
-
 [[nodiscard]] FrameSize fitSize(int width, int height, int maxWidth, int maxHeight)
 {
+    if (width <= 0 || height <= 0 || maxWidth <= 0 || maxHeight <= 0)
+    {
+        return {};
+    }
+
     const float scale = std::min(
         static_cast<float>(maxWidth) / static_cast<float>(width),
         static_cast<float>(maxHeight) / static_cast<float>(height));
@@ -539,15 +507,275 @@ void blitFrame(std::vector<unsigned char>& atlasPixels,
     frames.reserve(frameComponents.size());
     for (const std::vector<int>& componentIndices : frameComponents)
     {
-        RawFrame frame = composeFrame(sourcePixels, sourceWidth, components, componentIndices);
-        if (MIRROR_SOURCE_FRAMES)
-        {
-            frame = mirrorFrameHorizontally(frame);
-        }
-        frames.push_back(std::move(frame));
+        frames.push_back(composeFrame(sourcePixels, sourceWidth, components, componentIndices));
+    }
+
+    if (static_cast<int>(frames.size()) != FRAME_COUNT)
+    {
+        throw std::runtime_error("[Duck] عدد فريمات البطة المستخرجة غير صالح.");
     }
 
     return frames;
+}
+
+[[maybe_unused]] [[nodiscard]] std::string toLower(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(),
+        [](unsigned char ch)
+        {
+            return static_cast<char>(std::tolower(ch));
+        });
+    return value;
+}
+
+[[maybe_unused]] [[nodiscard]] int extractOrderNumber(const std::filesystem::path& filePath)
+{
+    const std::string name = filePath.filename().string();
+    int value = 0;
+    bool foundDigit = false;
+
+    for (const unsigned char ch : name)
+    {
+        if (!std::isdigit(ch))
+        {
+            if (foundDigit)
+            {
+                break;
+            }
+            continue;
+        }
+
+        foundDigit = true;
+        value = value * 10 + static_cast<int>(ch - '0');
+    }
+
+    return foundDigit ? value : std::numeric_limits<int>::max();
+}
+
+[[maybe_unused]] [[nodiscard]] ReferenceFrame loadReferenceFrame(const std::filesystem::path& filePath)
+{
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc* pixels = stbi_load(filePath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (pixels == nullptr)
+    {
+        throw std::runtime_error("[Duck] فشل تحميل فريم مرجعي: " + filePath.string());
+    }
+
+    int minX = width;
+    int minY = height;
+    int maxX = 0;
+    int maxY = 0;
+    bool hasVisiblePixel = false;
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            if (alphaAt(pixels, width, x, y) == 0u)
+            {
+                continue;
+            }
+
+            hasVisiblePixel = true;
+            minX = std::min(minX, x);
+            minY = std::min(minY, y);
+            maxX = std::max(maxX, x + 1);
+            maxY = std::max(maxY, y + 1);
+        }
+    }
+
+    stbi_image_free(pixels);
+
+    if (!hasVisiblePixel)
+    {
+        return ReferenceFrame{
+            .canvasWidth = width,
+            .canvasHeight = height,
+            .bboxX = 0,
+            .bboxY = 0,
+            .bboxWidth = width,
+            .bboxHeight = height,
+        };
+    }
+
+    return ReferenceFrame{
+        .canvasWidth = width,
+        .canvasHeight = height,
+        .bboxX = minX,
+        .bboxY = minY,
+        .bboxWidth = maxX - minX,
+        .bboxHeight = maxY - minY,
+    };
+}
+
+[[nodiscard]] std::vector<ReferenceFrame> loadReferenceFrames(const std::filesystem::path& sourceImagePath)
+{
+    int sourceWidth = 0;
+    int sourceHeight = 0;
+    int sourceChannels = 0;
+    stbi_uc* sourcePixels = stbi_load(
+        sourceImagePath.string().c_str(),
+        &sourceWidth,
+        &sourceHeight,
+        &sourceChannels,
+        STBI_rgb_alpha);
+
+    if (sourcePixels == nullptr)
+    {
+        throw std::runtime_error("[Duck] فشل تحميل صورة المرجع: " + sourceImagePath.string());
+    }
+
+    const std::vector<RawFrame> sourceFrames =
+        extractSourceFrames(sourcePixels, sourceWidth, sourceHeight);
+    stbi_image_free(sourcePixels);
+    return makeFallbackReferenceFrames(sourceFrames);
+}
+
+[[nodiscard]] float resolveReferenceScale(const std::vector<ReferenceFrame>& referenceFrames)
+{
+    int maxWidth = 0;
+    int maxHeight = 0;
+    for (const ReferenceFrame& frame : referenceFrames)
+    {
+        maxWidth = std::max(maxWidth, frame.canvasWidth);
+        maxHeight = std::max(maxHeight, frame.canvasHeight);
+    }
+
+    if (maxWidth <= 0 || maxHeight <= 0)
+    {
+        throw std::runtime_error("[Duck] مقاسات فريمات البطة المرجعية غير صالحة.");
+    }
+
+    const float scale = std::min(
+        static_cast<float>(OUTPUT_SAFE_WIDTH) / static_cast<float>(maxWidth),
+        static_cast<float>(OUTPUT_SAFE_HEIGHT) / static_cast<float>(maxHeight));
+    return std::min(1.0f, scale);
+}
+
+[[nodiscard]] ReferenceFrame scaleReferenceFrame(const ReferenceFrame& frame, float scale)
+{
+    const int scaledCanvasWidth =
+        std::max(1, static_cast<int>(std::lround(static_cast<float>(frame.canvasWidth) * scale)));
+    const int scaledCanvasHeight =
+        std::max(1, static_cast<int>(std::lround(static_cast<float>(frame.canvasHeight) * scale)));
+
+    const int scaledMinX = std::clamp(
+        static_cast<int>(std::lround(static_cast<float>(frame.bboxX) * scale)),
+        0,
+        scaledCanvasWidth - 1);
+    const int scaledMinY = std::clamp(
+        static_cast<int>(std::lround(static_cast<float>(frame.bboxY) * scale)),
+        0,
+        scaledCanvasHeight - 1);
+    const int scaledMaxX = std::clamp(
+        static_cast<int>(std::lround(static_cast<float>(frame.bboxX + frame.bboxWidth) * scale)),
+        scaledMinX + 1,
+        scaledCanvasWidth);
+    const int scaledMaxY = std::clamp(
+        static_cast<int>(std::lround(static_cast<float>(frame.bboxY + frame.bboxHeight) * scale)),
+        scaledMinY + 1,
+        scaledCanvasHeight);
+
+    return ReferenceFrame{
+        .canvasWidth = scaledCanvasWidth,
+        .canvasHeight = scaledCanvasHeight,
+        .bboxX = scaledMinX,
+        .bboxY = scaledMinY,
+        .bboxWidth = scaledMaxX - scaledMinX,
+        .bboxHeight = scaledMaxY - scaledMinY,
+    };
+}
+
+[[nodiscard]] std::vector<ReferenceFrame> scaleReferenceFrames(
+    const std::vector<ReferenceFrame>& referenceFrames)
+{
+    const float scale = resolveReferenceScale(referenceFrames);
+
+    std::vector<ReferenceFrame> scaledFrames;
+    scaledFrames.reserve(referenceFrames.size());
+    for (const ReferenceFrame& frame : referenceFrames)
+    {
+        scaledFrames.push_back(scaleReferenceFrame(frame, scale));
+    }
+
+    return scaledFrames;
+}
+
+[[nodiscard]] std::vector<ReferenceFrame> makeFallbackReferenceFrames(
+    const std::vector<RawFrame>& sourceFrames)
+{
+    std::vector<ReferenceFrame> referenceFrames;
+    referenceFrames.reserve(sourceFrames.size());
+
+    for (const RawFrame& frame : sourceFrames)
+    {
+        referenceFrames.push_back(ReferenceFrame{
+            .canvasWidth = frame.width,
+            .canvasHeight = frame.height,
+            .bboxX = 0,
+            .bboxY = 0,
+            .bboxWidth = frame.width,
+            .bboxHeight = frame.height,
+        });
+    }
+
+    return referenceFrames;
+}
+
+[[nodiscard]] std::vector<PreparedFrame> prepareFrames(
+    const std::vector<RawFrame>& sourceFrames,
+    const std::vector<ReferenceFrame>& referenceFrames)
+{
+    if (sourceFrames.size() != referenceFrames.size() ||
+        static_cast<int>(sourceFrames.size()) != FRAME_COUNT)
+    {
+        throw std::runtime_error("[Duck] بيانات فريمات البطة غير مكتملة.");
+    }
+
+    std::vector<PreparedFrame> preparedFrames;
+    preparedFrames.reserve(sourceFrames.size());
+
+    int unifiedSourceWidth = 0;
+    int unifiedSourceHeight = 0;
+    for (const ReferenceFrame& referenceFrame : referenceFrames)
+    {
+        unifiedSourceWidth = std::max(unifiedSourceWidth, referenceFrame.bboxWidth);
+        unifiedSourceHeight = std::max(unifiedSourceHeight, referenceFrame.bboxHeight);
+    }
+
+    if (unifiedSourceWidth <= 0 || unifiedSourceHeight <= 0)
+    {
+        throw std::runtime_error("[Duck] أبعاد الفريمات المرجعية الموحّدة غير صالحة.");
+    }
+
+    for (std::size_t index = 0; index < sourceFrames.size(); ++index)
+    {
+        const RawFrame& sourceFrame = sourceFrames[index];
+        const FrameSize targetSize = fitSize(
+            sourceFrame.width,
+            sourceFrame.height,
+            unifiedSourceWidth,
+            unifiedSourceHeight);
+
+        if (targetSize.width <= 0 || targetSize.height <= 0)
+        {
+            throw std::runtime_error("[Duck] تعذر تحديد حجم فريم البطة بعد المطابقة المرجعية.");
+        }
+
+        PreparedFrame prepared;
+        prepared.width = targetSize.width;
+        prepared.height = targetSize.height;
+        prepared.sourceW = unifiedSourceWidth;
+        prepared.sourceH = unifiedSourceHeight;
+        prepared.spriteX = (unifiedSourceWidth - prepared.width) / 2;
+        prepared.spriteY = unifiedSourceHeight - prepared.height;
+        prepared.pixels = resizeFrameBilinear(sourceFrame, prepared.width, prepared.height);
+        preparedFrames.push_back(std::move(prepared));
+    }
+
+    return preparedFrames;
 }
 
 void addClip(SpriteAtlasData& data,
@@ -577,36 +805,117 @@ void addDirectionalPair(SpriteAtlasData& data,
     addClip(data, baseName + "_left", frameIndices, loop);
 }
 
-} // namespace
-
-SpriteAtlasData createDuckAtlasData(int imageWidth, int imageHeight)
+[[nodiscard]] SpriteAtlasData buildDuckAtlasData(int imageWidth,
+                                                 int imageHeight,
+                                                 const std::vector<AtlasFrame>& frames)
 {
+    if (static_cast<int>(frames.size()) != FRAME_COUNT)
+    {
+        throw std::runtime_error("[Duck] عدد فريمات أطلس البطة غير صالح.");
+    }
+
     SpriteAtlasData data;
     data.imageWidth = imageWidth;
     data.imageHeight = imageHeight;
-    data.frames.reserve(FRAME_DEFS.size());
-
-    for (std::size_t index = 0; index < FRAME_DEFS.size(); ++index)
-    {
-        data.frames.push_back(makeFrame(static_cast<int>(index), FRAME_DEFS[index]));
-    }
+    data.frames = frames;
 
     addDirectionalPair(data, "fly",
-        {0, 1, 2, 3, 4, 5, 6, 7}, true);
+        {0, 1, 2, 3, 4, 5, 4, 3, 2, 1}, true);
 
     addDirectionalPair(data, "hit",
-        {8, 9, 10, 11}, false);
+        {6, 7, 8, 9, 10}, false);
 
+    // الحفاظ على المفاتيح القديمة كمرادفات، لأن الكود المحيط قد يطلبها لاحقًا.
     addDirectionalPair(data, "fall",
-        {12, 13, 14, 15, 16, 17, 18, 19}, false);
+        {6, 7, 8, 9, 10}, false);
 
     addDirectionalPair(data, "dead",
-        {20, 21, 22, 23}, false);
+        {10}, false);
 
     addDirectionalPair(data, "dead_idle",
-        {23}, true);
+        {10}, true);
 
     return data;
+}
+
+[[nodiscard]] DuckAtlasSheet buildDuckAtlasSheet(const std::vector<RawFrame>& sourceFrames,
+                                                 const std::vector<ReferenceFrame>& referenceFrames)
+{
+    const std::vector<PreparedFrame> preparedFrames = prepareFrames(sourceFrames, referenceFrames);
+
+    int maxFrameWidth = 0;
+    int maxFrameHeight = 0;
+    for (const PreparedFrame& frame : preparedFrames)
+    {
+        maxFrameWidth = std::max(maxFrameWidth, frame.width);
+        maxFrameHeight = std::max(maxFrameHeight, frame.height);
+    }
+
+    if (maxFrameWidth <= 0 || maxFrameHeight <= 0)
+    {
+        throw std::runtime_error("[Duck] تعذر تحديد أبعاد فريمات أطلس البطة.");
+    }
+
+    const int cellWidth = maxFrameWidth + CELL_PADDING * 2;
+    const int cellHeight = maxFrameHeight + CELL_PADDING * 2;
+    const int frameRows = (FRAME_COUNT + FRAME_COLUMNS - 1) / FRAME_COLUMNS;
+
+    DuckAtlasSheet sheet;
+    sheet.imageWidth = FRAME_COLUMNS * cellWidth;
+    sheet.imageHeight = frameRows * cellHeight;
+    sheet.pixels.assign(
+        static_cast<std::size_t>(sheet.imageWidth) * static_cast<std::size_t>(sheet.imageHeight) * 4u,
+        0u);
+
+    std::vector<AtlasFrame> atlasFrames;
+    atlasFrames.reserve(preparedFrames.size());
+
+    for (int frameIndex = 0; frameIndex < static_cast<int>(preparedFrames.size()); ++frameIndex)
+    {
+        const PreparedFrame& preparedFrame = preparedFrames[frameIndex];
+        const int col = frameIndex % FRAME_COLUMNS;
+        const int row = frameIndex / FRAME_COLUMNS;
+        const int atlasX =
+            col * cellWidth + CELL_PADDING + (maxFrameWidth - preparedFrame.width) / 2;
+        const int atlasY =
+            row * cellHeight + CELL_PADDING + (maxFrameHeight - preparedFrame.height) / 2;
+
+        blitFrame(
+            sheet.pixels,
+            sheet.imageWidth,
+            sheet.imageHeight,
+            preparedFrame.pixels,
+            preparedFrame.width,
+            preparedFrame.height,
+            atlasX,
+            atlasY);
+
+        atlasFrames.push_back(AtlasFrame{
+            .x = atlasX,
+            .y = atlasY,
+            .width = preparedFrame.width,
+            .height = preparedFrame.height,
+            .sourceW = preparedFrame.sourceW,
+            .sourceH = preparedFrame.sourceH,
+            .spriteX = preparedFrame.spriteX,
+            .spriteY = preparedFrame.spriteY,
+            .pivotX = PIVOT_X,
+            .pivotY = PIVOT_Y,
+            .durationMs = FRAME_DEFS[frameIndex].durationMs,
+        });
+    }
+
+    sheet.atlas = buildDuckAtlasData(sheet.imageWidth, sheet.imageHeight, atlasFrames);
+    return sheet;
+}
+
+} // namespace
+
+SpriteAtlasData createDuckAtlasData(int imageWidth,
+                                    int imageHeight,
+                                    const std::vector<AtlasFrame>& frames)
+{
+    return buildDuckAtlasData(imageWidth, imageHeight, frames);
 }
 
 DuckAtlasSheet createDuckAtlasSheetFromPixels(const unsigned char* sourcePixels,
@@ -618,63 +927,9 @@ DuckAtlasSheet createDuckAtlasSheetFromPixels(const unsigned char* sourcePixels,
         throw std::runtime_error("[Duck] بيانات duck.png غير صالحة.");
     }
 
-    std::vector<RawFrame> sourceFrames = extractSourceFrames(sourcePixels, sourceWidth, sourceHeight);
-    if (static_cast<int>(sourceFrames.size()) != FRAME_COUNT)
-    {
-        throw std::runtime_error("[Duck] عدد فريمات البطة المستخرجة غير صالح.");
-    }
-
-    int maxFrameWidth = 0;
-    int maxFrameHeight = 0;
-    for (const RawFrame& frame : sourceFrames)
-    {
-        maxFrameWidth = std::max(maxFrameWidth, frame.width);
-        maxFrameHeight = std::max(maxFrameHeight, frame.height);
-    }
-
-    if (maxFrameWidth <= 0 || maxFrameHeight <= 0)
-    {
-        throw std::runtime_error("[Duck] تعذر تحديد أبعاد فريمات البطة بعد الاستخراج.");
-    }
-
-    const FrameSize scaledFrameSize = fitSize(
-        maxFrameWidth,
-        maxFrameHeight,
-        OUTPUT_SAFE_WIDTH,
-        OUTPUT_SAFE_HEIGHT);
-
-    DuckAtlasSheet sheet;
-    sheet.imageWidth = FRAME_COLUMNS * FRAME_WIDTH;
-    sheet.imageHeight = FRAME_ROWS * FRAME_HEIGHT;
-    sheet.pixels.assign(
-        static_cast<std::size_t>(sheet.imageWidth) * static_cast<std::size_t>(sheet.imageHeight) * 4u,
-        0u);
-
-    for (int frameIndex = 0; frameIndex < static_cast<int>(sourceFrames.size()); ++frameIndex)
-    {
-        const std::vector<unsigned char> normalizedFrame = resizeFrameBilinear(
-            sourceFrames[frameIndex],
-            scaledFrameSize.width,
-            scaledFrameSize.height);
-
-        const int col = frameIndex % FRAME_COLUMNS;
-        const int row = frameIndex / FRAME_COLUMNS;
-        const int pasteX = col * FRAME_WIDTH + (FRAME_WIDTH - scaledFrameSize.width) / 2;
-        const int pasteY = row * FRAME_HEIGHT + (FRAME_HEIGHT - scaledFrameSize.height) / 2;
-
-        blitFrame(
-            sheet.pixels,
-            sheet.imageWidth,
-            sheet.imageHeight,
-            normalizedFrame,
-            scaledFrameSize.width,
-            scaledFrameSize.height,
-            pasteX,
-            pasteY);
-    }
-
-    sheet.atlas = createDuckAtlasData(sheet.imageWidth, sheet.imageHeight);
-    return sheet;
+    const std::vector<RawFrame> sourceFrames = extractSourceFrames(sourcePixels, sourceWidth, sourceHeight);
+    const std::vector<ReferenceFrame> fallbackReferenceFrames = makeFallbackReferenceFrames(sourceFrames);
+    return buildDuckAtlasSheet(sourceFrames, fallbackReferenceFrames);
 }
 
 DuckAtlasSheet loadDuckAtlasSheetFromSourceImage(const std::string& sourceImagePath)
@@ -694,9 +949,12 @@ DuckAtlasSheet loadDuckAtlasSheetFromSourceImage(const std::string& sourceImageP
         throw std::runtime_error("[Duck] فشل تحميل صورة البطة: " + sourceImagePath);
     }
 
-    DuckAtlasSheet sheet = createDuckAtlasSheetFromPixels(sourcePixels, sourceWidth, sourceHeight);
+    const std::vector<RawFrame> sourceFrames = extractSourceFrames(sourcePixels, sourceWidth, sourceHeight);
     stbi_image_free(sourcePixels);
-    return sheet;
+
+    const std::vector<ReferenceFrame> referenceFrames =
+        scaleReferenceFrames(loadReferenceFrames(std::filesystem::path(sourceImagePath)));
+    return buildDuckAtlasSheet(sourceFrames, referenceFrames);
 }
 
 } // namespace game

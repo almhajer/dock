@@ -111,12 +111,12 @@ void Input::mouseButtonCallback(GLFWwindow* window, int button, int action, int 
     }
 }
 
-void Input::cursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
+void Input::cursorPosCallback(GLFWwindow* window, double cursorX, double cursorY) {
     auto* input = getInputForWindow(window);
     if (!input) return;
 
-    input->mMouseX = static_cast<float>(xpos);
-    input->mMouseY = static_cast<float>(ypos);
+    input->mMouseX = static_cast<float>(cursorX);
+    input->mMouseY = static_cast<float>(cursorY);
 }
 
 } // namespace core

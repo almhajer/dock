@@ -204,11 +204,11 @@ gfx::TexturedQuad buildSpriteQuad(const game::AtlasFrame& frame,
 }
 
 gfx::TexturedQuad buildHunterQuad(const game::AtlasFrame& frame,
-                                  float hunterX,
+                                  float hunterScreenX,
                                   const WindowMetrics& metrics)
 {
     const float groundY = 1.0f - HUNTER_BOTTOM_MARGIN * 2.0f;
-    return buildSpriteQuad(frame, hunterX, groundY, HUNTER_SCREEN_HALF_HEIGHT, metrics);
+    return buildSpriteQuad(frame, hunterScreenX, groundY, HUNTER_SCREEN_HALF_HEIGHT, metrics);
 }
 
 GrassLayout buildGrassLayout(const WindowMetrics& metrics)
@@ -342,10 +342,10 @@ float resolvePressure(float gait, bool leftFoot)
     return std::max(0.0f, leftFoot ? -gait : gait);
 }
 
-float resolveFootTargetX(float hunterX, float hunterWidth, float gait, bool leftFoot)
+float resolveFootTargetX(float hunterScreenX, float hunterLogicalWidth, float gait, bool leftFoot)
 {
-    const float sideOffset = hunterWidth * 0.14f * (leftFoot ? -1.0f : 1.0f);
-    return hunterX + sideOffset - gait * hunterWidth * 0.07f;
+    const float sideOffset = hunterLogicalWidth * 0.14f * (leftFoot ? -1.0f : 1.0f);
+    return hunterScreenX + sideOffset - gait * hunterLogicalWidth * 0.07f;
 }
 
 } // namespace core::scene

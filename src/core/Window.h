@@ -10,13 +10,25 @@ namespace core {
 /// نافذة اللعبة - تغليف لنافذة GLFW مع إدارة دورة الحياة
 class Window {
 public:
+    #pragma region PublicTypes
     /// إعدادات النافذة
     struct Config {
+        /// عنوان النافذة الظاهر للمستخدم.
         std::string title;                 // عنوان النافذة
+
+        /// العرض المطلوب عند الإنشاء.
         uint32_t width;                    // العرض بالبكسل
+
+        /// الارتفاع المطلوب عند الإنشاء.
         uint32_t height;                   // الارتفاع بالبكسل
+
+        /// هل يبدأ التطبيق بملء الشاشة؟
         bool fullscreen;                   // ملء الشاشة
+
+        /// هل يسمح بتغيير الحجم؟
         bool resizable;                    // قابلة لتغيير الحجم
+
+        /// هل تُفعّل المزامنة العمودية؟
         bool vsync;                        // مزامنة عمودية
 
         Config()
@@ -27,8 +39,12 @@ public:
             , resizable(true)
             , vsync(true) {}
     };
+    #pragma endregion PublicTypes
 
+    /// ينشئ النافذة ويهيئ GLFW حسب الإعدادات.
     explicit Window(const Config& config = {});
+
+    /// يغلق النافذة ويحرر موارد GLFW المرتبطة بها.
     ~Window();
 
     // منع النسخ لأن النافذة مورد وحيد
@@ -64,14 +80,27 @@ public:
     [[nodiscard]] bool isCursorVisible() const;
 
 private:
+    #pragma region InternalCallbacks
     /// رد نداء تغيير حجم النافذة
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+    #pragma endregion InternalCallbacks
 
+    #pragma region InternalState
+    /// مقبض نافذة GLFW الخام.
     GLFWwindow* mHandle = nullptr;
+
+    /// العرض الحالي للنافذة.
     uint32_t mWidth = 0;
+
+    /// الارتفاع الحالي للنافذة.
     uint32_t mHeight = 0;
+
+    /// هل تم تغيير الحجم منذ آخر فحص؟
     bool mResized = false;
+
+    /// هل المؤشر ظاهر للمستخدم؟
     bool mCursorVisible = true;
+    #pragma endregion InternalState
 };
 
 } // namespace core

@@ -3,7 +3,7 @@ project(DuckH VERSION 0.1.0 LANGUAGES CXX)
 
 set(MACOS_APP_DISPLAY_NAME "Duck")
 set(MACOS_APP_BUNDLE_ID "com.duck.app")
-set(MACOS_APP_ICON_FILE "DuckHunterStarter.icns")
+set(MACOS_APP_ICON_FILE "DuckHunterStarter")
 
 include(GNUInstallDirs)
 
@@ -48,9 +48,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 if(APPLE)
     # وضع الأيقونة داخل Resources وربط خصائص الحزمة الخاصة بتطبيقات macOS.
     if(EXISTS "${MACOS_BUNDLE_ICON_SOURCE}")
-        set_source_files_properties("${MACOS_BUNDLE_ICON_SOURCE}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+        set_source_files_properties("${MACOS_BUNDLE_ICON_SOURCE}" PROPERTIES
+            MACOSX_PACKAGE_LOCATION "Resources"
+        )
         target_sources(${PROJECT_NAME} PRIVATE "${MACOS_BUNDLE_ICON_SOURCE}")
     endif()
+
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${MACOS_BUNDLE_INFO_PLIST_FILE}"
         MACOSX_BUNDLE_BUNDLE_NAME "${MACOS_APP_DISPLAY_NAME}"
@@ -206,6 +209,7 @@ if(APPLE)
         BUNDLE DESTINATION .
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     )
+
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             DESTINATION "${PROJECT_NAME}.app/Contents/Resources"
@@ -226,6 +230,7 @@ else()
     install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     )
+
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             DESTINATION "${CMAKE_INSTALL_BINDIR}"

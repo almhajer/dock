@@ -365,10 +365,10 @@ void NatureSystem::updateClouds(float deltaTime, const core::scene::WindowMetric
 void NatureSystem::recycleCloud(CloudState& cloud,
                                 const core::scene::WindowMetrics& metrics,
                                 bool wrapToLeft,
-                                float seed) const
+                                float randomSeed) const
 {
-    const float value = seed * 7.17f + cloud.verticalPhase;
-    cloud.sprite = cloudSpriteByIndex(static_cast<int>(seed) + static_cast<int>(cloud.sprite));
+    const float value = randomSeed * 7.17f + cloud.verticalPhase;
+    cloud.sprite = cloudSpriteByIndex(static_cast<int>(randomSeed) + static_cast<int>(cloud.sprite));
     cloud.parallax = 0.68f + hash01(value + 1.0f) * 0.42f;
     cloud.width = (0.38f + hash01(value + 2.0f) * 0.34f) / metrics.aspect;
     cloud.height = cloud.width * (0.40f + hash01(value + 3.0f) * 0.12f) * metrics.aspect;
