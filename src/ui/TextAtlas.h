@@ -52,6 +52,7 @@ enum class GlyphId : std::uint16_t
     WordChallenge,
     WordBoss,
     WordRare,
+    WordPaused,
     Count,
 };
 

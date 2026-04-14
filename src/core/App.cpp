@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -61,6 +62,7 @@ void App::init()
 
     mHunterShotSound.load(mAssetsPath + "/audio/hunter_shot.mp3");
     mDuckAmbientSound.load(mAssetsPath + "/audio/douck.wav");
+    mDuckAmbientSound.setVolume(0.10f);
 
     mGrassLayerId = mVulkan.createTexturedLayerFromPixels(WHITE_PIXEL.data(), 1, 1, scene::kMaxGrassQuads);
     std::cout << "[Grass] تم تفعيل العشب الإجرائي عبر الشيدر" << std::endl;
@@ -104,14 +106,14 @@ void App::init()
             return pixels;
         };
 
-        constexpr int kRoundedW = 192;
-        constexpr int kRoundedH = 28;
-        constexpr int kRoundedR = 14;
+        constexpr int kRoundedW = 160;
+        constexpr int kRoundedH = 10;
+        constexpr int kRoundedR = 5;
 
-        auto bgPixels = generateRoundedRect(kRoundedW, kRoundedH, kRoundedR, 104.0f, 12, 14, 24);
+        auto bgPixels = generateRoundedRect(kRoundedW, kRoundedH, kRoundedR, 55.0f, 12, 14, 24);
         mScoreBgLayerId = mVulkan.createTexturedLayerFromPixels(bgPixels.data(), kRoundedW, kRoundedH, 1);
 
-        auto fillPixels = generateRoundedRect(kRoundedW, kRoundedH, kRoundedR, 232.0f, 255, 201, 52);
+        auto fillPixels = generateRoundedRect(kRoundedW, kRoundedH, kRoundedR, 200.0f, 255, 193, 37);
         mScoreFillLayerId = mVulkan.createTexturedLayerFromPixels(fillPixels.data(), kRoundedW, kRoundedH, 1);
     }
 
@@ -127,6 +129,8 @@ void App::init()
             mVulkan.createTexturedLayerFromPixels(textAtlas.pixels.data(), textAtlas.width, textAtlas.height, 8);
         mResultsContentLayerId =
             mVulkan.createTexturedLayerFromPixels(textAtlas.pixels.data(), textAtlas.width, textAtlas.height, 64);
+        mPauseLayerId =
+            mVulkan.createTexturedLayerFromPixels(textAtlas.pixels.data(), textAtlas.width, textAtlas.height, 4);
     }
 
     {
@@ -166,14 +170,52 @@ void App::init()
         constexpr int kResultsBgR = 26;
         auto resultsBg = generateRoundedRect(kResultsBgW, kResultsBgH, kResultsBgR, 205.0f, 14, 16, 30);
         mResultsBgLayerId = mVulkan.createTexturedLayerFromPixels(resultsBg.data(), kResultsBgW, kResultsBgH, 1);
+
+        constexpr int kAsmaBgW = 64;
+        constexpr int kAsmaBgH = 16;
+        constexpr int kAsmaBgR = 8;
+        auto asmaBg = generateRoundedRect(kAsmaBgW, kAsmaBgH, kAsmaBgR, 160.0f, 10, 12, 28);
+        mAsmaBgLayerId = mVulkan.createTexturedLayerFromPixels(asmaBg.data(), kAsmaBgW, kAsmaBgH, 2);
     }
 
     mSpriteAnim.play(mHunterState, "idle_right");
     mDuckPool.initialize(&mDuckAnim, &mDuckRandomEngine);
     mNatureSystem.initialize(scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight()));
 
-    mGamePhase = GamePhase::StageIntro;
-    startStage(0);
+    {
+        if (mAsmaOverlay.initialize(mAssetsPath))
+        {
+            mAsmaTextLayerId =
+                mVulkan.createTexturedLayerFromPixels(mAsmaOverlay.texturePixels().data(),
+                                                      mAsmaOverlay.textureWidth(), mAsmaOverlay.textureHeight(), 4);
+        }
+    }
+
+    mGamePhase = GamePhase::Intro;
+
+    /*
+     * الصوت الافتتاحي: يُشغّل قبل بدء اللعب،
+     * وبمجرد انتهائه تنتقل اللعبة تلقائياً إلى المرحلة المحفوظة أو الأولى.
+     */
+    {
+        const std::string introPath = mAssetsPath + "/audio/Bismillah.mp3";
+        if (mIntroSound.load(introPath))
+        {
+            mIntroSound.play();
+            std::cout << "[Intro] تشغيل البسملة" << std::endl;
+        }
+        else
+        {
+            /*
+             * إذا لم يوجد الملف نبدأ اللعب مباشرة.
+             */
+            if (!loadGameState())
+            {
+                startStage(0);
+            }
+            mGamePhase = GamePhase::StageIntro;
+        }
+    }
 
     mInitialized = true;
     mRunning = true;
@@ -242,12 +284,112 @@ void App::cleanup()
     }
 
     mInput.shutdown();
+    saveGameState();
+    mIntroSound.reset();
     mHunterShotSound.reset();
     mDuckAmbientSound.reset();
+    mAsmaAudio.reset();
+    mAsmaAudioNext.reset();
 
     mVulkan.waitIdle();
     mVulkan.cleanup();
     mInitialized = false;
+}
+
+std::string App::saveFilePath() const
+{
+    return mAssetsPath + "/data/save.dat";
+}
+
+void App::saveGameState()
+{
+    if (!mInitialized)
+    {
+        return;
+    }
+
+    /*
+     * لا نحفظ إذا كانت اللعبة في شاشة الفوز النهائي
+     * لأن اللاعب أنهى اللعبة كاملةً.
+     */
+    if (mGamePhase == GamePhase::GameVictory)
+    {
+        std::remove(saveFilePath().c_str());
+        std::cout << "[Save] تم مسح الحفظ بعد إكمال اللعبة" << std::endl;
+        return;
+    }
+
+    std::ofstream file(saveFilePath());
+    if (!file.is_open())
+    {
+        std::cerr << "[Save] تعذر حفظ حالة اللعبة" << std::endl;
+        return;
+    }
+
+    file << "stage_index=" << mStageState.currentStageIndex << "\n";
+    file << "score=" << mScore << "\n";
+    file << "difficulty=" << mDifficultyMultiplier << "\n";
+    file << "asma_index=" << mAsmaOverlay.currentIndex() << "\n";
+
+    std::cout << "[Save] تم حفظ: مرحلة " << mStageState.currentStageIndex
+              << " نقاط " << mScore << std::endl;
+}
+
+bool App::loadGameState()
+{
+    std::ifstream file(saveFilePath());
+    if (!file.is_open())
+    {
+        return false;
+    }
+
+    int stageIndex = 0;
+    int score = 0;
+    float difficulty = 1.0f;
+    int asmaIndex = 0;
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        const std::size_t eq = line.find('=');
+        if (eq == std::string::npos)
+        {
+            continue;
+        }
+        const std::string key = line.substr(0, eq);
+        const std::string val = line.substr(eq + 1);
+
+        if (key == "stage_index")
+        {
+            stageIndex = std::atoi(val.c_str());
+        }
+        else if (key == "score")
+        {
+            score = std::atoi(val.c_str());
+        }
+        else if (key == "difficulty")
+        {
+            difficulty = std::atof(val.c_str());
+        }
+        else if (key == "asma_index")
+        {
+            asmaIndex = std::atoi(val.c_str());
+        }
+    }
+
+    stageIndex = std::clamp(stageIndex, 0, stage::kStageCount - 1);
+    score = std::max(score, 0);
+    difficulty = std::clamp(difficulty, 0.5f, 2.0f);
+
+    mScore = score;
+    mDifficultyMultiplier = difficulty;
+    mAsmaOverlay.setCurrentIndex(asmaIndex);
+
+    std::cout << "[Save] تم تحميل: مرحلة " << stageIndex
+              << " نقاط " << score << std::endl;
+
+    startStage(stageIndex);
+    return true;
 }
 
 } // namespace core

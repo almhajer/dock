@@ -204,6 +204,21 @@ bool SoundEffectPlayer::isPlaying() const
 
     return ma_sound_is_playing(&state->sound) == MA_TRUE;
 }
+
+/*
+ @brief يغيّر شدة الصوت للمؤثر المحمل حالياً.
+ @param volume الشدة بين 0.0 (صامت) و1.0 (كامل).
+ */
+void SoundEffectPlayer::setVolume(float volume)
+{
+    PlayerState* state = stateFromHandle(mState);
+    if (state == nullptr || !state->soundInitialized)
+    {
+        return;
+    }
+
+    ma_sound_set_volume(&state->sound, std::clamp(volume, 0.0f, 1.0f));
+}
 #pragma endregion StateQueries
 
 } // namespace audio

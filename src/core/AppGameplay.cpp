@@ -27,9 +27,47 @@ namespace core
 
         const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
 
+        /*
+         * الإيقاف المؤقت: ESC يوقف اللعبة، Enter يستكملها.
+         */
+        if (mGamePhase == GamePhase::Paused)
+        {
+            if (mInput.isKeyJustPressed(GLFW_KEY_ENTER) || mInput.isKeyJustPressed(GLFW_KEY_KP_ENTER))
+            {
+                mGamePhase = mPhaseBeforePause;
+            }
+            updateAllRenderData(deltaTime, metrics);
+            return;
+        }
+
+        if (mInput.isKeyJustPressed(GLFW_KEY_ESCAPE))
+        {
+            if (mGamePhase == GamePhase::Playing || mGamePhase == GamePhase::StageIntro)
+            {
+                mPhaseBeforePause = mGamePhase;
+                mGamePhase = GamePhase::Paused;
+                mDuckAmbientSound.stop();
+                updateAllRenderData(deltaTime, metrics);
+                return;
+            }
+        }
+
         // تحديث منطق المراحل
         switch (mGamePhase)
         {
+        case GamePhase::Intro:
+            updateHunterMotion(deltaTime);
+            if (!mIntroSound.isPlaying())
+            {
+                mIntroSound.reset();
+                if (!loadGameState())
+                {
+                    startStage(0);
+                }
+                mGamePhase = GamePhase::StageIntro;
+            }
+            break;
+
         case GamePhase::StageIntro:
             mPhaseTimer -= deltaTime;
             updateHunterMotion(deltaTime);
@@ -185,9 +223,17 @@ namespace core
                 startStage(0);
             }
             break;
+
+        case GamePhase::Paused:
+            break;
         }
 
         // تحديث بيانات العرض دائماً
+        updateAllRenderData(deltaTime, metrics);
+    }
+
+    void App::updateAllRenderData(float deltaTime, const scene::WindowMetrics& /*metrics*/)
+    {
         updateSoilRenderData();
         updateNatureRenderData();
         updateGrassRenderData();
@@ -199,6 +245,9 @@ namespace core
         updateDucksRemainingRenderData();
         updateResultsRenderData();
         updateGroundInteraction(deltaTime);
+        mAsmaOverlay.update(deltaTime, mAsmaAudio, mAsmaAudioNext);
+        updateAsmaOverlayRenderData();
+        updatePauseRenderData();
     }
 
     void App::updateNatureSystem(float deltaTime)
@@ -260,6 +309,11 @@ namespace core
             --mStageState.shotsRemaining;
             mHunterShotSound.play();
 
+            /*
+             * تشغيل مقطع أسماء الله الحسنى مع كل إطلاق نار.
+             */
+            mAsmaOverlay.onShot(mAsmaAudio, mAsmaAudioNext, mAssetsPath);
+
             bool hitAny = false;
             if (cursor.valid)
             {
@@ -267,6 +321,12 @@ namespace core
                 if (hitId >= 0)
                 {
                     hitAny = true;
+
+                    /*
+                     * عرض المعنى عند مكان إصابة البطة.
+                     * cursor.x و cursor.y هما إحداثيات الشاشة المعيارية (-1 إلى 1).
+                     */
+                    mAsmaOverlay.onHit(cursor.x, cursor.y);
                 }
             }
             mSkillAssessment.onShotFired(hitAny);

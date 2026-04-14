@@ -58,6 +58,11 @@ class SoundEffectPlayer
     void reset();
 
     /*
+     تغيير شدة الصوت (0.0 = صامت، 1.0 = كامل).
+     */
+    void setVolume(float volume);
+
+    /*
      هل المؤثر الصوتي جاهز للتشغيل؟
      */
     [[nodiscard]] bool isLoaded() const;

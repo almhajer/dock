@@ -25,14 +25,14 @@ using UiGlyph = ui::text::GlyphId;
 
 struct HudLayout
 {
-    float panelX0 = -0.27f;
-    float panelX1 = 0.27f;
-    float panelY0 = -0.972f;
-    float panelY1 = -0.888f;
+    float panelX0 = -0.25f;
+    float panelX1 = 0.25f;
+    float panelY0 = -0.978f;
+    float panelY1 = -0.950f;
     float stageRightX = -0.33f;
     float ducksRightX = 0.56f;
     float statsRightX = 0.93f;
-    float primaryRowY0 = -0.955f;
+    float primaryRowY0 = -0.970f;
     float secondaryRowY0 = -0.860f;
     float tertiaryRowY0 = -0.800f;
 };
@@ -345,10 +345,11 @@ void App::updateScoreRenderData()
     }
 
     const HudLayout hudLayout = makeHudLayout();
-    constexpr float kDigitScreenH = 0.058f;
-    constexpr float kGap = 0.006f;
-    constexpr float kBarPadX = 0.008f;
-    constexpr float kBarPadY = 0.010f;
+    const float panelH = hudLayout.panelY1 - hudLayout.panelY0;
+    const float kDigitScreenH = panelH * 0.75f;
+    const float kGap = 0.003f;
+    const float kBarPadX = 0.003f;
+    const float kBarPadY = panelH * 0.1f;
 
     std::array<UiGlyph, 12> digits = {};
     const int digitCount = writeFractionRun(mStageState.ducksHitThisStage,
@@ -373,7 +374,7 @@ void App::updateScoreRenderData()
     const float fillMax = static_cast<float>(std::max(stageConfig.totalDucks, 1));
     const float fillFraction = std::min(static_cast<float>(mStageState.ducksHitThisStage), fillMax) / fillMax;
     const float barMaxWidth = (panelX1 - panelX0) - 2.0f * kBarPadX;
-    const float barWidth = std::max(numberWidth + 0.012f, fillFraction * barMaxWidth);
+    const float barWidth = std::max(numberWidth + 0.008f, fillFraction * barMaxWidth);
     const float barX0 = panelX0 + kBarPadX;
     const float barX1 = std::min(barX0 + barWidth, panelX1 - kBarPadX);
     const float barY0 = panelY0 + kBarPadY;
@@ -386,11 +387,10 @@ void App::updateScoreRenderData()
         mVulkan.updateTexturedLayer(mScoreFillLayerId, fillQuad);
     }
 
-    // الأرقام (تتمركز على الشريط الداخلي وتتحرك مع نموه)
+    // الأرقام (داخل الشريط الأصفر، تتحرك مع نهايته)
     if (mScoreLayerId != gfx::VulkanContext::INVALID_LAYER_ID)
     {
-        const float numberCenterX = (barX0 + barX1) * 0.5f;
-        float x = numberCenterX - numberWidth * 0.5f;
+        float x = barX1 - numberWidth - 0.004f;
         const float digitY0 = (barY0 + barY1) * 0.5f - kDigitScreenH * 0.5f;
 
         std::vector<gfx::TexturedQuad> quads;
@@ -760,6 +760,111 @@ void App::updateGroundInteraction(float deltaTime)
 
     mVulkan.setGroundInteraction(mLeftGroundX, mRightGroundX, mGroundFootRadius, mLeftGroundPressure,
                                  mRightGroundPressure);
+}
+
+void App::updateAsmaOverlayRenderData()
+{
+    if (mAsmaTextLayerId == gfx::VulkanContext::INVALID_LAYER_ID)
+    {
+        return;
+    }
+
+    if (!mAsmaOverlay.isActive())
+    {
+        mVulkan.clearTexturedLayer(mAsmaTextLayerId);
+        if (mAsmaBgLayerId != gfx::VulkanContext::INVALID_LAYER_ID)
+        {
+            mVulkan.clearTexturedLayer(mAsmaBgLayerId);
+        }
+        return;
+    }
+
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    if (!metrics.valid())
+    {
+        mVulkan.clearTexturedLayer(mAsmaTextLayerId);
+        if (mAsmaBgLayerId != gfx::VulkanContext::INVALID_LAYER_ID)
+        {
+            mVulkan.clearTexturedLayer(mAsmaBgLayerId);
+        }
+        return;
+    }
+
+    std::vector<gfx::TexturedQuad> textQuads;
+    textQuads.reserve(4);
+    mAsmaOverlay.buildTextQuads(textQuads, metrics.aspect);
+    mVulkan.updateTexturedLayer(mAsmaTextLayerId, textQuads);
+
+    if (mAsmaBgLayerId != gfx::VulkanContext::INVALID_LAYER_ID)
+    {
+        std::vector<gfx::TexturedQuad> bgQuads;
+        bgQuads.reserve(2);
+        mAsmaOverlay.buildBgQuad(bgQuads, metrics.aspect);
+        mVulkan.updateTexturedLayer(mAsmaBgLayerId, bgQuads);
+    }
+}
+
+void App::updatePauseRenderData()
+{
+    if (mPauseLayerId == gfx::VulkanContext::INVALID_LAYER_ID)
+    {
+        return;
+    }
+
+    const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
+    if (!metrics.valid())
+    {
+        mVulkan.clearTexturedLayer(mPauseLayerId);
+        return;
+    }
+
+    if (mGamePhase == GamePhase::Intro)
+    {
+        /*
+         * علامة انتظار نابضة أثناء الصوت الافتتاحي:
+         * ثلاث شرطات تتردد شفافيتها بشكل موجي.
+         */
+        constexpr float kDotH = 0.045f;
+        constexpr float kGap = 0.025f;
+        constexpr float kSpeed = 3.5f;
+        const float t = mTimer.getTotalTime() * kSpeed;
+
+        std::vector<gfx::TexturedQuad> quads;
+        quads.reserve(3);
+
+        const float dotW = glyphScreenWidth(UiGlyph::Minus, kDotH, metrics.aspect);
+        const float totalW = dotW * 3.0f + kGap * 2.0f;
+        float x = -totalW * 0.5f;
+        const float y0 = -kDotH * 0.5f;
+
+        for (int i = 0; i < 3; ++i)
+        {
+            const float phase = t - static_cast<float>(i) * 0.6f;
+            const float alpha = 0.25f + 0.75f * std::max(0.0f, std::sin(phase));
+            const UiGlyph glyph = UiGlyph::Minus;
+            appendGlyphQuad(quads, glyph, x, y0, kDotH, metrics.aspect, alpha, kGap);
+        }
+
+        mVulkan.updateTexturedLayer(mPauseLayerId, quads);
+        return;
+    }
+
+    if (mGamePhase != GamePhase::Paused)
+    {
+        mVulkan.clearTexturedLayer(mPauseLayerId);
+        return;
+    }
+
+    constexpr float kWordH = 0.060f;
+    const UiGlyph wordRun[] = {UiGlyph::WordPaused};
+    const float wordW = measureGlyphRun(wordRun, 1, kWordH, metrics.aspect, 0.0f);
+    float x = -wordW * 0.5f;
+    const float y0 = -kWordH * 0.5f;
+
+    std::vector<gfx::TexturedQuad> quads;
+    quads.reserve(1);
+    appendGlyphRun(quads, wordRun, 1, x, y0, kWordH, metrics.aspect, 0.75f, 0.0f);
+    mVulkan.updateTexturedLayer(mPauseLayerId, quads);
 }
 
 void App::render()

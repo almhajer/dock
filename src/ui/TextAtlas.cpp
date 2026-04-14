@@ -88,6 +88,7 @@ constexpr std::array<GlyphDefinition, kGlyphCount> kGlyphDefinitions = {{
     {GlyphId::WordChallenge, "تحدي", GlyphScript::Arabic, false, 36.0f},
     {GlyphId::WordBoss, "زعيم", GlyphScript::Arabic, false, 36.0f},
     {GlyphId::WordRare, "نادر", GlyphScript::Arabic, false, 36.0f},
+    {GlyphId::WordPaused, "متوقف", GlyphScript::Arabic, false, 40.0f},
 }};
 
 [[nodiscard]] constexpr std::size_t glyphIndex(GlyphId glyph)

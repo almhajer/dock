@@ -4,720 +4,699 @@
     "name_ar": "الله",
     "name_en": "Allah",
     "meaning_ar": "الاسم الجامع لصفات الكمال",
-    "audio": "assets/audio/asmaul_husna/001_allah.wav"
+    "audio": "assets/audio/asmaul_husna/Allah.mp3"
   },
   {
     "id": 2,
     "name_ar": "الرحمن",
     "name_en": "Ar-Rahman",
-    "meaning_ar": "واسع الرحمة",
-    "audio": "assets/audio/asmaul_husna/002_arrahman.wav"
+    "meaning_ar": "واسع الرحمة الذي وسعت رحمته كل شيء",
+    "audio": "assets/audio/asmaul_husna/Ar-Rahman.mp3"
   },
   {
     "id": 3,
     "name_ar": "الرحيم",
     "name_en": "Ar-Raheem",
-    "meaning_ar": "شديد الرحمة بعباده",
-    "audio": "assets/audio/asmaul_husna/003_arraheem.wav"
+    "meaning_ar": "الموصل لرحمته إلى عباده المؤمنين",
+    "audio": "assets/audio/asmaul_husna/Ar-Raheem.mp3"
   },
   {
     "id": 4,
-    "name_ar": "الملك",
-    "name_en": "Al-Malik",
-    "meaning_ar": "المالك المتصرف في خلقه",
-    "audio": "assets/audio/asmaul_husna/004_almalik.wav"
-  },
-{
-    "id": 1,
-    "name_ar": "الرحمن",
-    "name_en": "Ar-Rahman",
-    "meaning_ar": "واسع الرحمة الذي وسعت رحمته كل شيء",
-    "audio": "assets/audio/asmaul_husna/001_arrahman.wav"
-  },
-  {
-    "id": 2,
-    "name_ar": "الرحيم",
-    "name_en": "Ar-Rahim",
-    "meaning_ar": "الموصل لرحمته إلى عباده المؤمنين",
-    "audio": "assets/audio/asmaul_husna/002_arrahim.wav"
-  },
-  {
-    "id": 3,
     "name_ar": "الملك",
     "name_en": "Al-Malik",
     "meaning_ar": "المتصرف في ملكه كيف يشاء بلا منازع",
-    "audio": "assets/audio/asmaul_husna/003_almalik.wav"
-  },
-  {
-    "id": 4,
-    "name_ar": "القدوس",
-    "name_en": "Al-Quddus",
-    "meaning_ar": "المنزه عن كل نقص وعيب",
-    "audio": "assets/audio/asmaul_husna/004_alquddus.wav"
+    "audio": "assets/audio/asmaul_husna/Al-Malik.mp3"
   },
   {
     "id": 5,
-    "name_ar": "السلام",
-    "name_en": "As-Salam",
-    "meaning_ar": "ناشر السلام والمؤمن من الظلم",
-    "audio": "assets/audio/asmaul_husna/005_assalam.wav"
+    "name_ar": "القدوس",
+    "name_en": "Al-Quddus",
+    "meaning_ar": "المنزه عن كل نقص وعيب",
+    "audio": "assets/audio/asmaul_husna/Al-Quddus.mp3"
   },
   {
     "id": 6,
-    "name_ar": "المؤمن",
-    "name_en": "Al-Mu'min",
-    "meaning_ar": "المصدق لرسله وأوليائه والواثب بالأمن",
-    "audio": "assets/audio/asmaul_husna/006_almumin.wav"
+    "name_ar": "السلام",
+    "name_en": "As-Salam",
+    "meaning_ar": "ناشر السلام والمؤمن من الظلم",
+    "audio": "assets/audio/asmaul_husna/As-Salam.mp3"
   },
   {
     "id": 7,
-    "name_ar": "المهيمن",
-    "name_en": "Al-Muhaymin",
-    "meaning_ar": "المطلع على خفايا الأمور والرقيب",
-    "audio": "assets/audio/asmaul_husna/007_almuhaymin.wav"
+    "name_ar": "المؤمن",
+    "name_en": "Al-Mumin",
+    "meaning_ar": "المصدق لرسله وأوليائه والواهب للأمن",
+    "audio": "assets/audio/asmaul_husna/Al-Mumin.mp3"
   },
   {
     "id": 8,
-    "name_ar": "العزيز",
-    "name_en": "Al-Aziz",
-    "meaning_ar": "القوي الغالب الذي لا يعجز",
-    "audio": "assets/audio/asmaul_husna/008_alaziz.wav"
+    "name_ar": "المهيمن",
+    "name_en": "Al-Muhaymin",
+    "meaning_ar": "المطلع على خفايا الأمور والرقيب",
+    "audio": "assets/audio/asmaul_husna/Al-Muhaymin.mp3"
   },
   {
     "id": 9,
-    "name_ar": "الجبار",
-    "name_en": "Al-Jabbar",
-    "meaning_ar": "الذي يجبر الكسر وينفذ أمره",
-    "audio": "assets/audio/asmaul_husna/009_aljabbar.wav"
+    "name_ar": "العزيز",
+    "name_en": "Al-Aziz",
+    "meaning_ar": "القوي الغالب الذي لا يعجز",
+    "audio": "assets/audio/asmaul_husna/Al-Aziz.mp3"
   },
   {
     "id": 10,
-    "name_ar": "المتكبر",
-    "name_en": "Al-Mutakabbir",
-    "meaning_ar": "المنفرد بالعظمة والكبرياء",
-    "audio": "assets/audio/asmaul_husna/010_almutakabbir.wav"
+    "name_ar": "الجبار",
+    "name_en": "Al-Jabbar",
+    "meaning_ar": "الذي يجبر الكسر وينفذ أمره",
+    "audio": "assets/audio/asmaul_husna/Al-Jabbar.mp3"
   },
   {
     "id": 11,
-    "name_ar": "الخالق",
-    "name_en": "Al-Khaliq",
-    "meaning_ar": "الموجد للأشياء من العدم",
-    "audio": "assets/audio/asmaul_husna/011_alkhaliq.wav"
+    "name_ar": "المتكبر",
+    "name_en": "Al-Mutakabbir",
+    "meaning_ar": "المنفرد بالعظمة والكبرياء",
+    "audio": "assets/audio/asmaul_husna/Al-Mutakabbir.mp3"
   },
   {
     "id": 12,
-    "name_ar": "البارئ",
-    "name_en": "Al-Bari",
-    "meaning_ar": "الذي خلق الخلق بريئاً من التفاوت",
-    "audio": "assets/audio/asmaul_husna/012_albari.wav"
+    "name_ar": "الخالق",
+    "name_en": "Al-Khaliq",
+    "meaning_ar": "الموجد للأشياء من العدم",
+    "audio": "assets/audio/asmaul_husna/Al-Khaliq.mp3"
   },
   {
     "id": 13,
-    "name_ar": "المصور",
-    "name_en": "Al-Musawwir",
-    "meaning_ar": "المعطي لكل خلق صورة خاصة",
-    "audio": "assets/audio/asmaul_husna/013_almusawwir.wav"
+    "name_ar": "البارئ",
+    "name_en": "Al-Bari",
+    "meaning_ar": "الذي خلق الخلق بريئاً من التفاوت",
+    "audio": "assets/audio/asmaul_husna/Al-Bari.mp3"
   },
   {
     "id": 14,
-    "name_ar": "الغفار",
-    "name_en": "Al-Ghaffar",
-    "meaning_ar": "الستار لذنوب عباده مرة بعد أخرى",
-    "audio": "assets/audio/asmaul_husna/014_alghaffar.wav"
+    "name_ar": "المصور",
+    "name_en": "Al-Musawwir",
+    "meaning_ar": "المعطي لكل خلق صورة خاصة",
+    "audio": "assets/audio/asmaul_husna/Al-Musawwir.mp3"
   },
   {
     "id": 15,
-    "name_ar": "القهار",
-    "name_en": "Al-Qahhar",
-    "meaning_ar": "الغالب الذي خضع له كل شيء",
-    "audio": "assets/audio/asmaul_husna/015_alqahhar.wav"
+    "name_ar": "الغفار",
+    "name_en": "Al-Ghaffar",
+    "meaning_ar": "الستار لذنوب عباده مرة بعد أخرى",
+    "audio": "assets/audio/asmaul_husna/Al-Ghaffar.mp3"
   },
   {
     "id": 16,
-    "name_ar": "الوهاب",
-    "name_en": "Al-Wahhab",
-    "meaning_ar": "كثير العطايا والهبات بلا مقابل",
-    "audio": "assets/audio/asmaul_husna/016_alwahhab.wav"
+    "name_ar": "القهار",
+    "name_en": "Al-Qahhar",
+    "meaning_ar": "الغالب الذي خضع له كل شيء",
+    "audio": "assets/audio/asmaul_husna/Al-Qahhar.mp3"
   },
   {
     "id": 17,
-    "name_ar": "الرزاق",
-    "name_en": "Ar-Razzaq",
-    "meaning_ar": "المتكفل بالرزق لجميع الخلائق",
-    "audio": "assets/audio/asmaul_husna/017_arrazzaq.wav"
+    "name_ar": "الوهاب",
+    "name_en": "Al-Wahhab",
+    "meaning_ar": "كثير العطايا والهبات بلا مقابل",
+    "audio": "assets/audio/asmaul_husna/Al-Wahhab.mp3"
   },
   {
     "id": 18,
-    "name_ar": "الفتاح",
-    "name_en": "Al-Fattah",
-    "meaning_ar": "الذي يفتح أبواب الرحمة والرزق",
-    "audio": "assets/audio/asmaul_husna/018_alfattah.wav"
+    "name_ar": "الرزاق",
+    "name_en": "Ar-Razzaq",
+    "meaning_ar": "المتكفل بالرزق لجميع الخلائق",
+    "audio": "assets/audio/asmaul_husna/Ar-Razzaq.mp3"
   },
   {
     "id": 19,
-    "name_ar": "العليم",
-    "name_en": "Al-Alim",
-    "meaning_ar": "المحيط بكل شيء علماً",
-    "audio": "assets/audio/asmaul_husna/019_alalim.wav"
+    "name_ar": "الفتاح",
+    "name_en": "Al-Fattah",
+    "meaning_ar": "الذي يفتح أبواب الرحمة والرزق",
+    "audio": "assets/audio/asmaul_husna/Al-Fattah.mp3"
   },
   {
     "id": 20,
-    "name_ar": "القابض",
-    "name_en": "Al-Qabid",
-    "meaning_ar": "الذي يمسك الرزق ويبسطه بحكمته",
-    "audio": "assets/audio/asmaul_husna/020_alqabid.wav"
+    "name_ar": "العليم",
+    "name_en": "Al-Alim",
+    "meaning_ar": "المحيط بكل شيء علماً",
+    "audio": "assets/audio/asmaul_husna/Al-Alim.mp3"
   },
   {
     "id": 21,
-    "name_ar": "الباسط",
-    "name_en": "Al-Basit",
-    "meaning_ar": "الذي يوسع الرزق لمن يشاء",
-    "audio": "assets/audio/asmaul_husna/021_albasit.wav"
+    "name_ar": "القابض",
+    "name_en": "Al-Qabid",
+    "meaning_ar": "الذي يمسك الرزق ويبسطه بحكمته",
+    "audio": "assets/audio/asmaul_husna/Al-Qabid.mp3"
   },
   {
     "id": 22,
-    "name_ar": "الخافض",
-    "name_en": "Al-Khafid",
-    "meaning_ar": "الذي يخفض الكفار والأشقياء",
-    "audio": "assets/audio/asmaul_husna/022_alkhafid.wav"
+    "name_ar": "الباسط",
+    "name_en": "Al-Basit",
+    "meaning_ar": "الذي يوسع الرزق لمن يشاء",
+    "audio": "assets/audio/asmaul_husna/Al-Basit.mp3"
   },
   {
     "id": 23,
-    "name_ar": "الرافع",
-    "name_en": "Ar-Rafi",
-    "meaning_ar": "الذي يرفع المؤمنين والأولياء",
-    "audio": "assets/audio/asmaul_husna/023_arrafi.wav"
+    "name_ar": "الخافض",
+    "name_en": "Al-Khafid",
+    "meaning_ar": "الذي يخفض الكفار والأشقياء",
+    "audio": "assets/audio/asmaul_husna/Al-Khafid.mp3"
   },
   {
     "id": 24,
-    "name_ar": "المعز",
-    "name_en": "Al-Mu'izz",
-    "meaning_ar": "الذي يعز من يشاء بطاعته",
-    "audio": "assets/audio/asmaul_husna/024_almuizz.wav"
+    "name_ar": "الرافع",
+    "name_en": "Ar-Rafi",
+    "meaning_ar": "الذي يرفع المؤمنين والأولياء",
+    "audio": "assets/audio/asmaul_husna/Ar-Rafi.mp3"
   },
   {
     "id": 25,
-    "name_ar": "المذل",
-    "name_en": "Al-Mudhill",
-    "meaning_ar": "الذي يذل من يشاء بمعصيته",
-    "audio": "assets/audio/asmaul_husna/025_almudhill.wav"
+    "name_ar": "المعز",
+    "name_en": "Al-Muizz",
+    "meaning_ar": "الذي يعز من يشاء بطاعته",
+    "audio": "assets/audio/asmaul_husna/Al-Muizz.mp3"
   },
   {
     "id": 26,
-    "name_ar": "السميع",
-    "name_en": "As-Sami",
-    "meaning_ar": "الذي يسمع كل الأصوات والسرائر",
-    "audio": "assets/audio/asmaul_husna/026_assami.wav"
+    "name_ar": "المذل",
+    "name_en": "Al-Mudhill",
+    "meaning_ar": "الذي يذل من يشاء بمعصيته",
+    "audio": "assets/audio/asmaul_husna/Al-Mudhill.mp3"
   },
   {
     "id": 27,
-    "name_ar": "البصير",
-    "name_en": "Al-Basir",
-    "meaning_ar": "الذي يشاهد كل المرئيات",
-    "audio": "assets/audio/asmaul_husna/027_albasir.wav"
+    "name_ar": "السميع",
+    "name_en": "As-Sami",
+    "meaning_ar": "الذي يسمع كل الأصوات والسرائر",
+    "audio": "assets/audio/asmaul_husna/As-Sami.mp3"
   },
   {
     "id": 28,
-    "name_ar": "الحكم",
-    "name_en": "Al-Hakam",
-    "meaning_ar": "الحاكم العادل الذي لا يرد قضاؤه",
-    "audio": "assets/audio/asmaul_husna/028_alhakam.wav"
+    "name_ar": "البصير",
+    "name_en": "Al-Basir",
+    "meaning_ar": "الذي يشاهد كل المرئيات",
+    "audio": "assets/audio/asmaul_husna/Al-Basir.mp3"
   },
   {
     "id": 29,
-    "name_ar": "العدل",
-    "name_en": "Al-Adl",
-    "meaning_ar": "المنزه عن الظلم والجور",
-    "audio": "assets/audio/asmaul_husna/029_aladl.wav"
+    "name_ar": "الحكم",
+    "name_en": "Al-Hakam",
+    "meaning_ar": "الحاكم العادل الذي لا يرد قضاؤه",
+    "audio": "assets/audio/asmaul_husna/Al-Hakam.mp3"
   },
   {
     "id": 30,
-    "name_ar": "اللطيف",
-    "name_en": "Al-Latif",
-    "meaning_ar": "البر بعباده والرفيق بهم",
-    "audio": "assets/audio/asmaul_husna/030_allatif.wav"
+    "name_ar": "العدل",
+    "name_en": "Al-Adl",
+    "meaning_ar": "المنزه عن الظلم والجور",
+    "audio": "assets/audio/asmaul_husna/Al-Adl.mp3"
   },
   {
     "id": 31,
-    "name_ar": "الخبير",
-    "name_en": "Al-Khabir",
-    "meaning_ar": "العالم ببواطن الأمور وخفاياها",
-    "audio": "assets/audio/asmaul_husna/031_alkhabir.wav"
+    "name_ar": "اللطيف",
+    "name_en": "Al-Latif",
+    "meaning_ar": "البر بعباده والرفيق بهم",
+    "audio": "assets/audio/asmaul_husna/Al-Latif.mp3"
   },
   {
     "id": 32,
-    "name_ar": "الحليم",
-    "name_en": "Al-Halim",
-    "meaning_ar": "الذي لا يعجل بالعقوبة على العصاة",
-    "audio": "assets/audio/asmaul_husna/032_alhalim.wav"
+    "name_ar": "الخبير",
+    "name_en": "Al-Khabir",
+    "meaning_ar": "العالم ببواطن الأمور وخفاياها",
+    "audio": "assets/audio/asmaul_husna/Al-Khabir.mp3"
   },
   {
     "id": 33,
-    "name_ar": "العظيم",
-    "name_en": "Al-Azim",
-    "meaning_ar": "الذي جاوزت عظمته حدود العقول",
-    "audio": "assets/audio/asmaul_husna/033_alazim.wav"
+    "name_ar": "الحليم",
+    "name_en": "Al-Halim",
+    "meaning_ar": "الذي لا يعجل بالعقوبة على العصاة",
+    "audio": "assets/audio/asmaul_husna/Al-Halim.mp3"
   },
   {
     "id": 34,
-    "name_ar": "الغفور",
-    "name_en": "Al-Ghafur",
-    "meaning_ar": "الذي يغفر الذنوب الكثيرة",
-    "audio": "assets/audio/asmaul_husna/034_alghafur.wav"
+    "name_ar": "العظيم",
+    "name_en": "Al-Azim",
+    "meaning_ar": "الذي جاوزت عظمته حدود العقول",
+    "audio": "assets/audio/asmaul_husna/Al-Azim.mp3"
   },
   {
     "id": 35,
-    "name_ar": "الشكور",
-    "name_en": "Ash-Shakur",
-    "meaning_ar": "الذي يجازي على القليل بالكثير",
-    "audio": "assets/audio/asmaul_husna/035_ashshakur.wav"
+    "name_ar": "الغفور",
+    "name_en": "Al-Ghafur",
+    "meaning_ar": "الذي يغفر الذنوب الكثيرة",
+    "audio": "assets/audio/asmaul_husna/Al-Ghafur.mp3"
   },
   {
     "id": 36,
-    "name_ar": "العلي",
-    "name_en": "Al-Ali",
-    "meaning_ar": "الذي علا بذاته وقدره وقدرته",
-    "audio": "assets/audio/asmaul_husna/036_alali.wav"
+    "name_ar": "الشكور",
+    "name_en": "Ash-Shakur",
+    "meaning_ar": "الذي يجازي على القليل بالكثير",
+    "audio": "assets/audio/asmaul_husna/Ash-Shakur.mp3"
   },
   {
     "id": 37,
-    "name_ar": "الكبير",
-    "name_en": "Al-Kabir",
-    "meaning_ar": "الذي ليس لعظمته نهاية",
-    "audio": "assets/audio/asmaul_husna/037_alkabir.wav"
+    "name_ar": "العلي",
+    "name_en": "Al-Ali",
+    "meaning_ar": "الذي علا بذاته وقدره وقدرته",
+    "audio": "assets/audio/asmaul_husna/Al-Ali.mp3"
   },
   {
     "id": 38,
-    "name_ar": "الحفيظ",
-    "name_en": "Al-Hafiz",
-    "meaning_ar": "الذي يحفظ الخلائق وأعمالهم",
-    "audio": "assets/audio/asmaul_husna/038_alhafiz.wav"
+    "name_ar": "الكبير",
+    "name_en": "Al-Kabir",
+    "meaning_ar": "الذي ليس لعظمته نهاية",
+    "audio": "assets/audio/asmaul_husna/Al-Kabir.mp3"
   },
   {
     "id": 39,
-    "name_ar": "المقيت",
-    "name_en": "Al-Muqit",
-    "meaning_ar": "المتولى إعطاء الأقوات لجميع الخلق",
-    "audio": "assets/audio/asmaul_husna/039_almuqit.wav"
+    "name_ar": "الحفيظ",
+    "name_en": "Al-Hafiz",
+    "meaning_ar": "الذي يحفظ الخلائق وأعمالهم",
+    "audio": "assets/audio/asmaul_husna/Al-Hafiz.mp3"
   },
   {
     "id": 40,
-    "name_ar": "الحسيب",
-    "name_en": "Al-Hasib",
-    "meaning_ar": "الكافي لعباده والمحاسب لهم",
-    "audio": "assets/audio/asmaul_husna/040_alhasib.wav"
+    "name_ar": "المقيت",
+    "name_en": "Al-Muqit",
+    "meaning_ar": "المتولى إعطاء الأقوات لجميع الخلق",
+    "audio": "assets/audio/asmaul_husna/Al-Muqit.mp3"
   },
   {
     "id": 41,
-    "name_ar": "الجليل",
-    "name_en": "Al-Jalil",
-    "meaning_ar": "صاحب العظمة والجلال والكمال",
-    "audio": "assets/audio/asmaul_husna/041_aljalil.wav"
+    "name_ar": "الحسيب",
+    "name_en": "Al-Hasib",
+    "meaning_ar": "الكافي لعباده والمحاسب لهم",
+    "audio": "assets/audio/asmaul_husna/Al-Hasib.mp3"
   },
   {
     "id": 42,
-    "name_ar": "الكريم",
-    "name_en": "Al-Karim",
-    "meaning_ar": "الذي يعطي بلا عوض وبلا سبب",
-    "audio": "assets/audio/asmaul_husna/042_alkarim.wav"
+    "name_ar": "الجليل",
+    "name_en": "Al-Jalil",
+    "meaning_ar": "صاحب العظمة والجلال والكمال",
+    "audio": "assets/audio/asmaul_husna/Al-Jalil.mp3"
   },
   {
     "id": 43,
-    "name_ar": "الرقيب",
-    "name_en": "Ar-Raqib",
-    "meaning_ar": "الذي يلاحظ الخلائق ولا يغيب عنه شيء",
-    "audio": "assets/audio/asmaul_husna/043_arraqib.wav"
+    "name_ar": "الكريم",
+    "name_en": "Al-Karim",
+    "meaning_ar": "الذي يعطي بلا عوض وبلا سبب",
+    "audio": "assets/audio/asmaul_husna/Al-Karim.mp3"
   },
   {
     "id": 44,
-    "name_ar": "المجيب",
-    "name_en": "Al-Mujib",
-    "meaning_ar": "الذي يقابل الدعاء بالعطاء",
-    "audio": "assets/audio/asmaul_husna/044_almujib.wav"
+    "name_ar": "الرقيب",
+    "name_en": "Ar-Raqib",
+    "meaning_ar": "الذي يلاحظ الخلائق ولا يغيب عنه شيء",
+    "audio": "assets/audio/asmaul_husna/Ar-Raqib.mp3"
   },
   {
     "id": 45,
-    "name_ar": "الواسع",
-    "name_en": "Al-Wasi",
-    "meaning_ar": "الذي وسع علمه ورحمته كل شيء",
-    "audio": "assets/audio/asmaul_husna/045_alwasi.wav"
+    "name_ar": "المجيب",
+    "name_en": "Al-Mujib",
+    "meaning_ar": "الذي يقابل الدعاء بالعطاء",
+    "audio": "assets/audio/asmaul_husna/Al-Mujib.mp3"
   },
   {
     "id": 46,
-    "name_ar": "الحكيم",
-    "name_en": "Al-Hakim",
-    "meaning_ar": "الذي يضع الأشياء في مواضعها الصحيحة",
-    "audio": "assets/audio/asmaul_husna/046_alhakim.wav"
+    "name_ar": "الواسع",
+    "name_en": "Al-Wasi",
+    "meaning_ar": "الذي وسع علمه ورحمته كل شيء",
+    "audio": "assets/audio/asmaul_husna/Al-Wasi.mp3"
   },
   {
     "id": 47,
-    "name_ar": "الودود",
-    "name_en": "Al-Wadud",
-    "meaning_ar": "المحب لعباده والمحبوب في قلوب أوليائه",
-    "audio": "assets/audio/asmaul_husna/047_alwadud.wav"
+    "name_ar": "الحكيم",
+    "name_en": "Al-Hakim",
+    "meaning_ar": "الذي يضع الأشياء في مواضعها الصحيحة",
+    "audio": "assets/audio/asmaul_husna/Al-Hakim.mp3"
   },
   {
     "id": 48,
-    "name_ar": "المجيد",
-    "name_en": "Al-Majid",
-    "meaning_ar": "الشريف العظيم الكامل في ذاته",
-    "audio": "assets/audio/asmaul_husna/048_almajid.wav"
+    "name_ar": "الودود",
+    "name_en": "Al-Wadud",
+    "meaning_ar": "المحب لعباده والمحبوب في قلوب أوليائه",
+    "audio": "assets/audio/asmaul_husna/Al-Wadud.mp3"
   },
   {
     "id": 49,
-    "name_ar": "الباعث",
-    "name_en": "Al-Baith",
-    "meaning_ar": "الذي يحيي الخلق يوم القيامة",
-    "audio": "assets/audio/asmaul_husna/049_albaith.wav"
+    "name_ar": "المجيد",
+    "name_en": "Al-Majid",
+    "meaning_ar": "الشريف العظيم الكامل في ذاته",
+    "audio": "assets/audio/asmaul_husna/Al-Majid.mp3"
   },
   {
     "id": 50,
-    "name_ar": "الشهيد",
-    "name_en": "Ash-Shahid",
-    "meaning_ar": "المطلع على كل شيء الحاضر الدائم",
-    "audio": "assets/audio/asmaul_husna/050_ashshahid.wav"
+    "name_ar": "الباعث",
+    "name_en": "Al-Baith",
+    "meaning_ar": "الذي يحيي الخلق يوم القيامة",
+    "audio": "assets/audio/asmaul_husna/Al-Baith.mp3"
   },
   {
     "id": 51,
-    "name_ar": "الحق",
-    "name_en": "Al-Haqq",
-    "meaning_ar": "المتحقق وجوده والأزلي الأبدي",
-    "audio": "assets/audio/asmaul_husna/051_alhaqq.wav"
+    "name_ar": "الشهيد",
+    "name_en": "Ash-Shahid",
+    "meaning_ar": "المطلع على كل شيء الحاضر الدائم",
+    "audio": "assets/audio/asmaul_husna/Ash-Shahid.mp3"
   },
   {
     "id": 52,
-    "name_ar": "الوكيل",
-    "name_en": "Al-Wakil",
-    "meaning_ar": "القائم بأمور عباده والموكل إليه كل أمر",
-    "audio": "assets/audio/asmaul_husna/052_alwakil.wav"
+    "name_ar": "الحق",
+    "name_en": "Al-Haqq",
+    "meaning_ar": "المتحقق وجوده والأزلي الأبدي",
+    "audio": "assets/audio/asmaul_husna/Al-Haqq.mp3"
   },
   {
     "id": 53,
-    "name_ar": "القوي",
-    "name_en": "Al-Qawi",
-    "meaning_ar": "الذي لا يلحقه ضعف ولا عجز",
-    "audio": "assets/audio/asmaul_husna/053_alqawi.wav"
+    "name_ar": "الوكيل",
+    "name_en": "Al-Wakil",
+    "meaning_ar": "القائم بأمور عباده والموكل إليه كل أمر",
+    "audio": "assets/audio/asmaul_husna/Al-Wakil.mp3"
   },
   {
     "id": 54,
-    "name_ar": "المتين",
-    "name_en": "Al-Matin",
-    "meaning_ar": "الشديد القوي الذي لا تنتهي قوته",
-    "audio": "assets/audio/asmaul_husna/054_almatin.wav"
+    "name_ar": "القوي",
+    "name_en": "Al-Qawi",
+    "meaning_ar": "الذي لا يلحقه ضعف ولا عجز",
+    "audio": "assets/audio/asmaul_husna/Al-Qawi.mp3"
   },
   {
     "id": 55,
-    "name_ar": "الولي",
-    "name_en": "Al-Wali",
-    "meaning_ar": "المحب الناصر لأوليائه",
-    "audio": "assets/audio/asmaul_husna/055_alwali.wav"
+    "name_ar": "المتين",
+    "name_en": "Al-Matin",
+    "meaning_ar": "الشديد القوي الذي لا تنتهي قوته",
+    "audio": "assets/audio/asmaul_husna/Al-Matin.mp3"
   },
   {
     "id": 56,
-    "name_ar": "الحميد",
-    "name_en": "Al-Hamid",
-    "meaning_ar": "المستحق للحمد والثناء لذاته",
-    "audio": "assets/audio/asmaul_husna/056_alhamid.wav"
+    "name_ar": "الولي",
+    "name_en": "Al-Wali",
+    "meaning_ar": "المحب الناصر لأوليائه",
+    "audio": "assets/audio/asmaul_husna/Al-Wali.mp3"
   },
   {
     "id": 57,
-    "name_ar": "المحصي",
-    "name_en": "Al-Muhsi",
-    "meaning_ar": "الذي أحصى كل شيء بعلمه",
-    "audio": "assets/audio/asmaul_husna/057_almuhsi.wav"
+    "name_ar": "الحميد",
+    "name_en": "Al-Hamid",
+    "meaning_ar": "المستحق للحمد والثناء لذاته",
+    "audio": "assets/audio/asmaul_husna/Al-Hamid.mp3"
   },
   {
     "id": 58,
-    "name_ar": "المبدئ",
-    "name_en": "Al-Mubdi",
-    "meaning_ar": "الذي بدأ الخلق من العدم",
-    "audio": "assets/audio/asmaul_husna/058_almubdi.wav"
+    "name_ar": "المحصي",
+    "name_en": "Al-Muhsi",
+    "meaning_ar": "الذي أحصى كل شيء بعلمه",
+    "audio": "assets/audio/asmaul_husna/Al-Muhsi.mp3"
   },
   {
     "id": 59,
-    "name_ar": "المعيد",
-    "name_en": "Al-Muid",
-    "meaning_ar": "الذي يعيد الخلق بعد فنائهم",
-    "audio": "assets/audio/asmaul_husna/059_almuid.wav"
+    "name_ar": "المبدئ",
+    "name_en": "Al-Mubdi",
+    "meaning_ar": "الذي بدأ الخلق من العدم",
+    "audio": "assets/audio/asmaul_husna/Al-Mubdi.mp3"
   },
   {
     "id": 60,
-    "name_ar": "المحيي",
-    "name_en": "Al-Muhyi",
-    "meaning_ar": "الذي يحيي الأجساد البالية",
-    "audio": "assets/audio/asmaul_husna/060_almuhyi.wav"
+    "name_ar": "المعيد",
+    "name_en": "Al-Muid",
+    "meaning_ar": "الذي يعيد الخلق بعد فنائهم",
+    "audio": "assets/audio/asmaul_husna/Al-Muid.mp3"
   },
   {
     "id": 61,
-    "name_ar": "المميت",
-    "name_en": "Al-Mumit",
-    "meaning_ar": "الذي يميت الأحياء ويقهرهم",
-    "audio": "assets/audio/asmaul_husna/061_almumit.wav"
+    "name_ar": "المحيي",
+    "name_en": "Al-Muhyi",
+    "meaning_ar": "الذي يحيي الأجساد البالية",
+    "audio": "assets/audio/asmaul_husna/Al-Muhyi.mp3"
   },
   {
     "id": 62,
-    "name_ar": "الحي",
-    "name_en": "Al-Hayy",
-    "meaning_ar": "الباقي الذي لا يموت أزلاً وأبداً",
-    "audio": "assets/audio/asmaul_husna/062_alhayy.wav"
+    "name_ar": "المميت",
+    "name_en": "Al-Mumit",
+    "meaning_ar": "الذي يميت الأحياء ويقهرهم",
+    "audio": "assets/audio/asmaul_husna/Al-Mumit.mp3"
   },
   {
     "id": 63,
-    "name_ar": "القيوم",
-    "name_en": "Al-Qayyum",
-    "meaning_ar": "القائم بنفسه والمقيم لغيره",
-    "audio": "assets/audio/asmaul_husna/063_alqayyum.wav"
+    "name_ar": "الحي",
+    "name_en": "Al-Hayy",
+    "meaning_ar": "الباقي الذي لا يموت أزلاً وأبداً",
+    "audio": "assets/audio/asmaul_husna/Al-Hayy.mp3"
   },
   {
     "id": 64,
-    "name_ar": "الواجد",
-    "name_en": "Al-Wajid",
-    "meaning_ar": "الذي يجد كل ما يريده ولا يفوته شيء",
-    "audio": "assets/audio/asmaul_husna/064_alwajid.wav"
+    "name_ar": "القيوم",
+    "name_en": "Al-Qayyum",
+    "meaning_ar": "القائم بنفسه والمقيم لغيره",
+    "audio": "assets/audio/asmaul_husna/Al-Qayyum.mp3"
   },
   {
     "id": 65,
-    "name_ar": "الماجد",
-    "name_en": "Al-Majid",
-    "meaning_ar": "كثير الإحسان والجود",
-    "audio": "assets/audio/asmaul_husna/065_almajid_2.wav"
+    "name_ar": "الواجد",
+    "name_en": "Al-Wajid",
+    "meaning_ar": "الذي يجد كل ما يريده ولا يفوته شيء",
+    "audio": "assets/audio/asmaul_husna/Al-Wajid.mp3"
   },
   {
     "id": 66,
-    "name_ar": "الواحد",
-    "name_en": "Al-Wahid",
-    "meaning_ar": "المنفرد الذي لا شريك له",
-    "audio": "assets/audio/asmaul_husna/066_alwahid.wav"
+    "name_ar": "الماجد",
+    "name_en": "Al-Majid2",
+    "meaning_ar": "كثير الإحسان والجود",
+    "audio": "assets/audio/asmaul_husna/Al-Majid2.mp3"
   },
   {
     "id": 67,
-    "name_ar": "الأحد",
-    "name_en": "Al-Ahad",
-    "meaning_ar": "الفرد الصمد الذي لم يلد ولم يولد",
-    "audio": "assets/audio/asmaul_husna/067_alahad.wav"
+    "name_ar": "الواحد",
+    "name_en": "Al-Wahid",
+    "meaning_ar": "المنفرد الذي لا شريك له",
+    "audio": "assets/audio/asmaul_husna/Al-Wahid.mp3"
   },
   {
     "id": 68,
-    "name_ar": "الصمد",
-    "name_en": "As-Samad",
-    "meaning_ar": "المقصود في الحوائج كلها",
-    "audio": "assets/audio/asmaul_husna/068_assamad.wav"
+    "name_ar": "الأحد",
+    "name_en": "Al-Ahad",
+    "meaning_ar": "الفرد الصمد الذي لم يلد ولم يولد",
+    "audio": "assets/audio/asmaul_husna/Al-Ahad.mp3"
   },
   {
     "id": 69,
-    "name_ar": "القادر",
-    "name_en": "Al-Qadir",
-    "meaning_ar": "الذي يقدر على ما يشاء",
-    "audio": "assets/audio/asmaul_husna/069_alqadir.wav"
+    "name_ar": "الصمد",
+    "name_en": "As-Samad",
+    "meaning_ar": "المقصود في الحوائج كلها",
+    "audio": "assets/audio/asmaul_husna/As-Samad.mp3"
   },
   {
     "id": 70,
-    "name_ar": "المقتدر",
-    "name_en": "Al-Muqtadir",
-    "meaning_ar": "الذي لا يمتنع عليه شيء",
-    "audio": "assets/audio/asmaul_husna/070_almuqtadir.wav"
+    "name_ar": "القادر",
+    "name_en": "Al-Qadir",
+    "meaning_ar": "الذي يقدر على ما يشاء",
+    "audio": "assets/audio/asmaul_husna/Al-Qadir.mp3"
   },
   {
     "id": 71,
-    "name_ar": "المقدم",
-    "name_en": "Al-Muqaddim",
-    "meaning_ar": "الذي يقدم من يشاء بحكمته",
-    "audio": "assets/audio/asmaul_husna/071_almuqaddim.wav"
+    "name_ar": "المقتدر",
+    "name_en": "Al-Muqtadir",
+    "meaning_ar": "الذي لا يمتنع عليه شيء",
+    "audio": "assets/audio/asmaul_husna/Al-Muqtadir.mp3"
   },
   {
     "id": 72,
-    "name_ar": "المؤخر",
-    "name_en": "Al-Mu'akhkhir",
-    "meaning_ar": "الذي يؤخر من يشاء بحكمته",
-    "audio": "assets/audio/asmaul_husna/072_almuakhkhir.wav"
+    "name_ar": "المقدم",
+    "name_en": "Al-Muqaddim",
+    "meaning_ar": "الذي يقدم من يشاء بحكمته",
+    "audio": "assets/audio/asmaul_husna/Al-Muqaddim.mp3"
   },
   {
     "id": 73,
-    "name_ar": "الأول",
-    "name_en": "Al-Awwal",
-    "meaning_ar": "السابق لكل شيء بلا بداية",
-    "audio": "assets/audio/asmaul_husna/073_alawwal.wav"
+    "name_ar": "المؤخر",
+    "name_en": "Al-Muakhkhir",
+    "meaning_ar": "الذي يؤخر من يشاء بحكمته",
+    "audio": "assets/audio/asmaul_husna/Al-Muakhkhir.mp3"
   },
   {
     "id": 74,
-    "name_ar": "الآخر",
-    "name_en": "Al-Akhir",
-    "meaning_ar": "الباقي بعد كل شيء بلا نهاية",
-    "audio": "assets/audio/asmaul_husna/074_alakhir.wav"
+    "name_ar": "الأول",
+    "name_en": "Al-Awwal",
+    "meaning_ar": "السابق لكل شيء بلا بداية",
+    "audio": "assets/audio/asmaul_husna/Al-Awwal.mp3"
   },
   {
     "id": 75,
-    "name_ar": "الظاهر",
-    "name_en": "Az-Zahir",
-    "meaning_ar": "الذي ظهرت براهينه وقدرته",
-    "audio": "assets/audio/asmaul_husna/075_azzahir.wav"
+    "name_ar": "الآخر",
+    "name_en": "Al-Akhir",
+    "meaning_ar": "الباقي بعد كل شيء بلا نهاية",
+    "audio": "assets/audio/asmaul_husna/Al-Akhir.mp3"
   },
   {
     "id": 76,
-    "name_ar": "الباطن",
-    "name_en": "Al-Batin",
-    "meaning_ar": "المحتجب عن الأبصار والأنظار",
-    "audio": "assets/audio/asmaul_husna/076_albatin.wav"
+    "name_ar": "الظاهر",
+    "name_en": "Az-Zahir",
+    "meaning_ar": "الذي ظهرت براهينه وقدرته",
+    "audio": "assets/audio/asmaul_husna/Az-Zahir.mp3"
   },
   {
     "id": 77,
-    "name_ar": "الوالي",
-    "name_en": "Al-Wali",
-    "meaning_ar": "المتولي لأمور خلقه ومدبرها",
-    "audio": "assets/audio/asmaul_husna/077_alwali_2.wav"
+    "name_ar": "الباطن",
+    "name_en": "Al-Batin",
+    "meaning_ar": "المحتجب عن الأبصار والأنظار",
+    "audio": "assets/audio/asmaul_husna/Al-Batin.mp3"
   },
   {
     "id": 78,
-    "name_ar": "المتعالي",
-    "name_en": "Al-Muta'ali",
-    "meaning_ar": "المنزه عن صفات المخلوقين",
-    "audio": "assets/audio/asmaul_husna/078_almutali.wav"
+    "name_ar": "الوالي",
+    "name_en": "Al-Wali2",
+    "meaning_ar": "المتولي لأمور خلقه ومدبرها",
+    "audio": "assets/audio/asmaul_husna/Al-Wali2.mp3"
   },
   {
     "id": 79,
-    "name_ar": "البر",
-    "name_en": "Al-Barr",
-    "meaning_ar": "الواسع العطاء وكثير الإحسان",
-    "audio": "assets/audio/asmaul_husna/079_albarr.wav"
+    "name_ar": "المتعالي",
+    "name_en": "Al-Mutaali",
+    "meaning_ar": "المنزه عن صفات المخلوقين",
+    "audio": "assets/audio/asmaul_husna/Al-Mutaali.mp3"
   },
   {
     "id": 80,
-    "name_ar": "التواب",
-    "name_en": "At-Tawwab",
-    "meaning_ar": "الذي يقبل توبة التائبين",
-    "audio": "assets/audio/asmaul_husna/080_attawwab.wav"
+    "name_ar": "البر",
+    "name_en": "Al-Barr",
+    "meaning_ar": "الواسع العطاء وكثير الإحسان",
+    "audio": "assets/audio/asmaul_husna/Al-Barr.mp3"
   },
   {
     "id": 81,
-    "name_ar": "المنتقم",
-    "name_en": "Al-Muntaqim",
-    "meaning_ar": "الذي يعاقب الظالمين والمجرمين",
-    "audio": "assets/audio/asmaul_husna/081_almuntaqim.wav"
+    "name_ar": "التواب",
+    "name_en": "At-Tawwab",
+    "meaning_ar": "الذي يقبل توبة التائبين",
+    "audio": "assets/audio/asmaul_husna/At-Tawwab.mp3"
   },
   {
     "id": 82,
-    "name_ar": "العفو",
-    "name_en": "Al-Afuww",
-    "meaning_ar": "الذي يمحو الذنوب ويتجاوز عنها",
-    "audio": "assets/audio/asmaul_husna/082_alafuww.wav"
+    "name_ar": "المنتقم",
+    "name_en": "Al-Muntaqim",
+    "meaning_ar": "الذي يعاقب الظالمين والمجرمين",
+    "audio": "assets/audio/asmaul_husna/Al-Muntaqim.mp3"
   },
   {
     "id": 83,
-    "name_ar": "الرؤوف",
-    "name_en": "Ar-Ra'uf",
-    "meaning_ar": "الرحيم الشديد الرحمة بعباده",
-    "audio": "assets/audio/asmaul_husna/083_arrauf.wav"
+    "name_ar": "العفو",
+    "name_en": "Al-Afuw",
+    "meaning_ar": "الذي يمحو الذنوب ويتجاوز عنها",
+    "audio": "assets/audio/asmaul_husna/Al-Afuw.mp3"
   },
   {
     "id": 84,
-    "name_ar": "مالك الملك",
-    "name_en": "Malik-ul-Mulk",
-    "meaning_ar": "المتصرف في ملكه كيف يشاء",
-    "audio": "assets/audio/asmaul_husna/084_malikulmulk.wav"
+    "name_ar": "الرؤوف",
+    "name_en": "Ar-Rauf",
+    "meaning_ar": "الرحيم الشديد الرحمة بعباده",
+    "audio": "assets/audio/asmaul_husna/Ar-Rauf.mp3"
   },
   {
     "id": 85,
-    "name_ar": "ذو الجلال والإكرام",
-    "name_en": "Dhul-Jalali wal-Ikram",
-    "meaning_ar": "صاحب العظمة والفضل والجود",
-    "audio": "assets/audio/asmaul_husna/085_dhuljalali.wav"
+    "name_ar": "مالك الملك",
+    "name_en": "Malik-ul-Mulk",
+    "meaning_ar": "المتصرف في ملكه كيف يشاء",
+    "audio": "assets/audio/asmaul_husna/Malik-ul-Mulk.mp3"
   },
   {
     "id": 86,
-    "name_ar": "المقسط",
-    "name_en": "Al-Muqsit",
-    "meaning_ar": "العادل في حكمه والمنصف",
-    "audio": "assets/audio/asmaul_husna/086_almuqsit.wav"
+    "name_ar": "ذو الجلال والإكرام",
+    "name_en": "Dhul-Jalali-wal-Ikram",
+    "meaning_ar": "صاحب العظمة والفضل والجود",
+    "audio": "assets/audio/asmaul_husna/Dhul-Jalali-wal-Ikram.mp3"
   },
   {
     "id": 87,
-    "name_ar": "الجامع",
-    "name_en": "Al-Jami",
-    "meaning_ar": "الذي يجمع الناس يوم القيامة",
-    "audio": "assets/audio/asmaul_husna/087_aljami.wav"
+    "name_ar": "المقسط",
+    "name_en": "Al-Muqsit",
+    "meaning_ar": "العادل في حكمه والمنصف",
+    "audio": "assets/audio/asmaul_husna/Al-Muqsit.mp3"
   },
   {
     "id": 88,
-    "name_ar": "الغني",
-    "name_en": "Al-Ghani",
-    "meaning_ar": "المستغني عن كل ما سواه",
-    "audio": "assets/audio/asmaul_husna/088_alghani.wav"
+    "name_ar": "الجامع",
+    "name_en": "Al-Jami",
+    "meaning_ar": "الذي يجمع الناس يوم القيامة",
+    "audio": "assets/audio/asmaul_husna/Al-Jami.mp3"
   },
   {
     "id": 89,
-    "name_ar": "المغني",
-    "name_en": "Al-Mughni",
-    "meaning_ar": "الذي يغني من يشاء من خلقه",
-    "audio": "assets/audio/asmaul_husna/089_almughni.wav"
+    "name_ar": "الغني",
+    "name_en": "Al-Ghani",
+    "meaning_ar": "المستغني عن كل ما سواه",
+    "audio": "assets/audio/asmaul_husna/Al-Ghani.mp3"
   },
   {
     "id": 90,
-    "name_ar": "المانع",
-    "name_en": "Al-Mani",
-    "meaning_ar": "الذي يمنع البلاء عمن يشاء",
-    "audio": "assets/audio/asmaul_husna/090_almani.wav"
+    "name_ar": "المغني",
+    "name_en": "Al-Mughni",
+    "meaning_ar": "الذي يغني من يشاء من خلقه",
+    "audio": "assets/audio/asmaul_husna/Al-Mughni.mp3"
   },
   {
     "id": 91,
-    "name_ar": "الضار",
-    "name_en": "Ad-Darr",
-    "meaning_ar": "الذي يسلط الضر على من يشاء",
-    "audio": "assets/audio/asmaul_husna/091_addarr.wav"
+    "name_ar": "المانع",
+    "name_en": "Al-Mani",
+    "meaning_ar": "الذي يمنع البلاء عمن يشاء",
+    "audio": "assets/audio/asmaul_husna/Al-Mani.mp3"
   },
   {
     "id": 92,
-    "name_ar": "النافع",
-    "name_en": "An-Nafi",
-    "meaning_ar": "الذي يوصل النفع لمن يشاء",
-    "audio": "assets/audio/asmaul_husna/092_annafi.wav"
+    "name_ar": "الضار",
+    "name_en": "Ad-Darr",
+    "meaning_ar": "الذي يسلط الضر على من يشاء",
+    "audio": "assets/audio/asmaul_husna/Ad-Darr.mp3"
   },
   {
     "id": 93,
-    "name_ar": "النور",
-    "name_en": "An-Nur",
-    "meaning_ar": "الهادي ومنور السماوات والأرض",
-    "audio": "assets/audio/asmaul_husna/093_annur.wav"
+    "name_ar": "النافع",
+    "name_en": "An-Nafi",
+    "meaning_ar": "الذي يوصل النفع لمن يشاء",
+    "audio": "assets/audio/asmaul_husna/An-Nafi.mp3"
   },
   {
     "id": 94,
-    "name_ar": "الهادي",
-    "name_en": "Al-Hadi",
-    "meaning_ar": "الذي يهدي القلوب إلى الحق",
-    "audio": "assets/audio/asmaul_husna/094_alhadi.wav"
+    "name_ar": "النور",
+    "name_en": "An-Nur",
+    "meaning_ar": "الهادي ومنور السماوات والأرض",
+    "audio": "assets/audio/asmaul_husna/An-Nur.mp3"
   },
   {
     "id": 95,
-    "name_ar": "البديع",
-    "name_en": "Al-Badi",
-    "meaning_ar": "الذي خلق الخلق على غير مثال سابق",
-    "audio": "assets/audio/asmaul_husna/095_albadi.wav"
+    "name_ar": "الهادي",
+    "name_en": "Al-Hadi",
+    "meaning_ar": "الذي يهدي القلوب إلى الحق",
+    "audio": "assets/audio/asmaul_husna/Al-Hadi.mp3"
   },
   {
     "id": 96,
-    "name_ar": "الباقي",
-    "name_en": "Al-Baqi",
-    "meaning_ar": "الدائم الوجود بلا انتهاء",
-    "audio": "assets/audio/asmaul_husna/096_albaqi.wav"
+    "name_ar": "البديع",
+    "name_en": "Al-Badi",
+    "meaning_ar": "الذي خلق الخلق على غير مثال سابق",
+    "audio": "assets/audio/asmaul_husna/Al-Badi.mp3"
   },
   {
     "id": 97,
-    "name_ar": "الوارث",
-    "name_en": "Al-Warith",
-    "meaning_ar": "الذي يرث كل شيء بعد فناءه",
-    "audio": "assets/audio/asmaul_husna/097_alwarith.wav"
+    "name_ar": "الباقي",
+    "name_en": "Al-Baqi",
+    "meaning_ar": "الدائم الوجود بلا انتهاء",
+    "audio": "assets/audio/asmaul_husna/Al-Baqi.mp3"
   },
   {
     "id": 98,
-    "name_ar": "الرشيد",
-    "name_en": "Ar-Rashid",
-    "meaning_ar": "المرشد إلى سواء السبيل",
-    "audio": "assets/audio/asmaul_husna/098_arrashid.wav"
+    "name_ar": "الوارث",
+    "name_en": "Al-Warith",
+    "meaning_ar": "الذي يرث كل شيء بعد فنائه",
+    "audio": "assets/audio/asmaul_husna/Al-Warith.mp3"
   },
   {
     "id": 99,
+    "name_ar": "الرشيد",
+    "name_en": "Ar-Rashid",
+    "meaning_ar": "المرشد إلى سواء السبيل",
+    "audio": "assets/audio/asmaul_husna/Ar-Rashid.mp3"
+  },
+  {
+    "id": 100,
     "name_ar": "الصبور",
     "name_en": "As-Sabur",
     "meaning_ar": "الذي لا يعجل بالعقوبة على العصاة",
-    "audio": "assets/audio/asmaul_husna/099_assabur.wav"
+    "audio": "assets/audio/asmaul_husna/As-Sabur.mp3"
   }
 ]

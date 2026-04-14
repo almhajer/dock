@@ -293,6 +293,13 @@ void DuckPool::randomizeFlight(DuckInstance& duck, const DuckSpawnContext& ctx)
     const float segBottom = segTop + segmentH;
     std::uniform_real_distribution<float> yDist(segTop, segBottom);
 
+    // شرائح الهدف (endY) موزعة أيضاً على كامل النطاق المرئي
+    const float endYTop = -0.90f;
+    const float endYRange = 0.75f;
+    const float endSegH = endYRange / static_cast<float>(waveSize);
+    const float endSegTop = endYTop + static_cast<float>(idx) * endSegH;
+    std::uniform_real_distribution<float> endYDist(endSegTop, endSegTop + endSegH);
+
     std::uniform_real_distribution<float> arcDist(ctx.arcMinHeight, ctx.arcMaxHeight);
     std::uniform_real_distribution<float> durDist(ctx.flightDurationMin, ctx.flightDurationMax);
     std::uniform_real_distribution<float> ctrl1Dist(duckplay::kDuckControl1MinRatio,
@@ -302,21 +309,100 @@ void DuckPool::randomizeFlight(DuckInstance& duck, const DuckSpawnContext& ctx)
     std::uniform_real_distribution<float> flapDist(duckplay::kDuckFlapCyclesMin, duckplay::kDuckFlapCyclesMax);
     std::uniform_real_distribution<float> phaseDist(0.0f, duckplay::kTau);
 
-    // تبديل الجهات: بطة زوجية من اليسار، فردية من اليمين
-    const bool startFromLeft = (idx % 2 == 0);
-    duck.flight.startX = startFromLeft ? (-1.0f - duckplay::kDuckTravelMargin)
-                                        : (1.0f + duckplay::kDuckTravelMargin);
-    duck.flight.endX = -duck.flight.startX;
-    duck.flight.startY = yDist(*mRng);
-    duck.flight.endY = yDist(*mRng);
+    // اختيار نمط الظهور: نستخدم idx لضمان اختلاف الأنماط داخل الدفعة الواحدة
+    // نقسم الأنماط الثمانية على حجم الدفعة مع إزاحة عشوائية
+    const int kPatternCount = 8;
+    const int stride = std::max(1, kPatternCount / std::max(waveSize, 1));
+    std::uniform_int_distribution<int> offsetDist(0, kPatternCount - 1);
+    const int offset = offsetDist(*mRng);
+    const int pattern = (offset + idx * stride) % kPatternCount;
+
+    switch (pattern)
+    {
+    case 0: // من اليسار (تقليدي)
+        duck.flight.startX = -1.0f - duckplay::kDuckTravelMargin;
+        duck.flight.endX = 1.0f + duckplay::kDuckTravelMargin;
+        duck.flight.startY = yDist(*mRng);
+        duck.flight.endY = endYDist(*mRng);
+        break;
+
+    case 1: // من اليمين (تقليدي)
+        duck.flight.startX = 1.0f + duckplay::kDuckTravelMargin;
+        duck.flight.endX = -1.0f - duckplay::kDuckTravelMargin;
+        duck.flight.startY = yDist(*mRng);
+        duck.flight.endY = endYDist(*mRng);
+        break;
+
+    case 2: // انقضاض من أعلى اليسار
+        duck.flight.startX = std::uniform_real_distribution<float>(-1.0f, -0.2f)(*mRng);
+        duck.flight.startY = -1.0f - duckplay::kDuckTravelMargin;
+        duck.flight.endX = std::uniform_real_distribution<float>(0.2f, 1.0f + duckplay::kDuckTravelMargin)(*mRng);
+        duck.flight.endY = endYDist(*mRng);
+        break;
+
+    case 3: // انقضاض من أعلى اليمين
+        duck.flight.startX = std::uniform_real_distribution<float>(0.2f, 1.0f)(*mRng);
+        duck.flight.startY = -1.0f - duckplay::kDuckTravelMargin;
+        duck.flight.endX = std::uniform_real_distribution<float>(-1.0f - duckplay::kDuckTravelMargin, -0.2f)(*mRng);
+        duck.flight.endY = endYDist(*mRng);
+        break;
+
+    case 4: // هبوط من أعلى المنتصف
+        duck.flight.startX = std::uniform_real_distribution<float>(-0.6f, 0.6f)(*mRng);
+        duck.flight.startY = -1.0f - duckplay::kDuckTravelMargin;
+        duck.flight.endX = std::uniform_real_distribution<float>(-1.0f - duckplay::kDuckTravelMargin,
+                                                                  1.0f + duckplay::kDuckTravelMargin)(*mRng);
+        duck.flight.endY = endYDist(*mRng);
+        break;
+
+    case 5: // مفاجأة من جهة الصياد
+    {
+        const float hDir = (ctx.hunterX >= 0.0f) ? 1.0f : -1.0f;
+        duck.flight.startX = hDir * (1.0f + duckplay::kDuckTravelMargin);
+        duck.flight.endX = -hDir * (0.5f + std::uniform_real_distribution<float>(0.0f, 0.8f)(*mRng));
+        duck.flight.startY = yDist(*mRng);
+        duck.flight.endY = endYDist(*mRng);
+        break;
+    }
+
+    case 6: // طيران من أسفل اليسار للأعلى — يبدأ من حافة الشاشة مباشرة
+        duck.flight.startX = -1.0f - duckplay::kDuckTravelMargin;
+        duck.flight.startY = std::uniform_real_distribution<float>(0.70f, 0.88f)(*mRng);
+        duck.flight.endX = std::uniform_real_distribution<float>(0.3f, 1.0f + duckplay::kDuckTravelMargin)(*mRng);
+        duck.flight.endY = std::uniform_real_distribution<float>(-0.85f, -0.20f)(*mRng);
+        break;
+
+    case 7: // طيران من أسفل اليمين للأعلى — يبدأ من حافة الشاشة مباشرة
+        duck.flight.startX = 1.0f + duckplay::kDuckTravelMargin;
+        duck.flight.startY = std::uniform_real_distribution<float>(0.70f, 0.88f)(*mRng);
+        duck.flight.endX = std::uniform_real_distribution<float>(-1.0f - duckplay::kDuckTravelMargin, -0.3f)(*mRng);
+        duck.flight.endY = std::uniform_real_distribution<float>(-0.85f, -0.20f)(*mRng);
+        break;
+    }
     duck.flight.arcHeight = arcDist(*mRng);
     duck.flight.duration = durDist(*mRng);
 
-    const float highestY = std::min(duck.flight.startY, duck.flight.endY) - duck.flight.arcHeight;
     const float ctrl1Ratio = ctrl1Dist(*mRng);
     const float ctrl2Ratio = ctrl2Dist(*mRng);
-    duck.flight.controlY1 = std::lerp(duck.flight.startY, highestY, ctrl1Ratio);
-    duck.flight.controlY2 = std::lerp(duck.flight.endY, highestY, ctrl2Ratio);
+
+    // اتجاه القوس: البط من الأعلى يحتاج قوساً عكسياً (نحو الأسفل)
+    const bool fromTop = duck.flight.startY <= -1.0f;
+    const bool fromBottom = duck.flight.startY >= 1.0f;
+    float arcTargetY;
+    if (fromTop)
+    {
+        arcTargetY = std::max(duck.flight.startY, duck.flight.endY) + duck.flight.arcHeight;
+    }
+    else if (fromBottom)
+    {
+        arcTargetY = std::min(duck.flight.startY, duck.flight.endY) - duck.flight.arcHeight;
+    }
+    else
+    {
+        arcTargetY = std::min(duck.flight.startY, duck.flight.endY) - duck.flight.arcHeight;
+    }
+    duck.flight.controlY1 = std::lerp(duck.flight.startY, arcTargetY, ctrl1Ratio);
+    duck.flight.controlY2 = std::lerp(duck.flight.endY, arcTargetY, ctrl2Ratio);
     duck.flight.flapCycles = flapDist(*mRng);
     duck.flight.swayPhase = phaseDist(*mRng);
 

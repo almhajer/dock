@@ -10,6 +10,7 @@
 #include "SkillAssessment.h"
 #include "RewardSystem.h"
 #include "HunterController.h"
+#include "AsmaulHusnaOverlay.h"
 #include "../audio/SoundEffectPlayer.h"
 #include "../game/DuckSpriteAtlas.h"
 #include "../game/NatureSystem.h"
@@ -99,18 +100,21 @@ class App
      */
     enum class GamePhase : unsigned char
     {
+        Intro,         // شاشة الافتتاحية قبل بدء اللعب
         StageIntro,    // عرض رقم المرحلة قبل بدء اللعب
         Playing,       // اللعب الفعلي داخل المرحلة
         StageComplete, // المرحلة انتهت بنجاح
         StageFailed,   // المرحلة انتهت بالفشل
         ResultsScreen, // شاشة النتائج التفصيلية
         GameVictory,   // جميع المراحل اكتملت
+        Paused,        // إيقاف مؤقت
     };
 #pragma endregion PrivateTypes
 
 #pragma region PrivateLifecycle
     void init();
     void update(float deltaTime);
+    void updateAllRenderData(float deltaTime, const scene::WindowMetrics& metrics);
     void updateHunterMotion(float deltaTime);
     void enterHunterStageEndPose();
     void startStage(int stageIndex);
@@ -127,8 +131,13 @@ class App
     void updateResultsRenderData();
     void updateNatureRenderData();
     void updateGroundInteraction(float deltaTime);
+    void updateAsmaOverlayRenderData();
+    void updatePauseRenderData();
     void render();
     void cleanup();
+    void saveGameState();
+    bool loadGameState();
+    std::string saveFilePath() const;
 #pragma endregion PrivateLifecycle
 
 #pragma region CoreComponents
@@ -138,6 +147,10 @@ class App
     gfx::VulkanContext mVulkan;
     audio::SoundEffectPlayer mHunterShotSound;
     audio::SoundEffectPlayer mDuckAmbientSound;
+    audio::SoundEffectPlayer mIntroSound;
+    AsmaulHusnaOverlay mAsmaOverlay;
+    audio::SoundEffectPlayer mAsmaAudio;
+    audio::SoundEffectPlayer mAsmaAudioNext;
     game::NatureSystem mNatureSystem;
     gfx::EnvironmentRenderData mEnvironmentRenderData;
 #pragma endregion CoreComponents
@@ -174,6 +187,9 @@ class App
     gfx::VulkanContext::LayerId mDucksRemainingLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mResultsBgLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
     gfx::VulkanContext::LayerId mResultsContentLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mAsmaTextLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mAsmaBgLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
+    gfx::VulkanContext::LayerId mPauseLayerId = gfx::VulkanContext::INVALID_LAYER_ID;
 #pragma endregion RenderLayerIds
 
 #pragma region LayoutCache
@@ -194,6 +210,7 @@ class App
 #pragma region GameState
     int mScore = 0;
     GamePhase mGamePhase = GamePhase::Playing;
+    GamePhase mPhaseBeforePause = GamePhase::Playing;
     stage::StageState mStageState;
     stage::StageResult mLastStageResult;
     StageReward mLastReward;
