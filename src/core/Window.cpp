@@ -1,6 +1,8 @@
 #include "Window.h"
 
 #include <GLFW/glfw3.h>
+#include "../gfx/stb_image.h"
+#include <iostream>
 #include <stdexcept>
 
 #ifdef __APPLE__
@@ -119,6 +121,53 @@ void Window::pollEvents()
         mHeight = newHeight;
         mResized = true;
     }
+}
+
+void Window::setIcon(const std::string& iconPath)
+{
+#ifdef __APPLE__
+    /*
+     * macOS يتجاهل glfwSetWindowIcon، لذلك تُدار أيقونة الـ Dock عبر DockIcon.mm.
+     */
+    (void)iconPath;
+    return;
+#else
+    if (!mHandle)
+    {
+        return;
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc* pixels = stbi_load(iconPath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (pixels == nullptr || width <= 0 || height <= 0)
+    {
+        std::cerr << "[Window] تعذر تحميل أيقونة النافذة: " << iconPath;
+        if (const char* reason = stbi_failure_reason(); reason != nullptr)
+        {
+            std::cerr << " (" << reason << ")";
+        }
+        std::cerr << std::endl;
+        return;
+    }
+
+    GLFWimage image{};
+    image.width = width;
+    image.height = height;
+    image.pixels = pixels;
+    glfwSetWindowIcon(mHandle, 1, &image);
+
+#ifdef _WIN32
+    /*
+     * على ويندوز قد لا يتحدث شريط المهام فورًا إلا بعد ضخ دورة أحداث واحدة.
+     */
+    glfwPollEvents();
+#endif
+
+    stbi_image_free(pixels);
+    std::cout << "[Window] تم ضبط أيقونة النافذة" << std::endl;
+#endif
 }
 
 void Window::waitEvents()

@@ -81,6 +81,11 @@ class Window
     void pollEvents();
 
     /*
+     تعيين أيقونة نافذة GLFW من ملف صورة.
+     */
+    void setIcon(const std::string& iconPath);
+
+    /*
      انتظار حتى يحين وقت الإطار التالي (إذا كان VSync مفعّلًا)
      */
     void waitEvents();

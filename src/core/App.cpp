@@ -1,4 +1,5 @@
 #include "App.h"
+#include "DockIcon.h"
 #include "SceneLayout.h"
 #include "../ui/TextAtlas.h"
 #include "../game/HunterSpriteAtlas.h"
@@ -224,6 +225,10 @@ void App::init()
 
 void App::run()
 {
+    const std::string iconPath = mAssetsPath + "/macos/DuckHunterStarter.png";
+    mWindow.setIcon(iconPath);
+    setDockIcon(iconPath);
+
     while (mRunning && mWindow.isOpen())
     {
         mTimer.update();
