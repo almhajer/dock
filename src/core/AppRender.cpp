@@ -30,9 +30,11 @@ struct HudLayout
     float panelY0 = -0.972f;
     float panelY1 = -0.888f;
     float stageRightX = -0.33f;
+    float ducksRightX = 0.56f;
     float statsRightX = 0.93f;
     float primaryRowY0 = -0.955f;
     float secondaryRowY0 = -0.860f;
+    float tertiaryRowY0 = -0.800f;
 };
 
 struct ResultsLayout
@@ -55,7 +57,8 @@ struct ResultsLayout
     HudLayout layout;
     constexpr float kPrimaryRowHeight = 0.050f;
     layout.primaryRowY0 = ((layout.panelY0 + layout.panelY1) * 0.5f) - kPrimaryRowHeight * 0.5f;
-    layout.secondaryRowY0 = layout.panelY1 + 0.020f;
+    layout.secondaryRowY0 = layout.panelY1 + 0.008f;
+    layout.tertiaryRowY0 = layout.secondaryRowY0 + 0.055f;
     layout.stageRightX = layout.panelX0 - 0.055f;
     return layout;
 }
@@ -287,10 +290,10 @@ void App::updateHunterRenderData()
     const float clampMax = 1.0f - logicalHalfWidth;
     if (clampMin < clampMax)
     {
-        mHunterX = std::clamp(mHunterX, clampMin, clampMax);
+        mHunter.x = std::clamp(mHunter.x, clampMin, clampMax);
     }
 
-    gfx::TexturedQuad quad = scene::buildHunterQuad(*frame, mHunterX, metrics);
+    gfx::TexturedQuad quad = scene::buildHunterQuad(*frame, mHunter.x, metrics);
     quad.uv = uv;
     mVulkan.updateTexturedLayer(mHunterLayerId, quad);
 }
@@ -543,8 +546,9 @@ void App::updateDucksRemainingRenderData()
     }
 
     const HudLayout hudLayout = makeHudLayout();
-    constexpr float kCharScreenH = 0.036f;
-    constexpr float kGap = 0.004f;
+    constexpr float kWordScreenH = 0.043f;
+    constexpr float kValueScreenH = 0.048f;
+    constexpr float kGap = 0.005f;
 
     const auto &stageConfig = stage::kStageTable[mStageState.currentStageIndex];
     const int ducksRemaining = std::max(stageConfig.totalDucks - mStageState.ducksHitThisStage, 0);
@@ -555,8 +559,8 @@ void App::updateDucksRemainingRenderData()
     std::vector<gfx::TexturedQuad> quads;
     quads.reserve(static_cast<std::size_t>(remainingCount + 1));
     appendRightAnchoredArabicWithNumbers(quads, UiGlyph::WordDucks, remainingDigits.data(), remainingCount,
-                                         hudLayout.statsRightX, hudLayout.secondaryRowY0, kCharScreenH,
-                                         kCharScreenH + 0.003f, metrics.aspect, 0.55f, 0.62f, kGap);
+                                         hudLayout.ducksRightX, hudLayout.primaryRowY0, kWordScreenH,
+                                         kValueScreenH, metrics.aspect, 0.74f, 0.92f, kGap);
 
     mVulkan.updateTexturedLayer(mDucksRemainingLayerId, quads);
 }
@@ -727,8 +731,8 @@ void App::updateGroundInteraction(float deltaTime)
         const float gait = scene::resolveGait(mHunterState.elapsed);
         const float leftTargetPressure = scene::resolvePressure(gait, true);
         const float rightTargetPressure = scene::resolvePressure(gait, false);
-        const float leftFootTargetX = scene::resolveFootTargetX(mHunterX, hunterWidth, gait, true);
-        const float rightFootTargetX = scene::resolveFootTargetX(mHunterX, hunterWidth, gait, false);
+        const float leftFootTargetX = scene::resolveFootTargetX(mHunter.x, hunterWidth, gait, true);
+        const float rightFootTargetX = scene::resolveFootTargetX(mHunter.x, hunterWidth, gait, false);
         const float followFactor = std::clamp(deltaTime * kFootprintFollowPerSecond, 0.0f, 1.0f);
 
         mGroundFootRadius = std::max(hunterWidth * 0.16f, 0.05f);

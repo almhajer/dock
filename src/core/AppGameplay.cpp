@@ -11,6 +11,7 @@
 
 namespace core
 {
+    namespace hc = huntercontroller;
 
     /*
      * هذا الملف مسؤول عن منطق اللعب:
@@ -69,11 +70,18 @@ namespace core
             // تحديث الدفعات
             const auto& config = stage::kStageTable[mStageState.currentStageIndex];
             DuckSpawnContext spawnCtx;
-            spawnCtx.flightDurationMin = config.duckFlightDurationMin;
-            spawnCtx.flightDurationMax = config.duckFlightDurationMax;
+            /*
+             * كل مرحلة يجب أن تشعر بأنها أسرع من السابقة.
+             * نحافظ على جدول المرحلة الأساسي، ثم نضغط زمن الرحلة
+             * تدريجياً فوقه بنسبة طفيفة وآمنة.
+             */
+            const float stageSpeedFactor =
+                std::clamp(1.0f - static_cast<float>(mStageState.currentStageIndex) * 0.045f, 0.58f, 1.0f);
+            spawnCtx.flightDurationMin = config.duckFlightDurationMin * stageSpeedFactor;
+            spawnCtx.flightDurationMax = config.duckFlightDurationMax * stageSpeedFactor;
             spawnCtx.arcMinHeight = config.duckArcMinHeight;
             spawnCtx.arcMaxHeight = config.duckArcMaxHeight;
-            spawnCtx.hunterX = mHunterX;
+            spawnCtx.hunterX = mHunter.x;
             spawnCtx.metrics = metrics;
             mWaveManager.update(deltaTime, mDuckPool, spawnCtx);
 
@@ -124,7 +132,7 @@ namespace core
         case GamePhase::StageComplete:
             updateHunterMotion(deltaTime);
             mDuckPool.update(deltaTime);
-            if (!mDuckPool.hasAnyActive() && mHunterPhase == HunterPhase::StageEnd)
+            if (!mDuckPool.hasAnyActive() && mHunter.phase == hc::Phase::StageEnd)
             {
                 mPhaseTimer -= deltaTime;
                 if (mPhaseTimer <= 0.0f)
@@ -137,7 +145,7 @@ namespace core
         case GamePhase::StageFailed:
             updateHunterMotion(deltaTime);
             mDuckPool.update(deltaTime);
-            if (!mDuckPool.hasAnyActive() && mHunterPhase == HunterPhase::StageEnd)
+            if (!mDuckPool.hasAnyActive() && mHunter.phase == hc::Phase::StageEnd)
             {
                 mGamePhase = GamePhase::ResultsScreen;
             }
@@ -205,78 +213,48 @@ namespace core
          * على وضعية ما بعد المرحلة. بذلك تصبح النهاية جزءاً
          * صريحاً من state machine بدلاً من flags جانبية.
          */
-        mHunterPhase = HunterPhase::StageEnd;
-        mIsReloading = false;
-        mReloadTimer = 0.0f;
-        mShotCooldown = 0.0f;
-        mHunterReadyPosture = HunterReadyPosture::Neutral;
-        mHunterReadyPostureTimer = 0.0f;
-        mSpriteAnim.play(mHunterState, mFacingLeft ? "stage_end_left" : "stage_end_right");
+        hc::enterStageEndPose(mHunter, mSpriteAnim, mHunterState);
     }
 
     void App::updateHunterMotion(float deltaTime)
     {
         const game::HunterActionTiming &actionTiming = game::hunterActionTiming();
-        hunterplay::updateReloadState(mIsReloading, mReloadTimer, deltaTime);
-        mShotCooldown = std::max(0.0f, mShotCooldown - deltaTime);
-        mHunterReadyPostureTimer = std::max(0.0f, mHunterReadyPostureTimer - deltaTime);
-        if (mHunterReadyPostureTimer <= 0.0f)
-        {
-            mHunterReadyPosture = HunterReadyPosture::Neutral;
-        }
+        hunterplay::updateReloadState(mHunter.isReloading, mHunter.reloadTimer, deltaTime);
+        mHunter.shotCooldown = std::max(0.0f, mHunter.shotCooldown - deltaTime);
+        hc::updateReadyPosture(mHunter, deltaTime);
 
         const bool stageEnding = mGamePhase == GamePhase::StageComplete || mGamePhase == GamePhase::StageFailed;
-        const bool gameplayInputAllowed = (mGamePhase == GamePhase::Playing || mGamePhase == GamePhase::StageIntro) &&
-                                          mHunterPhase != HunterPhase::StageEnd;
+        const bool gameplayPhaseActive = (mGamePhase == GamePhase::Playing || mGamePhase == GamePhase::StageIntro);
+        const bool gameplayInputAllowed = hc::isGameplayInputAllowed(gameplayPhaseActive, mHunter.phase);
         const int moveIntent = gameplayInputAllowed ? hunterplay::resolveMoveIntent(mInput) : 0;
-        const bool reloadRequested = gameplayInputAllowed && mHunterPhase == HunterPhase::Locomotion &&
+        const bool reloadRequested = gameplayInputAllowed && mHunter.phase == hc::Phase::Locomotion &&
                                      mInput.isKeyJustPressed(GLFW_KEY_R);
         const bool canRequestShot =
-            mGamePhase == GamePhase::Playing && mHunterPhase == HunterPhase::Locomotion &&
-            !mIsReloading && mShotCooldown <= 0.0f;
+            mGamePhase == GamePhase::Playing && mHunter.phase == hc::Phase::Locomotion &&
+            !mHunter.isReloading && mHunter.shotCooldown <= 0.0f;
         const bool shotRequested = canRequestShot && mStageState.shotsRemaining > 0 &&
                                    mInput.isMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT);
 
         const hunterplay::CursorScreenPosition cursor =
             hunterplay::resolveCursorScreenPosition(mInput, mWindow.getHandle());
-        const auto playDirectionalClip = [this](const char *leftClipKey, const char *rightClipKey, bool facingLeft)
-        { mSpriteAnim.play(mHunterState, facingLeft ? leftClipKey : rightClipKey); };
-        const auto playReadyPostureClip = [&]()
-        {
-            switch (mHunterReadyPosture)
-            {
-            case HunterReadyPosture::AimForward:
-                playDirectionalClip("ready_forward_left", "ready_forward_right", mFacingLeft);
-                break;
-            case HunterReadyPosture::AimUp:
-                playDirectionalClip("ready_up_left", "ready_up_right", mFacingLeft);
-                break;
-            case HunterReadyPosture::Neutral:
-            default:
-                playDirectionalClip("idle_left", "idle_right", mFacingLeft);
-                break;
-            }
-        };
-
         const scene::WindowMetrics metrics = scene::makeWindowMetrics(mWindow.getWidth(), mWindow.getHeight());
         const game::AtlasFrame *baseFrame = mSpriteAnim.getFrame(mHunterState.currentFrameIndex);
         const bool highShotRequested =
-            shotRequested && hunterplay::shouldUseHighShootPose(mInput, mWindow.getHandle(), mHunterX, metrics, baseFrame);
+            shotRequested && hunterplay::shouldUseHighShootPose(mInput, mWindow.getHandle(), mHunter.x, metrics, baseFrame);
 
         const auto startShot = [&](bool highShot)
         {
-            mHunterReadyPosture = HunterReadyPosture::Neutral;
-            mHunterReadyPostureTimer = 0.0f;
-            mFacingLeft = hunterplay::resolveFacingLeftFromCursor(cursor, mHunterX, mFacingLeft);
-            mHunterPhase = highShot ? HunterPhase::ShootHigh : HunterPhase::Shoot;
+            hc::resetReadyPosture(mHunter);
+            mHunter.facingLeft = hunterplay::resolveFacingLeftFromCursor(cursor, mHunter.x, mHunter.facingLeft);
+            mHunter.phase = highShot ? hc::Phase::ShootHigh : hc::Phase::Shoot;
 
             if (highShot)
             {
-                playDirectionalClip("shoot_up_left", "shoot_up_right", mFacingLeft);
+                hc::playDirectionalClip(mSpriteAnim, mHunterState, mHunter.facingLeft, "shoot_up_left", "shoot_up_right");
             }
             else
             {
-                playDirectionalClip("shoot_left", "shoot_right", mFacingLeft);
+                hc::playDirectionalClip(mSpriteAnim, mHunterState, mHunter.facingLeft, "shoot_left", "shoot_right");
             }
 
             --mStageState.shotsRemaining;
@@ -298,7 +276,7 @@ namespace core
         {
             if (gameplayInputAllowed)
             {
-                mFacingLeft = hunterplay::resolveIdleFacingLeft(moveIntent, cursor, mHunterX, mFacingLeft);
+                mHunter.facingLeft = hunterplay::resolveIdleFacingLeft(moveIntent, cursor, mHunter.x, mHunter.facingLeft);
             }
 
             /*
@@ -306,24 +284,24 @@ namespace core
              * لذلك يمكن للصياد التحرك أفقياً مع إبقاء السلاح للأعلى
              * خلال المهلة المحددة، بدون الدخول في walk العادي.
              */
-            if (mHunterReadyPosture != HunterReadyPosture::Neutral && mHunterReadyPostureTimer > 0.0f)
+            if (mHunter.readyPosture != hc::ReadyPosture::Neutral && mHunter.readyPostureTimer > 0.0f)
             {
                 if (moveIntent != 0)
                 {
-                    mHunterX += static_cast<float>(moveIntent) * mHunterSpeed * deltaTime;
+                    mHunter.x += static_cast<float>(moveIntent) * mHunter.speed * deltaTime;
                 }
-                playReadyPostureClip();
+                hc::playReadyPostureClip(mSpriteAnim, mHunterState, mHunter);
                 return false;
             }
 
             if (moveIntent != 0)
             {
-                mHunterX += static_cast<float>(moveIntent) * mHunterSpeed * deltaTime;
-                playDirectionalClip("walk_left", "walk_right", mFacingLeft);
+                mHunter.x += static_cast<float>(moveIntent) * mHunter.speed * deltaTime;
+                hc::playDirectionalClip(mSpriteAnim, mHunterState, mHunter.facingLeft, "walk_left", "walk_right");
                 return true;
             }
 
-            playDirectionalClip("idle_left", "idle_right", mFacingLeft);
+            hc::playDirectionalClip(mSpriteAnim, mHunterState, mHunter.facingLeft, "idle_left", "idle_right");
             return false;
         };
 
@@ -331,9 +309,9 @@ namespace core
         bool preserveShotFacingOnLocomotionEntry = false;
         bool shouldAdvanceLocomotionAnimation = false;
 
-        switch (mHunterPhase)
+        switch (mHunter.phase)
         {
-        case HunterPhase::Locomotion:
+        case hc::Phase::Locomotion:
             if (stageEnding)
             {
                 enterHunterStageEndPose();
@@ -346,70 +324,71 @@ namespace core
             }
             else if (reloadRequested)
             {
-                mIsReloading = true;
-                mReloadTimer = actionTiming.reloadDurationSeconds;
+                mHunter.isReloading = true;
+                mHunter.reloadTimer = actionTiming.reloadDurationSeconds;
             }
             break;
 
-        case HunterPhase::Shoot:
-        case HunterPhase::ShootHigh:
+        case hc::Phase::Shoot:
+        case hc::Phase::ShootHigh:
             if (!mHunterState.finished)
             {
                 mSpriteAnim.update(mHunterState, deltaTime);
                 if (mHunterState.finished)
                 {
-                    const bool finishedHighShot = (mHunterPhase == HunterPhase::ShootHigh);
+                    const bool finishedHighShot = (mHunter.phase == hc::Phase::ShootHigh);
                     if (stageEnding)
                     {
                         enterHunterStageEndPose();
                     }
                     else
                     {
-                        mHunterPhase = HunterPhase::Locomotion;
+                        mHunter.phase = hc::Phase::Locomotion;
                         applyLocomotionState = true;
                         preserveShotFacingOnLocomotionEntry = true;
-                        mHunterReadyPosture = finishedHighShot ? HunterReadyPosture::AimUp
-                                                               : HunterReadyPosture::AimForward;
-                        mHunterReadyPostureTimer = actionTiming.readyPostureHoldDurationSeconds;
+                        hc::setReadyPosture(mHunter,
+                                            finishedHighShot ? hc::ReadyPosture::AimUp : hc::ReadyPosture::AimForward,
+                                            actionTiming.readyPostureHoldDurationSeconds);
                     }
                 }
             }
             else
             {
-                const bool finishedHighShot = (mHunterPhase == HunterPhase::ShootHigh);
+                const bool finishedHighShot = (mHunter.phase == hc::Phase::ShootHigh);
                 if (stageEnding)
                 {
                     enterHunterStageEndPose();
                 }
                 else
                 {
-                    mHunterPhase = HunterPhase::Locomotion;
+                    mHunter.phase = hc::Phase::Locomotion;
                     applyLocomotionState = true;
                     preserveShotFacingOnLocomotionEntry = true;
-                    mHunterReadyPosture = finishedHighShot ? HunterReadyPosture::AimUp
-                                                           : HunterReadyPosture::AimForward;
-                    mHunterReadyPostureTimer = actionTiming.readyPostureHoldDurationSeconds;
+                    hc::setReadyPosture(mHunter,
+                                        finishedHighShot ? hc::ReadyPosture::AimUp : hc::ReadyPosture::AimForward,
+                                        actionTiming.readyPostureHoldDurationSeconds);
                 }
             }
             break;
 
-        case HunterPhase::StageEnd:
+        case hc::Phase::StageEnd:
             /*
              * نبقي الكليب مثبتاً على pose النهاية فقط.
              * لا توجد أي تحديثات زمنية أو إدخالات في هذه الحالة.
              */
-            if (mHunterState.currentClip != (mFacingLeft ? "stage_end_left" : "stage_end_right"))
+            if (mHunterState.currentClip != (mHunter.facingLeft ? "stage_end_left" : "stage_end_right"))
             {
-                playDirectionalClip("stage_end_left", "stage_end_right", mFacingLeft);
+                hc::playDirectionalClip(mSpriteAnim, mHunterState, mHunter.facingLeft,
+                                        "stage_end_left", "stage_end_right");
             }
             break;
         }
 
-        if (applyLocomotionState && mHunterPhase == HunterPhase::Locomotion)
+        if (applyLocomotionState && mHunter.phase == hc::Phase::Locomotion)
         {
             if (preserveShotFacingOnLocomotionEntry && moveIntent == 0)
             {
-                playReadyPostureClip();
+                hc::playReadyPostureClip(mSpriteAnim, mHunterState, mHunter);
             }
             else
             {
@@ -437,12 +416,11 @@ namespace core
         mPhaseTimer = 1.5f;
 
         // إعادة ضبط حالة الصياد ومنع إطلاق نار عرضي عند بداية المرحلة
-        mHunterPhase = HunterPhase::Locomotion;
-        mIsReloading = false;
-        mReloadTimer = 0.0f;
-        mShotCooldown = 0.25f;
-        mHunterReadyPosture = HunterReadyPosture::Neutral;
-        mHunterReadyPostureTimer = 0.0f;
+        mHunter.phase = hc::Phase::Locomotion;
+        mHunter.isReloading = false;
+        mHunter.reloadTimer = 0.0f;
+        mHunter.shotCooldown = 0.25f;
+        hc::resetReadyPosture(mHunter);
 
         mDuckPool.clearAll();
         mSkillAssessment.reset();
@@ -492,7 +470,7 @@ namespace core
          * ندخل مباشرة وضعية النهاية. أما إذا كان يطلق النار فعلاً
          * فسيكمل كليب الإطلاق، ثم سيدخل StageEnd تلقائياً من state machine.
          */
-        if (mHunterPhase == HunterPhase::Locomotion)
+        if (mHunter.phase == hc::Phase::Locomotion)
         {
             enterHunterStageEndPose();
         }

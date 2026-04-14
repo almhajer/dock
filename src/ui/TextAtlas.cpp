@@ -83,7 +83,7 @@ constexpr std::array<GlyphDefinition, kGlyphCount> kGlyphDefinitions = {{
     {GlyphId::WordPress, "اضغط", GlyphScript::Arabic, false, 38.0f},
     {GlyphId::WordVictory, "فوز", GlyphScript::Arabic, false, 40.0f},
     {GlyphId::WordContinue, "اضغط للمتابعة", GlyphScript::Arabic, false, 34.0f},
-    {GlyphId::WordDucks, "بط", GlyphScript::Arabic, false, 36.0f},
+    {GlyphId::WordDucks, "عدد البطات", GlyphScript::Arabic, false, 34.0f},
     {GlyphId::WordBonus, "مكافأة", GlyphScript::Arabic, false, 36.0f},
     {GlyphId::WordChallenge, "تحدي", GlyphScript::Arabic, false, 36.0f},
     {GlyphId::WordBoss, "زعيم", GlyphScript::Arabic, false, 36.0f},

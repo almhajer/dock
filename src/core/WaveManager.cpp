@@ -13,12 +13,40 @@ void WaveManager::startStage(const stage::StageConfig& config, float difficultyM
     mStats = {};
     mStats.totalDucks = config.totalDucks;
     mWaveCooldown = 0.5f; // فاصل قصير قبل أول دفعة
+    mIntraWaveCooldown = 0.0f;
     mWaitingForDespawn = false;
+    mPendingWaveSize = 0;
+    mPendingWaveSpawned = 0;
 }
 
 void WaveManager::update(float deltaTime, DuckPool& pool, const DuckSpawnContext& spawnCtx)
 {
-    // إذا كانت هناك بطات نشطة، انتظر حتى تنتهي الدفعة الحالية
+    /*
+     * إذا كانت هناك موجة قيد الإطلاق بالفعل، نخرج بطاتها واحدةً بعد أخرى
+     * بفاصل قصير. هذا يمنع خروج المجموعة كلها في نفس الإطار.
+     */
+    if (mPendingWaveSpawned < mPendingWaveSize)
+    {
+        if (mIntraWaveCooldown > 0.0f)
+        {
+            mIntraWaveCooldown -= deltaTime;
+            return;
+        }
+
+        DuckSpawnContext duckCtx = spawnCtx;
+        duckCtx.waveSize = mPendingWaveSize;
+        duckCtx.duckIndex = mPendingWaveSpawned;
+        const DuckId id = pool.spawn(duckCtx);
+        if (id >= 0)
+        {
+            ++mPendingWaveSpawned;
+            ++mStats.ducksSpawned;
+            mIntraWaveCooldown = computeIntraWaveDelay();
+        }
+        return;
+    }
+
+    // إذا كانت هناك بطات نشطة، انتظر حتى تنتهي الموجة الحالية قبل بدء موجة جديدة
     if (pool.hasAnyActive())
     {
         mWaitingForDespawn = true;
@@ -38,28 +66,13 @@ void WaveManager::update(float deltaTime, DuckPool& pool, const DuckSpawnContext
         return;
     }
 
-    // أطلق دفعة جديدة
+    // جهّز دفعة جديدة ليتم إطلاقها تدريجياً
     const int waveSize = computeWaveSize();
     const int remaining = mStats.totalDucks - mStats.ducksSpawned;
     const int toSpawn = std::min(waveSize, remaining);
-
-    for (int i = 0; i < toSpawn; ++i)
-    {
-        DuckSpawnContext duckCtx = spawnCtx;
-        duckCtx.waveSize = toSpawn;
-        duckCtx.duckIndex = i;
-        DuckId id = pool.spawn(duckCtx);
-        if (id >= 0)
-        {
-            ++mStats.ducksSpawned;
-        }
-        else
-        {
-            // المجمّع ممتلئ - لا يمكن إضافة المزيد
-            break;
-        }
-    }
-
+    mPendingWaveSize = toSpawn;
+    mPendingWaveSpawned = 0;
+    mIntraWaveCooldown = 0.0f;
     ++mStats.wavesSpawned;
     mWaveCooldown = computeWaveDelay();
     mWaitingForDespawn = false;
@@ -158,6 +171,18 @@ float WaveManager::computeWaveDelay() const
 
     // حدود عادلة
     return std::clamp(baseDelay, 0.4f, 2.0f);
+}
+
+float WaveManager::computeIntraWaveDelay() const
+{
+    /*
+     * فاصل صغير بين بطات الدفعة نفسها حتى تبدو مواقع الخروج متفرقة
+     * وحركتها أقل تكتلاً، مع تسريع تدريجي في المراحل المتقدمة.
+     */
+    float delay = 0.22f;
+    delay -= static_cast<float>(std::max(mConfig.stageNumber - 1, 0)) * 0.01f;
+    delay /= std::max(mDifficultyMultiplier, 0.6f);
+    return std::clamp(delay, 0.08f, 0.25f);
 }
 
 } // namespace core

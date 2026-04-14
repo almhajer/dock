@@ -74,7 +74,10 @@ class WaveManager
     stage::StageConfig mConfig{};
     float mDifficultyMultiplier = 1.0f;
     float mWaveCooldown = 0.0f;
+    float mIntraWaveCooldown = 0.0f;
     bool mWaitingForDespawn = false;
+    int mPendingWaveSize = 0;
+    int mPendingWaveSpawned = 0;
 
     /*
      يحسب حجم الدفعة التالية عشوائياً
@@ -85,6 +88,11 @@ class WaveManager
      يحسب الفاصل الزمني بين الدفعات
      */
     float computeWaveDelay() const;
+
+    /*
+     يحسب الفاصل الصغير بين بطات نفس الدفعة
+     */
+    float computeIntraWaveDelay() const;
 };
 
 } // namespace core

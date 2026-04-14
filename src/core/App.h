@@ -9,6 +9,7 @@
 #include "WaveManager.h"
 #include "SkillAssessment.h"
 #include "RewardSystem.h"
+#include "HunterController.h"
 #include "../audio/SoundEffectPlayer.h"
 #include "../game/DuckSpriteAtlas.h"
 #include "../game/NatureSystem.h"
@@ -94,29 +95,6 @@ class App
   private:
 #pragma region PrivateTypes
     /*
-     مرحلة حركة الصياد الحالية
-     */
-    enum class HunterPhase : unsigned char
-    {
-        Locomotion, // مشي أو وقوف
-        Shoot,      // تسلسل الإطلاق العادي
-        ShootHigh,  // تسلسل الإطلاق العالي
-        StageEnd,   // وضعية ثابتة بعد اكتمال المرحلة
-    };
-
-    /*
-     وضعية الترقب الحالية فوق حالة الحركة الأساسية.
-     هذه الطبقة لا توقف اللعب، بل تغيّر الوقفة البصرية
-     مؤقتاً داخل locomotion.
-     */
-    enum class HunterReadyPosture : unsigned char
-    {
-        Neutral,    // وقفة عادية
-        AimForward, // ترقب بعد إطلاق أمامي
-        AimUp,      // ترقب بعد إطلاق للأعلى
-    };
-
-    /*
      مرحلة اللعبة الكلية
      */
     enum class GamePhase : unsigned char
@@ -179,7 +157,7 @@ class App
 #pragma region AnimationState
     game::SpriteAnimation mSpriteAnim;
     game::AnimationState mHunterState;
-    HunterPhase mHunterPhase = HunterPhase::Locomotion;
+    huntercontroller::State mHunter;
     std::string mAssetsPath;
 #pragma endregion AnimationState
 
@@ -212,17 +190,6 @@ class App
     float mRightGroundPressure = 0.0f;
     float mGroundFootRadius = 0.06f;
 #pragma endregion GroundInteractionState
-
-#pragma region HunterState
-    float mHunterX = 0.0f;
-    float mHunterSpeed = 0.8f;
-    float mReloadTimer = 0.0f;
-    float mShotCooldown = 0.0f;
-    bool mFacingLeft = false;
-    bool mIsReloading = false;
-    HunterReadyPosture mHunterReadyPosture = HunterReadyPosture::Neutral;
-    float mHunterReadyPostureTimer = 0.0f;
-#pragma endregion HunterState
 
 #pragma region GameState
     int mScore = 0;
