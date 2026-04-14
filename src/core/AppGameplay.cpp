@@ -106,7 +106,7 @@ namespace core
             }
 
             // تحديث الدفعات
-            const auto& config = stage::kStageTable[mStageState.currentStageIndex];
+            const auto &config = stage::kStageTable[mStageState.currentStageIndex];
             DuckSpawnContext spawnCtx;
             /*
              * كل مرحلة يجب أن تشعر بأنها أسرع من السابقة.
@@ -232,7 +232,7 @@ namespace core
         updateAllRenderData(deltaTime, metrics);
     }
 
-    void App::updateAllRenderData(float deltaTime, const scene::WindowMetrics& /*metrics*/)
+    void App::updateAllRenderData(float deltaTime, const scene::WindowMetrics & /*metrics*/)
     {
         updateSoilRenderData();
         updateNatureRenderData();
@@ -492,8 +492,8 @@ namespace core
         const auto &config = stage::kStageTable[mStageState.currentStageIndex];
         mStageState.stageActive = false;
 
-        const auto& waveStats = mWaveManager.stats();
-        const auto& extConfig = kExtendedStageTable[mStageState.currentStageIndex];
+        const auto &waveStats = mWaveManager.stats();
+        const auto &extConfig = kExtendedStageTable[mStageState.currentStageIndex];
 
         mLastStageResult = {};
         mLastStageResult.stageNumber = config.stageNumber;
