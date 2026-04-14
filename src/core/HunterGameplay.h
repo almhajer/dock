@@ -76,11 +76,6 @@ void updateReloadState(bool& isReloading, float& reloadTimer, float deltaTime);
  */
 [[nodiscard]] bool isWalkingClip(const game::AnimationState& state);
 
-/*
- @brief يثبت الصياد على أول فريم في كليب الإطلاق أثناء مرحلة الانتظار.
- @param state مرجع حالة الرسم المتحرك لتعديل الفريم.
- */
-void holdHunterOnShotStartFrame(game::AnimationState& state);
 #pragma endregion MovementHelpers
 
 #pragma region AimHelpers

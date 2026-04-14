@@ -93,18 +93,6 @@ bool isWalkingClip(const game::AnimationState& state)
     return state.currentClip == "walk_left" || state.currentClip == "walk_right";
 }
 
-void holdHunterOnShotStartFrame(game::AnimationState& state)
-{
-    const game::AnimationClip* clip = state.activeClip;
-    if (clip == nullptr || clip->frames.empty())
-    {
-        return;
-    }
-
-    state.currentFrameIndex = clip->frames.front();
-    state.finished = true;
-}
-
 CursorScreenPosition resolveCursorScreenPosition(const Input& input, GLFWwindow* window)
 {
     CursorScreenPosition cursor;

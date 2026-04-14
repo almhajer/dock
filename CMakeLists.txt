@@ -178,6 +178,7 @@ if(APPLE)
             "-framework IOKit"
             "-framework CoreFoundation"
             "-framework CoreGraphics"
+            "-framework CoreText"
             "-framework ImageIO"
             "-framework QuartzCore"
     )

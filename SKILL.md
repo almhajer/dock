@@ -107,12 +107,38 @@
 
 ### إذا كانت المهمة تخص الترجمة أو النصوص
 
-- تحميل اللغة والتبديل بين العربية والإنجليزية:
-  - `src/ui/Localization.cpp`
-  - `src/ui/Localization.h`
-- النصوص نفسها:
-  - `assets/lang/ar.json`
-  - `assets/lang/en.json`
+- Subsystem النص الجديدة متعددة الطبقات:
+  - `src/text/TextTypes.h`
+  - `src/text/Utf8.h`
+  - `src/text/Utf8.cpp`
+  - `src/text/ArabicJoiner.h`
+  - `src/text/ArabicJoiner.cpp`
+  - `src/text/BasicBidiResolver.h`
+  - `src/text/BasicBidiResolver.cpp`
+  - `src/text/BasicArabicShaper.h`
+  - `src/text/BasicArabicShaper.cpp`
+  - `src/text/InternalGlyphProvider.h`
+  - `src/text/InternalGlyphProvider.cpp`
+  - `src/text/TextLayouter.h`
+  - `src/text/TextLayouter.cpp`
+  - `src/text/TextRendererTypes.h`
+  - `src/text/TextRendererBridge.h`
+  - `src/text/TextRendererBridge.cpp`
+  - `src/text/TextSystem.h`
+  - `src/text/TextSystem.cpp`
+  - `src/text/README.md`
+- توليد أطلس النصوص ورسم العربية بشكل صحيح:
+  - `src/ui/TextAtlas.cpp`
+  - `src/ui/TextAtlas.h`
+- ملاحظة مهمة:
+  - المشروع لا يحتوي حالياً على `Localization.cpp/.h` ولا ملفات `assets/lang/*.json`.
+  - `src/text/*` هو مسار التحليل والتشكيل والـ layout والـ render-prep.
+  - `src/text/TextSystem.*` هو نقطة الدخول الأسرع لواجهات HUD.
+  - `src/ui/TextAtlas.*` يبقى مسارًا منفصلًا لتوليد أطلس bitmap الحالي.
+  - أمثلة الاستخدام والتطوير موجودة في:
+    - `examples/text/TextSystemQuickStart.cpp`
+    - `examples/text/VulkanHudIntegrationExample.cpp`
+    - `examples/text/README.md`
 
 ### إذا كانت المهمة تخص الأصول
 
@@ -367,12 +393,51 @@ dock/
     │       # مكتبة خارجية لتحميل الصور.
     │       # لا تعدّلها إلا إذا كانت هناك ضرورة مرتبطة بالمكتبة نفسها.
     │
+    ├── text/
+    │   ├── TextTypes.h
+    │   │   # الأنواع والعقود الأساسية للـ text subsystem.
+    │   ├── Utf8.h
+    │   ├── Utf8.cpp
+    │   │   # فك وترميز UTF-8 بشكل آمن.
+    │   ├── ArabicJoiner.h
+    │   ├── ArabicJoiner.cpp
+    │   │   # خصائص اتصال العربية والجداول الانتقالية للأشكال.
+    │   ├── BasicBidiResolver.h
+    │   ├── BasicBidiResolver.cpp
+    │   │   # محلل BiDi مبسط موجّه لواجهات اللعبة.
+    │   ├── BasicArabicShaper.h
+    │   ├── BasicArabicShaper.cpp
+    │   │   # تشكيل العربية إلى Presentation Forms بدون مكتبات خارجية.
+    │   ├── InternalGlyphProvider.h
+    │   ├── InternalGlyphProvider.cpp
+    │   │   # مزود قياسات داخلي placeholder قابل للاستبدال لاحقاً.
+    │   ├── TextLayouter.h
+    │   ├── TextLayouter.cpp
+    │   │   # تنسيق السطر وتجهيز PositionedGlyphs مع دعم المحاذاة.
+    │   ├── TextRendererTypes.h
+    │   ├── TextRendererBridge.h
+    │   ├── TextRendererBridge.cpp
+    │   │   # تحويل الـ layout إلى quads وvertices قابلة للتمرير إلى Vulkan.
+    │   ├── TextSystem.h
+    │   ├── TextSystem.cpp
+    │   │   # facade موحدة من UTF-8 حتى vertices الجاهزة.
+    │   └── README.md
+    │       # شرح معماري سريع ونقاط الدمج والاستبدال.
+    │
+    ├── examples/
+    │   └── text/
+    │       ├── README.md
+    │       ├── TextSystemQuickStart.cpp
+    │       └── VulkanHudIntegrationExample.cpp
+    │           # أمثلة مرجعية لا تُبنى مع التطبيق.
+    │
     └── ui/
-        ├── Localization.h
-        │   # واجهة الترجمة.
-        └── Localization.cpp
-            # تحميل ملفات اللغة واسترجاع النصوص.
-            # عدّله عند إضافة سلوك جديد للترجمة أو fallback مختلف.
+        ├── TextAtlas.h
+        │   # واجهة أطلس النصوص المشترك للواجهة.
+        │   # عدّله عند إضافة رموز جديدة أو تغيير API الرسم النصي.
+        └── TextAtlas.cpp
+            # يبني أطلس النصوص وقت التشغيل ويعالج العربية عبر CoreText على macOS.
+            # عدّله عند إضافة كلمات جديدة أو تغيير أسلوب توليد النصوص.
 ```
 
 ## كيف تستخدم هذا الملف لتوجيه الذكاء الاصطناعي

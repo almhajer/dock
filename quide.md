@@ -63,6 +63,12 @@ dock/
 ├── macos/                                                  # ملفات مساعدة لحزمة التطبيق
 │   └── Info.plist.in                                       # قالب Info.plist لتطبيق macOS
 │
+├── examples/                                               # أمثلة مرجعية لا تدخل في بناء اللعبة
+│   └── text/                                               # أمثلة استعمال وتطوير Text subsystem
+│       ├── README.md                                       # شرح سريع للأمثلة والسلاسل المقترحة للتجربة
+│       ├── TextSystemQuickStart.cpp                        # مثال minimal من UTF-8 حتى vertices جاهزة للرندر
+│       └── VulkanHudIntegrationExample.cpp                 # مثال دمج مع HUD ورفع vertices إلى ذاكرة Vulkan
+│
 └── src/                                                    # الكود المصدري الكامل
     ├── main.cpp                                            # نقطة دخول البرنامج وإنشاء App
     │
@@ -114,6 +120,31 @@ dock/
     │   ├── VulkanContext.cpp                               # تنفيذ محرك Vulkan والطبقات والخامات والرسم
     │   ├── VulkanContext.h                                 # واجهة VulkanContext
     │   └── stb_image.h                                     # مكتبة تحميل الصور
+    │
+    ├── text/                                               # Text subsystem مستقل للتحليل والتشكيل والـ layout
+    │   ├── README.md                                       # شرح معماري سريع ونقاط الدمج والاستبدال المستقبلي
+    │   ├── TextTypes.h                                     # الأنواع والعقود الأساسية بين BiDi وShaper وLayout وRender bridge
+    │   ├── Utf8.cpp                                        # فك وترميز UTF-8 بشكل آمن مع fallback إلى U+FFFD
+    │   ├── Utf8.h                                          # واجهة UTF-8 decoding/encoding
+    │   ├── ArabicJoiner.cpp                                # خصائص الاتصال وجداول presentation forms للحروف العربية الشائعة
+    │   ├── ArabicJoiner.h                                  # واجهة تصنيف الأحرف العربية والوصل
+    │   ├── BasicBidiResolver.cpp                           # ترتيب بصري مبسط للـ runs المختلطة عربي/لاتيني/أرقام
+    │   ├── BasicBidiResolver.h                             # واجهة محلل BiDi الداخلي
+    │   ├── BasicArabicShaper.cpp                           # تشكيل العربية إلى isolated/initial/medial/final مع lam-alef
+    │   ├── BasicArabicShaper.h                             # واجهة الـ shaper العربي الداخلي
+    │   ├── InternalGlyphProvider.cpp                       # قياسات وUV placeholders مستقلة عن أي مكتبة خطوط خارجية
+    │   ├── InternalGlyphProvider.h                         # واجهة المزود الداخلي لقياسات glyphs
+    │   ├── TextLayouter.cpp                                # دمج decoding وBiDi وshaping وقياسات glyphs في TextLayout واحد
+    │   ├── TextLayouter.h                                  # واجهة الـ layouter وخيارات التخطيط والمحاذاة الأفقية
+    │   ├── TextRendererTypes.h                             # أنواع vertices/quads المستقلة عن Vulkan
+    │   ├── TextRendererBridge.cpp                          # تحويل TextLayout إلى GlyphQuads وflat vertices قابلة للرفع إلى buffers
+    │   ├── TextRendererBridge.h                            # واجهة الجسر بين الـ layout والرندرر الحالي
+    │   ├── TextSystem.cpp                                  # Facade موحدة من النص الخام حتى quads/vertices الجاهزة
+    │   └── TextSystem.h                                    # نقطة الدخول الأعلى مستوى لواجهات اللعبة السريعة
+    │
+    └── ui/                                                 # طبقة النصوص وواجهة المستخدم المبنية فوق الأطلس
+        ├── TextAtlas.cpp                                   # توليد أطلس النصوص وقت التشغيل مع دعم العربية عبر CoreText
+        └── TextAtlas.h                                     # واجهة قياسات الرموز وUV والرسم النصي
 ```
 
 ## ملاحظات سريعة
