@@ -38,6 +38,22 @@ void main()
     vec2 basePos = inPosition;
     vec2 pos = basePos;
 
+    /*
+     * العناصر الخامية العادية مثل الصياد والنصوص وHUD
+     * يجب أن تمر بدون أي تشويه رياح أو تفاعل قدمين.
+     * التشويه محصور في العشب والتربة فقط.
+     */
+    if (inMaterialType < 0.5)
+    {
+        gl_Position = vec4(pos, 0.0, 1.0);
+        fragTexCoord = inTexCoord;
+        fragAlpha = inAlpha;
+        fragWindPhase = inWindPhase;
+        fragMaterialType = inMaterialType;
+        fragFieldX = basePos.x;
+        return;
+    }
+
     float time     = ubo.motion.x;
     float strength = ubo.motion.y;
     float speed    = ubo.motion.z;
@@ -95,15 +111,27 @@ void main()
     vec2 interMask = interFade * interPower;
 
     float footBlend = max(interMask.x, interMask.y) * footMask;
-    float dampen    = 1.0 - footBlend * 0.78;
 
-    float absHorizontalOffset = abs(horizontalOffset);
-    float verticalLift =
-        (absHorizontalOffset * 0.62 + abs(windSample.y) * strength * 0.14) *
-        sag * response * mix(0.22, 1.0, tipMask);
+    if (inMaterialType > 1.5)
+    {
+        /*
+         * التربة تستجيب فقط لضغط القدمين، من دون انحناء رياح.
+         */
+        float soilMask = smoothstep(0.12, 0.88, localHeight);
+        pos.y += footBlend * soilMask * 0.035;
+    }
+    else
+    {
+        float dampen    = 1.0 - footBlend * 0.78;
 
-    pos.x += horizontalOffset * dampen;
-    pos.y += verticalLift * dampen + footBlend * bendMask * 0.11;
+        float absHorizontalOffset = abs(horizontalOffset);
+        float verticalLift =
+            (absHorizontalOffset * 0.62 + abs(windSample.y) * strength * 0.14) *
+            sag * response * mix(0.22, 1.0, tipMask);
+
+        pos.x += horizontalOffset * dampen;
+        pos.y += verticalLift * dampen + footBlend * bendMask * 0.11;
+    }
 
     gl_Position = vec4(pos, 0.0, 1.0);
 

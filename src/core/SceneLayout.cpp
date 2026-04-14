@@ -159,8 +159,14 @@ gfx::TexturedQuad buildSpriteQuad(const game::AtlasFrame& frame, float pivotScre
     const float srcLeft = pivotScreenX - frame.pivotX * logicalWidth;
     const float srcTopY = pivotScreenY - frame.pivotY * logicalHeight;
 
-    const float spriteNormX = static_cast<float>(frame.spriteX) / static_cast<float>(frame.sourceW);
-    const float spriteNormY = static_cast<float>(frame.spriteY) / static_cast<float>(frame.sourceH);
+    /*
+     * visualOffset يسمح بتصحيح baseline أو تمركز pose على مستوى بيانات الأطلس،
+     * من دون تلويث منطق الحركة أو كود Vulkan بأي ترقيعات حالة.
+     */
+    const float spriteNormX =
+        (static_cast<float>(frame.spriteX) + frame.visualOffsetXPx) / static_cast<float>(frame.sourceW);
+    const float spriteNormY =
+        (static_cast<float>(frame.spriteY) + frame.visualOffsetYPx) / static_cast<float>(frame.sourceH);
     const float spriteNormW = static_cast<float>(frame.width) / static_cast<float>(frame.sourceW);
     const float spriteNormH = static_cast<float>(frame.height) / static_cast<float>(frame.sourceH);
 

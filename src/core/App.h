@@ -101,6 +101,19 @@ class App
         Locomotion, // مشي أو وقوف
         Shoot,      // تسلسل الإطلاق العادي
         ShootHigh,  // تسلسل الإطلاق العالي
+        StageEnd,   // وضعية ثابتة بعد اكتمال المرحلة
+    };
+
+    /*
+     وضعية الترقب الحالية فوق حالة الحركة الأساسية.
+     هذه الطبقة لا توقف اللعب، بل تغيّر الوقفة البصرية
+     مؤقتاً داخل locomotion.
+     */
+    enum class HunterReadyPosture : unsigned char
+    {
+        Neutral,    // وقفة عادية
+        AimForward, // ترقب بعد إطلاق أمامي
+        AimUp,      // ترقب بعد إطلاق للأعلى
     };
 
     /*
@@ -121,6 +134,7 @@ class App
     void init();
     void update(float deltaTime);
     void updateHunterMotion(float deltaTime);
+    void enterHunterStageEndPose();
     void startStage(int stageIndex);
     void endStage(bool won);
     void updateNatureSystem(float deltaTime);
@@ -203,10 +217,11 @@ class App
     float mHunterX = 0.0f;
     float mHunterSpeed = 0.8f;
     float mReloadTimer = 0.0f;
-    float mHunterShotRecoveryTimer = 0.0f;
     float mShotCooldown = 0.0f;
     bool mFacingLeft = false;
     bool mIsReloading = false;
+    HunterReadyPosture mHunterReadyPosture = HunterReadyPosture::Neutral;
+    float mHunterReadyPostureTimer = 0.0f;
 #pragma endregion HunterState
 
 #pragma region GameState

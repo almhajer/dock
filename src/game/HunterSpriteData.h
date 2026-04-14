@@ -15,9 +15,9 @@ struct HunterActionTiming
     float reloadDurationSeconds = 0.0f;
 
     /*
-     @brief مدة التثبيت على فريم الطلقة الأولى بعد الإطلاق.
+     @brief مدة إبقاء وضعية الترقب بعد انتهاء الإطلاق قبل الرجوع للوقفة العادية.
      */
-    float shotRecoveryDurationSeconds = 0.0f;
+    float readyPostureHoldDurationSeconds = 0.0f;
 };
 #pragma endregion TimingTypes
 
