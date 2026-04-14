@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -298,6 +299,17 @@ void App::cleanup()
 
 std::string App::saveFilePath() const
 {
+    /*
+     * نحفظ حالة اللعبة في مجلد دعم التطبيقات الخاص بالمستخدم
+     * لأن حزمة .app للقراءة فقط عند التثبيت.
+     */
+#ifdef __APPLE__
+    const char* home = std::getenv("HOME");
+    if (home != nullptr)
+    {
+        return std::string(home) + "/Library/Application Support/Duck/save.dat";
+    }
+#endif
     return mAssetsPath + "/data/save.dat";
 }
 
@@ -308,10 +320,6 @@ void App::saveGameState()
         return;
     }
 
-    /*
-     * لا نحفظ إذا كانت اللعبة في شاشة الفوز النهائي
-     * لأن اللاعب أنهى اللعبة كاملةً.
-     */
     if (mGamePhase == GamePhase::GameVictory)
     {
         std::remove(saveFilePath().c_str());
@@ -319,10 +327,15 @@ void App::saveGameState()
         return;
     }
 
-    std::ofstream file(saveFilePath());
+    const std::string path = saveFilePath();
+    const std::string dir = path.substr(0, path.rfind('/'));
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+
+    std::ofstream file(path);
     if (!file.is_open())
     {
-        std::cerr << "[Save] تعذر حفظ حالة اللعبة" << std::endl;
+        std::cerr << "[Save] تعذر حفظ حالة اللعبة: " << path << std::endl;
         return;
     }
 
