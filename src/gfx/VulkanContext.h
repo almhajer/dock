@@ -320,13 +320,9 @@ class VulkanContext
     uint32_t mCurrentFrame = 0;
     bool mSwapchainDirty = false;
 
-    // طبقات التحقق (Debug فقط)
+    // طبقات التحقق تُفعّل فقط عند تمرير DUCK_ENABLE_VULKAN_VALIDATION من البناء.
     static constexpr bool ENABLE_VALIDATION_LAYERS =
-#ifdef NDEBUG
-        false;
-#else
-        true;
-#endif
+        DUCK_ENABLE_VULKAN_VALIDATION != 0;
 
     static const std::vector<const char*> VALIDATION_LAYERS;
     static const std::vector<const char*> DEVICE_EXTENSIONS;

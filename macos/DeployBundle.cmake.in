@@ -1,0 +1,242 @@
+if(NOT DEFINED DUCK_BUNDLE_PATH OR DUCK_BUNDLE_PATH STREQUAL "")
+    message(FATAL_ERROR "DUCK_BUNDLE_PATH must point to the .app bundle that should be deployed.")
+endif()
+
+set(_duck_app_binary "${DUCK_BUNDLE_PATH}/Contents/MacOS/@PROJECT_NAME@")
+set(_duck_frameworks_dir "${DUCK_BUNDLE_PATH}/Contents/Frameworks")
+set(_duck_icd_dir "${DUCK_BUNDLE_PATH}/Contents/Resources/vulkan/icd.d")
+
+if(NOT EXISTS "${_duck_app_binary}")
+    message(FATAL_ERROR "The app binary was not found at ${_duck_app_binary}.")
+endif()
+
+function(duck_copy_file source_path destination_path)
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${source_path}" "${destination_path}"
+        RESULT_VARIABLE _duck_copy_result
+        ERROR_VARIABLE _duck_copy_error
+    )
+    if(NOT _duck_copy_result EQUAL 0)
+        message(FATAL_ERROR
+            "Failed to copy ${source_path} to ${destination_path}: ${_duck_copy_error}"
+        )
+    endif()
+endfunction()
+
+function(duck_install_name_tool target_path)
+    execute_process(
+        COMMAND /usr/bin/install_name_tool ${ARGN} "${target_path}"
+        RESULT_VARIABLE _duck_tool_result
+        ERROR_VARIABLE _duck_tool_error
+    )
+    if(NOT _duck_tool_result EQUAL 0)
+        message(FATAL_ERROR
+            "install_name_tool failed for ${target_path}: ${_duck_tool_error}"
+        )
+    endif()
+endfunction()
+
+function(duck_get_otool_libraries target_path output_var)
+    execute_process(
+        COMMAND /usr/bin/otool -L "${target_path}"
+        RESULT_VARIABLE _duck_otool_result
+        OUTPUT_VARIABLE _duck_otool_output
+        ERROR_VARIABLE _duck_otool_error
+    )
+    if(NOT _duck_otool_result EQUAL 0)
+        message(FATAL_ERROR
+            "otool -L failed for ${target_path}: ${_duck_otool_error}"
+        )
+    endif()
+    set(${output_var} "${_duck_otool_output}" PARENT_SCOPE)
+endfunction()
+
+function(duck_get_otool_load_commands target_path output_var)
+    execute_process(
+        COMMAND /usr/bin/otool -l "${target_path}"
+        RESULT_VARIABLE _duck_otool_result
+        OUTPUT_VARIABLE _duck_otool_output
+        ERROR_VARIABLE _duck_otool_error
+    )
+    if(NOT _duck_otool_result EQUAL 0)
+        message(FATAL_ERROR
+            "otool -l failed for ${target_path}: ${_duck_otool_error}"
+        )
+    endif()
+    set(${output_var} "${_duck_otool_output}" PARENT_SCOPE)
+endfunction()
+
+function(duck_change_dependency_if_present target_path old_name new_name)
+    if("${old_name}" STREQUAL "" OR "${old_name}" STREQUAL "${new_name}")
+        return()
+    endif()
+
+    duck_get_otool_libraries("${target_path}" _duck_libraries)
+    string(FIND "${_duck_libraries}" "${old_name}" _duck_match)
+    if(_duck_match GREATER -1)
+        duck_install_name_tool("${target_path}" -change "${old_name}" "${new_name}")
+    endif()
+endfunction()
+
+function(duck_ensure_rpath target_path desired_rpath)
+    duck_get_otool_load_commands("${target_path}" _duck_load_commands)
+    string(FIND "${_duck_load_commands}" "path ${desired_rpath} (offset " _duck_rpath_match)
+    if(_duck_rpath_match EQUAL -1)
+        duck_install_name_tool("${target_path}" -add_rpath "${desired_rpath}")
+    endif()
+endfunction()
+
+function(duck_remove_rpath_if_present target_path old_rpath)
+    duck_get_otool_load_commands("${target_path}" _duck_load_commands)
+    string(FIND "${_duck_load_commands}" "path ${old_rpath} (offset " _duck_rpath_match)
+    if(_duck_rpath_match GREATER -1)
+        duck_install_name_tool("${target_path}" -delete_rpath "${old_rpath}")
+    endif()
+endfunction()
+
+function(duck_codesign_path target_path)
+    if("@DUCK_CODESIGN_IDENTITY@" STREQUAL "")
+        return()
+    endif()
+
+    execute_process(
+        COMMAND /usr/bin/codesign
+            --force
+            --sign "@DUCK_CODESIGN_IDENTITY@"
+            --timestamp=none
+            "${target_path}"
+        RESULT_VARIABLE _duck_codesign_result
+        ERROR_VARIABLE _duck_codesign_error
+    )
+    if(NOT _duck_codesign_result EQUAL 0)
+        message(FATAL_ERROR
+            "codesign failed for ${target_path}: ${_duck_codesign_error}"
+        )
+    endif()
+endfunction()
+
+file(MAKE_DIRECTORY "${_duck_frameworks_dir}")
+file(MAKE_DIRECTORY "${_duck_icd_dir}")
+
+duck_get_otool_libraries("${_duck_app_binary}" _duck_app_libraries)
+string(FIND "${_duck_app_libraries}" "libglfw.3.dylib" _duck_needs_glfw)
+string(FIND "${_duck_app_libraries}" "libvulkan.1" _duck_needs_vulkan)
+
+if(_duck_needs_glfw GREATER -1 AND "@DUCK_GLFW_DYLIB_SOURCE@" STREQUAL "")
+    message(FATAL_ERROR "Duck links to GLFW dynamically, but no GLFW dylib source was resolved at configure time.")
+endif()
+
+if(_duck_needs_vulkan GREATER -1 AND "@DUCK_VULKAN_REAL_DYLIB_SOURCE@" STREQUAL "")
+    message(FATAL_ERROR "Duck links to Vulkan dynamically, but no Vulkan dylib source was resolved at configure time.")
+endif()
+
+foreach(_duck_old_entry
+    "${_duck_frameworks_dir}/@DUCK_GLFW_DYLIB_NAME@"
+    "${_duck_frameworks_dir}/@DUCK_VULKAN_DYLIB_NAME@"
+    "${_duck_frameworks_dir}/@DUCK_VULKAN_REAL_DYLIB_NAME@"
+    "${_duck_frameworks_dir}/libMoltenVK.dylib"
+    "${_duck_icd_dir}/MoltenVK_icd.json"
+)
+    if(NOT "${_duck_old_entry}" STREQUAL "" AND EXISTS "${_duck_old_entry}")
+        file(REMOVE "${_duck_old_entry}")
+    endif()
+endforeach()
+
+if(NOT "@DUCK_GLFW_DYLIB_SOURCE@" STREQUAL "")
+    duck_copy_file("@DUCK_GLFW_DYLIB_SOURCE@" "${_duck_frameworks_dir}/@DUCK_GLFW_DYLIB_NAME@")
+endif()
+
+if(NOT "@DUCK_VULKAN_REAL_DYLIB_SOURCE@" STREQUAL "")
+    duck_copy_file("@DUCK_VULKAN_REAL_DYLIB_SOURCE@" "${_duck_frameworks_dir}/@DUCK_VULKAN_REAL_DYLIB_NAME@")
+    if(NOT "@DUCK_VULKAN_DYLIB_NAME@" STREQUAL "" AND
+       NOT "@DUCK_VULKAN_DYLIB_NAME@" STREQUAL "@DUCK_VULKAN_REAL_DYLIB_NAME@")
+        file(CREATE_LINK
+            "@DUCK_VULKAN_REAL_DYLIB_NAME@"
+            "${_duck_frameworks_dir}/@DUCK_VULKAN_DYLIB_NAME@"
+            SYMBOLIC
+        )
+    endif()
+endif()
+
+if(NOT "@MOLTENVK_DYLIB_SOURCE@" STREQUAL "")
+    duck_copy_file("@MOLTENVK_DYLIB_SOURCE@" "${_duck_frameworks_dir}/libMoltenVK.dylib")
+endif()
+
+if(NOT "@MOLTENVK_ICD_OUTPUT@" STREQUAL "")
+    duck_copy_file("@MOLTENVK_ICD_OUTPUT@" "${_duck_icd_dir}/MoltenVK_icd.json")
+endif()
+
+set(_duck_glfw_bundle_path "${_duck_frameworks_dir}/@DUCK_GLFW_DYLIB_NAME@")
+if(EXISTS "${_duck_glfw_bundle_path}")
+    duck_install_name_tool("${_duck_glfw_bundle_path}" -id "@rpath/@DUCK_GLFW_DYLIB_NAME@")
+endif()
+
+set(_duck_vulkan_bundle_path "${_duck_frameworks_dir}/@DUCK_VULKAN_REAL_DYLIB_NAME@")
+if(EXISTS "${_duck_vulkan_bundle_path}")
+    if(NOT "@DUCK_VULKAN_DYLIB_NAME@" STREQUAL "")
+        duck_install_name_tool("${_duck_vulkan_bundle_path}" -id "@rpath/@DUCK_VULKAN_DYLIB_NAME@")
+    else()
+        duck_install_name_tool("${_duck_vulkan_bundle_path}" -id "@rpath/@DUCK_VULKAN_REAL_DYLIB_NAME@")
+    endif()
+endif()
+
+set(_duck_moltenvk_bundle_path "${_duck_frameworks_dir}/libMoltenVK.dylib")
+if(EXISTS "${_duck_moltenvk_bundle_path}")
+    duck_install_name_tool("${_duck_moltenvk_bundle_path}" -id "@rpath/libMoltenVK.dylib")
+endif()
+
+duck_remove_rpath_if_present("${_duck_app_binary}" "/usr/local/lib")
+duck_remove_rpath_if_present("${_duck_app_binary}" "/usr/local/glfw/lib-universal")
+duck_remove_rpath_if_present("${_duck_app_binary}" "/usr/local/glfw/lib-arm64")
+duck_remove_rpath_if_present("${_duck_app_binary}" "/usr/local/glfw/lib-x86_64")
+duck_ensure_rpath("${_duck_app_binary}" "@executable_path/../Frameworks")
+
+duck_change_dependency_if_present("${_duck_app_binary}" "@DUCK_GLFW_IMPORTED_LOCATION@" "@rpath/@DUCK_GLFW_DYLIB_NAME@")
+duck_change_dependency_if_present("${_duck_app_binary}" "@DUCK_GLFW_DYLIB_SOURCE@" "@rpath/@DUCK_GLFW_DYLIB_NAME@")
+duck_change_dependency_if_present("${_duck_app_binary}" "@DUCK_VULKAN_IMPORTED_LOCATION@" "@rpath/@DUCK_VULKAN_DYLIB_NAME@")
+duck_change_dependency_if_present("${_duck_app_binary}" "@DUCK_VULKAN_REAL_DYLIB_SOURCE@" "@rpath/@DUCK_VULKAN_DYLIB_NAME@")
+
+file(GLOB_RECURSE _duck_ds_store_files
+    LIST_DIRECTORIES FALSE
+    "${DUCK_BUNDLE_PATH}/Contents/*.DS_Store"
+)
+if(_duck_ds_store_files)
+    file(REMOVE ${_duck_ds_store_files})
+endif()
+
+execute_process(
+    COMMAND /usr/bin/xattr -cr "${DUCK_BUNDLE_PATH}"
+    RESULT_VARIABLE _duck_xattr_result
+    ERROR_VARIABLE _duck_xattr_error
+)
+if(NOT _duck_xattr_result EQUAL 0)
+    message(FATAL_ERROR
+        "Failed to clear extended attributes for ${DUCK_BUNDLE_PATH}: ${_duck_xattr_error}"
+    )
+endif()
+
+foreach(_duck_nested_binary
+    "${_duck_glfw_bundle_path}"
+    "${_duck_vulkan_bundle_path}"
+    "${_duck_moltenvk_bundle_path}"
+    "${_duck_app_binary}"
+)
+    if(EXISTS "${_duck_nested_binary}")
+        duck_codesign_path("${_duck_nested_binary}")
+    endif()
+endforeach()
+
+duck_codesign_path("${DUCK_BUNDLE_PATH}")
+
+if(NOT "@DUCK_CODESIGN_IDENTITY@" STREQUAL "")
+    execute_process(
+        COMMAND /usr/bin/codesign --verify --deep --strict "${DUCK_BUNDLE_PATH}"
+        RESULT_VARIABLE _duck_verify_result
+        ERROR_VARIABLE _duck_verify_error
+    )
+    if(NOT _duck_verify_result EQUAL 0)
+        message(FATAL_ERROR
+            "codesign verification failed for ${DUCK_BUNDLE_PATH}: ${_duck_verify_error}"
+        )
+    endif()
+endif()

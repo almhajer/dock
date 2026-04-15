@@ -22,6 +22,9 @@ const std::vector<const char*> gfx::VulkanContext::VALIDATION_LAYERS = {
 
 const std::vector<const char*> gfx::VulkanContext::DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#ifdef __APPLE__
+    "VK_KHR_portability_subset",
+#endif
 };
 
 namespace
@@ -818,6 +821,10 @@ void VulkanContext::createInstance()
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
+
+#ifdef __APPLE__
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 
     if (ENABLE_VALIDATION_LAYERS)
     {
@@ -2605,6 +2612,11 @@ std::vector<const char*> VulkanContext::getRequiredExtensions() const
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+#ifdef __APPLE__
+    extensions.push_back("VK_KHR_portability_enumeration");
+    extensions.push_back("VK_KHR_get_physical_device_properties2");
+#endif
 
     if (ENABLE_VALIDATION_LAYERS)
     {

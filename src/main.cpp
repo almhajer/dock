@@ -1,6 +1,8 @@
 #include "core/App.h"
 
+#include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 
 #ifdef __APPLE__
@@ -33,6 +35,63 @@ std::string bundleResourcesPath()
 
     return success ? std::string(path) : std::string{};
 }
+
+std::filesystem::path logFilePath()
+{
+    const char* home = std::getenv("HOME");
+    if (home == nullptr || *home == '\0')
+    {
+        return {};
+    }
+
+    return std::filesystem::path(home) / "Library" / "Logs" / "Duck.log";
+}
+
+void appendLogLine(const std::string& message)
+{
+    const std::filesystem::path logPath = logFilePath();
+    if (logPath.empty())
+    {
+        return;
+    }
+
+    std::error_code error;
+    std::filesystem::create_directories(logPath.parent_path(), error);
+
+    std::ofstream output(logPath, std::ios::app);
+    if (output)
+    {
+        output << message << '\n';
+    }
+}
+
+void configureBundledVulkanDriver()
+{
+    const std::string resourcesPath = bundleResourcesPath();
+    if (resourcesPath.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path icdPath = std::filesystem::path(resourcesPath) / "vulkan" / "icd.d" / "MoltenVK_icd.json";
+    if (!std::filesystem::exists(icdPath))
+    {
+        appendLogLine("[Init] Bundled MoltenVK ICD was not found at: " + icdPath.string());
+        return;
+    }
+
+    setenv("VK_DRIVER_FILES", icdPath.c_str(), 1);
+    setenv("VK_ICD_FILENAMES", icdPath.c_str(), 1);
+    appendLogLine("[Init] Using bundled MoltenVK ICD: " + icdPath.string());
+}
+#else
+void appendLogLine(const std::string&)
+{
+}
+
+void configureBundledVulkanDriver()
+{
+}
 #endif
 
 void prepareWorkingDirectory()
@@ -59,6 +118,8 @@ int main()
 {
     try
     {
+        appendLogLine("[Init] Launching Duck");
+        configureBundledVulkanDriver();
         prepareWorkingDirectory();
 
         core::App::Config config;
@@ -71,6 +132,7 @@ int main()
     }
     catch (const std::exception& e)
     {
+        appendLogLine(std::string("[Fatal] ") + e.what());
         std::cerr << "خطأ فادح: " << e.what() << std::endl;
         return 1;
     }
