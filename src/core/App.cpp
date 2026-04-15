@@ -72,6 +72,7 @@ namespace core
                                                     { mSpriteAnim.setAtlasData(game::createHunterAtlasData(w, h)); });
 
         mHunterShotSound.load(mAssetsPath + "/audio/hunter_shot.mp3");
+        mHunterShotSound.setVolume(0.04f); // خفض مستوى صوت الطلقات بنسبة 80%
         mDuckAmbientSound.load(mAssetsPath + "/audio/douck.wav");
         mDuckAmbientSound.setVolume(0.10f);
 
