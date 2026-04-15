@@ -1,3 +1,9 @@
+/**
+ * @file StageObjectives.h
+ * @brief أهداف مراحل اللعبة.
+ * @details أنواع الأهداف وتقييمها.
+ */
+
 #pragma once
 
 #include "StageDefinitions.h"

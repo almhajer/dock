@@ -6,16 +6,16 @@
 #include "StageDefinitions.h"
 #include "StageObjectives.h"
 #include "DuckPool.h"
-#include "WaveManager.h"
-#include "SkillAssessment.h"
-#include "RewardSystem.h"
 #include "HunterController.h"
+#include "../gameplay/WaveManager.h"
+#include "../gameplay/SkillAssessment.h"
+#include "../gameplay/RewardSystem.h"
 #include "AsmaulHusnaOverlay.h"
 #include "../audio/SoundEffectPlayer.h"
-#include "../game/DuckSpriteAtlas.h"
-#include "../game/NatureSystem.h"
+#include "../assets/DuckSpriteAtlas.h"
+#include "../assets/NatureSystem.h"
 #include "../gfx/VulkanContext.h"
-#include "../game/SpriteAnimation.h"
+#include "../assets/SpriteAnimation.h"
 
 #include <random>
 #include <string>
@@ -51,13 +51,16 @@ class App
     };
 #pragma endregion PublicTypes
 
-    /*
-     ينشئ التطبيق ويبدأ تهيئة أنظمته.
+    /**
+     * @brief ينشئ التطبيق ويبدأ تهيئة أنظمته.
+     * @param config إعدادات التطبيق المطلوبة.
+     * @throws std::runtime_error إذا فشلت التهيئة.
      */
     explicit App(const Config& config = {});
 
-    /*
-     يحرر الموارد المملوكة للتطبيق.
+    /**
+     * @brief يحرر الموارد المملوكة للتطبيق.
+     * @remarks يتم استدعاؤه تلقائيًا عند انتهاء عمر الكائن.
      */
     ~App();
 
@@ -66,29 +69,53 @@ class App
     App& operator=(const App&) = delete;
 
 #pragma region PublicLifecycle
-    /*
-     بدء حلقة التطبيق (تستمر حتى إغلاق النافذة)
+    /**
+     * @brief بدء حلقة التطبيق (تستمر حتى إغلاق النافذة).
+     * @remarks تحتوي على حلقة رئيسية تتعامل مع الإدخال، التحديث، والرسم.
      */
     void run();
 
-    /*
-     طلب إيقاف التطبيق
+    /**
+     * @brief طلب إيقاف التطبيق.
+     * @remarks يضع علامة لإنهاء الحلقة الرئيسية في الدورة التالية.
      */
     void requestShutdown();
 
-    /*
-     هل التطبيق يعمل؟
+    /**
+     * @brief هل التطبيق يعمل حاليًا؟
+     * @return true إذا كانت الحلقة الرئيسية مستمرة، false خلاف ذلك.
      */
     [[nodiscard]] bool isRunning() const;
 
-    /*
-     الوصول لمكونات التطبيق
+    /**
+     * @brief الوصول لمكونات التطبيق.
+     * @return مرجع للنافذة.
      */
     [[nodiscard]] Window& getWindow();
+    /**
+     * @brief الوصول لمكونات التطبيق (نسخة ثابتة).
+     * @return مرجع ثابت للنافذة.
+     */
     [[nodiscard]] const Window& getWindow() const;
+    /**
+     * @brief الوصول لمكونات التطبيق.
+     * @return مرجع للإدخال.
+     */
     [[nodiscard]] Input& getInput();
+    /**
+     * @brief الوصول لمكونات التطبيق (نسخة ثابتة).
+     * @return مرجع ثابت للإدخال.
+     */
     [[nodiscard]] const Input& getInput() const;
+    /**
+     * @brief الوصول لمكونات التطبيق.
+     * @return مرجع للمؤقت.
+     */
     [[nodiscard]] Timer& getTimer();
+    /**
+     * @brief الوصول لمكونات التطبيق (نسخة ثابتة).
+     * @return مرجع ثابت للمؤقت.
+     */
     [[nodiscard]] const Timer& getTimer() const;
 
 #pragma endregion PublicLifecycle

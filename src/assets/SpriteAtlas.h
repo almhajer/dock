@@ -1,3 +1,9 @@
+/**
+ * @file SpriteAtlas.h
+ * @brief واجهة أطلس السبرايت.
+ * @details هياكل البيانات للأطالس والفريمات.
+ */
+
 #pragma once
 
 #include <string>

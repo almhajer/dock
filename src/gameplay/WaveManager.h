@@ -1,7 +1,13 @@
+/**
+ * @file WaveManager.h
+ * @brief واجهة إدارة الدفعات.
+ * @details إدارة ظهور البطات في دفعات.
+ */
+
 #pragma once
 
-#include "DuckPool.h"
-#include "StageDefinitions.h"
+#include "../core/DuckPool.h"
+#include "../core/StageDefinitions.h"
 
 #include <random>
 

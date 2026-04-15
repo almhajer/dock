@@ -1,3 +1,9 @@
+/**
+ * @file VulkanContext.cpp
+ * @brief تنفيذ سياق Vulkan.
+ * @details إدارة موارد Vulkan، التهيئة، والرسم.
+ */
+
 #include "VulkanContext.h"
 #include "EnvironmentAtlas.h"
 
@@ -157,6 +163,13 @@ VulkanContext::~VulkanContext()
     cleanup();
 }
 
+/**
+ * @brief تهيئة سياق Vulkan بالكامل.
+ * @param window مؤشر لنافذة GLFW.
+ * @param width عرض النافذة.
+ * @param height ارتفاع النافذة.
+ * @throws std::runtime_error إذا فشلت التهيئة.
+ */
 void VulkanContext::init(GLFWwindow* window, uint32_t width, uint32_t height)
 {
     mWindowHandle = window;

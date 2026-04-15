@@ -1,3 +1,9 @@
+/**
+ * @file AtmosphereRenderer.cpp
+ * @brief تنفيذ رسم الغلاف الجوي.
+ * @details رسم الغيوم، الأشعة، والشمس.
+ */
+
 #include "AtmosphereRenderer.h"
 
 #include <algorithm>

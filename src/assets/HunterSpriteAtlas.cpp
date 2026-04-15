@@ -1,3 +1,9 @@
+/**
+ * @file HunterSpriteAtlas.cpp
+ * @brief تنفيذ أطلس الصياد.
+ * @details بناء بيانات الأطلس للصياد.
+ */
+
 #include "HunterSpriteAtlas.h"
 
 #include <array>

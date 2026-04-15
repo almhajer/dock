@@ -1,3 +1,9 @@
+/**
+ * @file Timer.cpp
+ * @brief تنفيذ المؤقت.
+ * @details حساب الوقت والإطارات.
+ */
+
 #include "Timer.h"
 
 namespace core

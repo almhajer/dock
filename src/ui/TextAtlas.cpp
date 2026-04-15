@@ -1,3 +1,9 @@
+/**
+ * @file TextAtlas.cpp
+ * @brief تنفيذ أطلس النصوص.
+ * @details إنشاء وإدارة أطالس النصوص باستخدام CoreText.
+ */
+
 #include "TextAtlas.h"
 
 #include <algorithm>

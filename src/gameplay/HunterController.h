@@ -1,8 +1,14 @@
+/**
+ * @file HunterController.h
+ * @brief واجهة تحكم الصياد.
+ * @details منطق تحكم الصياد والتصويب.
+ */
+
 #pragma once
 
-#include "Input.h"
-#include "SceneLayout.h"
-#include "../game/SpriteAnimation.h"
+#include "../core/Input.h"
+#include "../rendering/SceneLayout.h"
+#include "../assets/SpriteAnimation.h"
 
 struct GLFWwindow;
 

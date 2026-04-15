@@ -1,3 +1,9 @@
+/**
+ * @file EnvironmentAtlas.h
+ * @brief واجهة أطلس البيئة.
+ * @details إنشاء وإدارة أطالس البيئة.
+ */
+
 #pragma once
 
 #include "EnvironmentTypes.h"

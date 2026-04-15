@@ -1,3 +1,9 @@
+/**
+ * @file TextAtlas.h
+ * @brief واجهة أطلس النصوص.
+ * @details معرفات الرموز والدوال لرسم النصوص.
+ */
+
 #pragma once
 
 #include "../gfx/RenderTypes.h"

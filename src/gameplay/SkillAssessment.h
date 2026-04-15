@@ -1,3 +1,9 @@
+/**
+ * @file SkillAssessment.h
+ * @brief واجهة تقييم المهارة.
+ * @details تقييم أداء اللاعب.
+ */
+
 #pragma once
 
 namespace core

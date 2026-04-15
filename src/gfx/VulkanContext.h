@@ -1,3 +1,9 @@
+/**
+ * @file VulkanContext.h
+ * @brief واجهة سياق Vulkan.
+ * @details إدارة موارد Vulkan والرسم.
+ */
+
 #pragma once
 
 #include "AtmosphereRenderer.h"
@@ -41,8 +47,8 @@ struct SwapchainSupportDetails
     std::vector<VkPresentModeKHR> presentModes;
 };
 
-/*
- سياق Vulkan الكامل - يدير Instance, Device, Swapchain, Pipeline, RenderPass
+/**
+ * @brief سياق Vulkan الكامل - يدير Instance, Device, Swapchain, Pipeline, RenderPass.
  */
 class VulkanContext
 {
@@ -58,40 +64,46 @@ class VulkanContext
     VulkanContext(const VulkanContext&) = delete;
     VulkanContext& operator=(const VulkanContext&) = delete;
 
-    /*
-     تهيئة Vulkan بالكامل (instance → device → swapchain → pipeline)
+    /**
+     * @brief تهيئة Vulkan بالكامل (instance → device → swapchain → pipeline).
+     * @param window مؤشر لنافذة GLFW.
+     * @param width عرض النافذة.
+     * @param height ارتفاع النافذة.
      */
     void init(GLFWwindow* window, uint32_t width, uint32_t height);
 
-    /*
-     تنظيف كل موارد Vulkan
+    /**
+     * @brief تنظيف كل موارد Vulkan.
      */
     void cleanup();
 
-    /*
-     إعادة إنشاء السوابتشين عند تغيير حجم النافذة
+    /**
+     * @brief إعادة إنشاء السوابتشين عند تغيير حجم النافذة.
+     * @param newWidth العرض الجديد.
+     * @param newHeight الارتفاع الجديد.
      */
     void onResize(uint32_t newWidth, uint32_t newHeight);
 
-    /*
-     رسم إطار واحد (acquire → submit → present)
+    /**
+     * @brief رسم إطار واحد (acquire → submit → present).
      */
     void drawFrame();
 
-    /*
-     انتظار انتهاء جميع أوامر GPU
+    /**
+     * @brief انتظار انتهاء جميع أوامر GPU.
      */
     void waitIdle();
 
-    /*
-     هل التهيئة تمت بنجاح؟
+    /**
+     * @brief هل التهيئة تمت بنجاح؟
+     * @return true إذا كان مهيئًا، false خلاف ذلك.
      */
     [[nodiscard]] bool isInitialized() const;
 
     using PixelCallback = std::function<void(int w, int h, const unsigned char* pixels)>;
 
-    /*
-     إنشاء طبقة رسم textured quads من ملف صورة
+    /**
+     * @brief إنشاء طبقة رسم textured quads من ملف صورة.
      */
     [[nodiscard]] LayerId createTexturedLayer(const std::string& path, std::size_t maxQuads);
 

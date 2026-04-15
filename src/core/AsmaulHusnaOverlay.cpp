@@ -1,5 +1,11 @@
+/**
+ * @file AsmaulHusnaOverlay.cpp
+ * @brief تنفيذ تراكب أسماء الله الحسنى.
+ * @details عرض أسماء الله الحسنى في اللعبة.
+ */
+
 #include "AsmaulHusnaOverlay.h"
-#include "SceneLayout.h"
+#include "../rendering/SceneLayout.h"
 
 #include <algorithm>
 #include <cmath>

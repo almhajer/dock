@@ -1,3 +1,9 @@
+/**
+ * @file StageDefinitions.h
+ * @brief تعريفات مراحل اللعبة.
+ * @details إعدادات وثوابت المراحل.
+ */
+
 #pragma once
 
 namespace core::stage

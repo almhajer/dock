@@ -1,6 +1,12 @@
-#include "App.h"
-#include "DuckGameplay.h"
-#include "HunterGameplay.h"
+/**
+ * @file RenderManager.cpp
+ * @brief إدارة عمليات الرسم والعرض للتطبيق.
+ * @details يحتوي على دوال تحديث بيانات الرسم للصياد، البطات، الطبيعة، والواجهة.
+ */
+
+#include "../core/App.h"
+#include "../gameplay/DuckGameplay.h"
+#include "../gameplay/HunterController.h"
 #include "SceneLayout.h"
 #include "../ui/TextAtlas.h"
 
@@ -23,6 +29,9 @@ constexpr float kFootContactThreshold = 0.08f;
 
 using UiGlyph = ui::text::GlyphId;
 
+/**
+ * @brief تخطيط واجهة المستخدم للعرض.
+ */
 struct HudLayout
 {
     float panelX0 = -0.25f;
@@ -37,6 +46,9 @@ struct HudLayout
     float tertiaryRowY0 = -0.800f;
 };
 
+/**
+ * @brief تخطيط شاشة النتائج.
+ */
 struct ResultsLayout
 {
     float panelX0 = -0.34f;
@@ -867,6 +879,10 @@ void App::updatePauseRenderData()
     mVulkan.updateTexturedLayer(mPauseLayerId, quads);
 }
 
+/**
+ * @brief رسم الإطار الحالي.
+ * @remarks يستدعي Vulkan لرسم الإطار مع جميع الطبقات المحدثة.
+ */
 void App::render()
 {
     mVulkan.drawFrame();

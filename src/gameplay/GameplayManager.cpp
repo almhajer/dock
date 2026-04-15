@@ -1,8 +1,14 @@
-#include "App.h"
+/**
+ * @file GameplayManager.cpp
+ * @brief إدارة منطق اللعبة الرئيسي.
+ * @details يحتوي على تحديث حالة الصياد، البطات، الدفعات، والكشف عن الإصابات.
+ */
+
+#include "../core/App.h"
 #include "DuckGameplay.h"
-#include "HunterGameplay.h"
-#include "SceneLayout.h"
-#include "../game/HunterSpriteData.h"
+#include "HunterController.h"
+#include "../rendering/SceneLayout.h"
+#include "../assets/HunterSpriteData.h"
 
 #include <GLFW/glfw3.h>
 
@@ -21,6 +27,11 @@ namespace core
      * - كشف الإصابة والتحويل بين الحالات
      */
 
+    /**
+     * @brief تحديث منطق اللعبة لإطار واحد.
+     * @param deltaTime الوقت المنقضي منذ الإطار السابق بالثواني.
+     * @remarks يتعامل مع تحديث الصياد، البطات، الطبيعة، والكشف عن الإصابات.
+     */
     void App::update(float deltaTime)
     {
         updateNatureSystem(deltaTime);

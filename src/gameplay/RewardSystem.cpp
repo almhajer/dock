@@ -1,3 +1,9 @@
+/**
+ * @file RewardSystem.cpp
+ * @brief تنفيذ نظام المكافآت.
+ * @details حساب النقاط والمكافآت.
+ */
+
 #include "RewardSystem.h"
 
 #include <algorithm>

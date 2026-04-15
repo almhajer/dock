@@ -1,462 +1,70 @@
-# DuckH - دليل توجيه الذكاء الاصطناعي للملفات
+---
+name: duckh-dev
+description: assist with development tasks for the duckh game project built with c++20, vulkan, and glsl. use when the user asks to add a feature, fix a bug, debug build errors, adjust rendering, change gameplay, update text rendering, modify shaders, or refactor code inside duckh. prefer reading the smallest relevant set of files first, follow the project map in references/duckh-map.md, preserve current behavior unless the user requests a change, and keep the project buildable with cmake --build build.
+---
 
-## الهدف
+# duckh dev
 
-هذا الملف ليس مجرد وصف للمشروع، بل خريطة توجيه مباشرة.
-إذا كانت المهمة واضحة، يجب أن يستطيع الذكاء الاصطناعي الوصول إلى الملف الصحيح بسرعة
-من دون قراءة كل المشروع.
+Use this skill as an execution guide for work inside the DuckH codebase.
 
-## أوامر العمل
+## Core operating rules
 
-- البناء: `cmake --build build`
-- تشغيل التطبيق على macOS: `open build/DuckH.app`
-- تشغيل مباشر من الطرفية: `./build/DuckH.app/Contents/MacOS/DuckH`
-- لا توجد اختبارات آلية حالياً
+- Read `references/duckh-map.md` before exploring the codebase.
+- Treat `references/duckh-map.md` as the source of truth for where logic lives.
+- Read the fewest files needed to solve the request.
+- Do not scan the whole project unless the task genuinely spans multiple systems.
+- Preserve current behavior unless the user explicitly wants behavior changed.
+- Prefer minimal, local edits over wide refactors.
+- If a task would require risky structural changes, say so and propose the safer path.
 
-## قواعد ثابتة
+## Workflow
 
-- اللغة: `C++20`
-- استخدم `#pragma once` في الترويسات
-- التعليقات التوضيحية بالعربية
-- أسماء الملفات والكلاسات بالإنجليزية
-- أسماء الدوال والمتغيرات بـ `camelCase`
-- لا تكدّس المنطق الجديد في `App.cpp` إذا كان مكانه الطبيعي `AppGameplay.cpp` أو `AppRender.cpp`
-- عند إضافة ملف جديد أو تغيير بنية الملفات:
-  - حدّث `SKILL.md`
-  - حدّث `quide.md`
+1. Classify the request into one or more areas:
+   - hunter / duck gameplay
+   - rendering / vulkan / shaders
+   - environment / atmosphere
+   - animation / sprite atlases
+   - audio
+   - input / window / timing
+   - text rendering / arabic / bidi / hud text
+   - build or project structure
+2. Open `references/duckh-map.md` and identify the narrowest matching files.
+3. Read only those files and directly related headers or implementation files.
+4. Make the smallest safe edit that satisfies the request.
+5. If files are added or project structure changes, also update `SKILL.md` and `quide.md` in the project.
+6. When the task touches build-sensitive code, recommend or run `cmake --build build` if appropriate.
+7. End with a compact summary:
+   - what changed
+   - files changed
+   - whether build verification is recommended
 
-## خريطة توجيه سريعة
+## Reading rules
 
-### إذا كانت المهمة تخص الصياد
+- For gameplay requests, start in `src/gameplay/GameplayManager.cpp` and the helper files named in the map.
+- For rendering requests, start in `src/rendering/RenderManager.cpp`, `src/rendering/SceneLayout.*`, `src/gfx/RenderTypes.h`, and `src/gfx/VulkanContext.*` as needed.
+- For text requests, do not assume legacy localization files exist. Use the `src/text/*` subsystem and `src/ui/TextAtlas.*` as described in the reference map.
+- For audio requests, start with `src/audio/SoundEffectPlayer.*`.
+- For input and app lifecycle requests, use `src/core/Input.*`, `src/core/Window.*`, `src/core/Timer.*`, and `src/core/App.*` selectively.
+- For shader requests, inspect only the specific files under `assets/shaders/vert/*` or `assets/shaders/frag/*` that match the effect.
 
-- حركة الصياد، الإطلاق، تثبيت فريم الإطلاق، اتخاذ الاتجاه:
-  - `src/core/AppGameplay.cpp`
-  - `src/core/HunterGameplay.h`
-  - `src/core/HunterGameplay.cpp`
-- تعريف فريمات الصياد ومقاطع الأنيميشن:
-  - `src/game/HunterSpriteAtlas.cpp`
-  - `src/game/HunterSpriteAtlas.h`
-- مدد الصياد الزمنية مثل إعادة التلقيم أو التثبيت بعد الطلقة:
-  - `src/game/HunterSpriteData.cpp`
-  - `src/game/HunterSpriteData.h`
+## Project conventions
 
-### إذا كانت المهمة تخص البطة
+- Language: `C++20`.
+- Use `#pragma once` in headers.
+- Write explanatory comments in Arabic.
+- Keep file names and class names in English.
+- Use `camelCase` for functions and variables.
+- Do not dump new gameplay logic into `App.cpp` if it belongs in `AppGameplay.cpp` or `AppRender.cpp`.
+- Avoid modifying third-party files unless the task is specifically about integrating or upgrading them.
 
-- منطق ظهور البطة، الطيران، الإصابة، السقوط، الاختفاء:
-  - `src/core/AppGameplay.cpp`
-- ثوابت الطيران ومسارات Bezier وتثبيت فريم الإصابة:
-  - `src/core/DuckGameplay.h`
-  - `src/core/DuckGameplay.cpp`
-- بناء أطلس البطة واستخراج الفريمات من `duck.png`:
-  - `src/game/DuckSpriteAtlas.cpp`
-  - `src/game/DuckSpriteAtlas.h`
+## Output style
 
-### إذا كانت المهمة تخص الرسم
+Use a practical, execution-first style.
 
-- طبقات العرض، رسم الصياد والبطة، الشفافية، تحديث الأرض والعشب:
-  - `src/core/AppRender.cpp`
-- بناء مواقع العناصر داخل المشهد:
-  - `src/core/SceneLayout.cpp`
-  - `src/core/SceneLayout.h`
-- تعريف بيانات الرسم مثل `TexturedQuad`، الدوران، `alpha`:
-  - `src/gfx/RenderTypes.h`
-- إدارة Vulkan والرسم الفعلي والطبقات:
-  - `src/gfx/VulkanContext.cpp`
-  - `src/gfx/VulkanContext.h`
+When making changes, briefly state:
+- what you understood
+- which files you inspected
+- what you changed
+- any build follow-up needed
 
-### إذا كانت المهمة تخص البيئة
-
-- الغيوم، الأشجار، بيانات البيئة المتحركة:
-  - `src/game/NatureSystem.cpp`
-  - `src/game/NatureSystem.h`
-- خامات البيئة أو الشكل الإجرائي المرئي:
-  - `src/gfx/EnvironmentAtlas.cpp`
-  - `src/gfx/EnvironmentAtlas.h`
-- مؤثرات الجو والشمس والأشعة:
-  - `src/gfx/AtmosphereRenderer.cpp`
-  - `src/gfx/AtmosphereRenderer.h`
-
-### إذا كانت المهمة تخص الأنيميشن أو الأطالس
-
-- منطق تشغيل المقاطع وتحديث الفريم الحالي:
-  - `src/game/SpriteAnimation.cpp`
-  - `src/game/SpriteAnimation.h`
-- تعريف الفريمات والكليبات وبيانات الأطلس:
-  - `src/game/SpriteAtlas.h`
-
-### إذا كانت المهمة تخص الصوت
-
-- تحميل وتشغيل وإيقاف وتكرار المؤثرات الصوتية:
-  - `src/audio/SoundEffectPlayer.cpp`
-  - `src/audio/SoundEffectPlayer.h`
-- محرك الصوت نفسه:
-  - `src/audio/third_party/miniaudio.h`
-  - `src/audio/miniaudio_impl.cpp`
-
-### إذا كانت المهمة تخص الإدخال أو نافذة التطبيق
-
-- قراءة لوحة المفاتيح والفأرة:
-  - `src/core/Input.cpp`
-  - `src/core/Input.h`
-- إنشاء النافذة والتحقق من جلسة macOS الرسومية:
-  - `src/core/Window.cpp`
-  - `src/core/Window.h`
-- الزمن بين الإطارات:
-  - `src/core/Timer.cpp`
-  - `src/core/Timer.h`
-
-### إذا كانت المهمة تخص الترجمة أو النصوص
-
-- Subsystem النص الجديدة متعددة الطبقات:
-  - `src/text/TextTypes.h`
-  - `src/text/Utf8.h`
-  - `src/text/Utf8.cpp`
-  - `src/text/ArabicJoiner.h`
-  - `src/text/ArabicJoiner.cpp`
-  - `src/text/BasicBidiResolver.h`
-  - `src/text/BasicBidiResolver.cpp`
-  - `src/text/BasicArabicShaper.h`
-  - `src/text/BasicArabicShaper.cpp`
-  - `src/text/InternalGlyphProvider.h`
-  - `src/text/InternalGlyphProvider.cpp`
-  - `src/text/TextLayouter.h`
-  - `src/text/TextLayouter.cpp`
-  - `src/text/TextRendererTypes.h`
-  - `src/text/TextRendererBridge.h`
-  - `src/text/TextRendererBridge.cpp`
-  - `src/text/TextSystem.h`
-  - `src/text/TextSystem.cpp`
-  - `src/text/README.md`
-- توليد أطلس النصوص ورسم العربية بشكل صحيح:
-  - `src/ui/TextAtlas.cpp`
-  - `src/ui/TextAtlas.h`
-- ملاحظة مهمة:
-  - المشروع لا يحتوي حالياً على `Localization.cpp/.h` ولا ملفات `assets/lang/*.json`.
-  - `src/text/*` هو مسار التحليل والتشكيل والـ layout والـ render-prep.
-  - `src/text/TextSystem.*` هو نقطة الدخول الأسرع لواجهات HUD.
-  - `src/ui/TextAtlas.*` يبقى مسارًا منفصلًا لتوليد أطلس bitmap الحالي.
-  - أمثلة الاستخدام والتطوير موجودة في:
-    - `examples/text/TextSystemQuickStart.cpp`
-    - `examples/text/VulkanHudIntegrationExample.cpp`
-    - `examples/text/README.md`
-
-### إذا كانت المهمة تخص الأصول
-
-- صورة البطة:
-  - `assets/sprite/duck.png`
-- صورة الصياد:
-  - `assets/sprite/hunter_atlas.png`
-- صوت البطة:
-  - `assets/audio/douck.wav`
-- صوت الطلقة:
-  - `assets/audio/hunter_shot.mp3`
-- الشيدرات:
-  - `assets/shaders/vert/*`
-  - `assets/shaders/frag/*`
-
-## شجرة الملفات مع مهمة كل ملف
-
-```text
-dock/
-├── AGENT.md
-│   # تعليمات تشغيلية داخلية لطريقة عمل الوكيل.
-│
-├── CMakeLists.txt
-│   # ملف البناء الرئيسي.
-│   # عدّله عند إضافة ملفات cpp جديدة أو ربط مكتبات أو تغيير إعدادات البناء.
-│
-├── SKILL.md
-│   # هذا الملف.
-│   # عدّله عندما تتغير بنية المشروع أو مسؤوليات الملفات.
-│
-├── quide.md
-│   # دليل الشجرة العام للمشروع.
-│   # عدّله عندما تتغير الملفات أو المسارات أو الأصول.
-│
-├── macos/
-│   └── Info.plist.in
-│       # قالب معلومات حزمة macOS.
-│       # عدّله عند تغيير اسم التطبيق أو معرّفه أو إعدادات الحزمة.
-│
-├── assets/
-│   ├── audio/
-│   │   ├── douck.wav
-│   │   │   # صوت ظهور/تحليق البطة.
-│   │   │   # عدّله عند استبدال صوت البطة أو مدته أو مصدره.
-│   │   └── hunter_shot.mp3
-│   │       # صوت طلقة الصياد.
-│   │       # عدّله عند تغيير صوت السلاح.
-│   │
-│   ├── lang/
-│   │   ├── ar.json
-│   │   │   # النصوص العربية.
-│   │   │   # عدّله عند إضافة مفاتيح ترجمة أو تعديل نصوص الواجهة العربية.
-│   │   └── en.json
-│   │       # النصوص الإنجليزية.
-│   │       # عدّله عند إضافة مفاتيح ترجمة أو تعديل نصوص الواجهة الإنجليزية.
-│   │
-│   ├── macos/
-│   │   ├── DuckHunterStarter.icns
-│   │   │   # الأيقونة النهائية لتطبيق macOS.
-│   │   ├── DuckHunterStarter.png
-│   │   │   # نسخة PNG مرجعية للأيقونة.
-│   │   └── DuckHunterStarter.iconset/
-│   │       ├── icon_16x16.png
-│   │       ├── icon_16x16@2x.png
-│   │       ├── icon_32x32.png
-│   │       ├── icon_32x32@2x.png
-│   │       ├── icon_128x128.png
-│   │       ├── icon_128x128@2x.png
-│   │       ├── icon_256x256.png
-│   │       ├── icon_256x256@2x.png
-│   │       ├── icon_512x512.png
-│   │       └── icon_512x512@2x.png
-│   │           # ملفات أحجام الأيقونة الخام.
-│   │           # عدّلها فقط إذا كنت تعمل على تصميم أيقونة التطبيق.
-│   │
-│   ├── shaders/
-│   │   ├── frag/
-│   │   │   ├── environment_cloud.frag
-│   │   │   │   # تلوين الغيوم.
-│   │   │   ├── environment_cloud.frag.spv
-│   │   │   │   # النسخة المترجمة من شيدر الغيوم.
-│   │   │   ├── environment_instanced.frag
-│   │   │   │   # تلوين عناصر البيئة المكررة.
-│   │   │   ├── environment_instanced.frag.spv
-│   │   │   │   # النسخة المترجمة من الشيدر السابق.
-│   │   │   ├── environment_tree.frag
-│   │   │   │   # تلوين الأشجار.
-│   │   │   ├── environment_tree.frag.spv
-│   │   │   │   # النسخة المترجمة من شيدر الأشجار.
-│   │   │   ├── god_rays.frag
-│   │   │   │   # مؤثر أشعة الشمس.
-│   │   │   ├── god_rays.frag.spv
-│   │   │   │   # النسخة المترجمة لشيدر الأشعة.
-│   │   │   ├── sprite.frag
-│   │   │   │   # تلوين السبرايت النهائي.
-│   │   │   ├── sprite.frag.spv
-│   │   │   │   # النسخة المترجمة لشيدر السبرايت.
-│   │   │   ├── sun_disk.frag
-│   │   │   │   # رسم قرص الشمس والهالة.
-│   │   │   └── sun_disk.frag.spv
-│   │   │       # النسخة المترجمة لشيدر الشمس.
-│   │   │
-│   │   └── vert/
-│   │       ├── environment_cloud.vert
-│   │       │   # تموضع الغيوم رأسياً.
-│   │       ├── environment_cloud.vert.spv
-│   │       │   # النسخة المترجمة.
-│   │       ├── environment_instanced.vert
-│   │       │   # تموضع عناصر البيئة المكررة.
-│   │       ├── environment_instanced.vert.spv
-│   │       │   # النسخة المترجمة.
-│   │       ├── environment_tree.vert
-│   │       │   # تموضع الأشجار.
-│   │       ├── environment_tree.vert.spv
-│   │       │   # النسخة المترجمة.
-│   │       ├── fullscreen_triangle.vert
-│   │       │   # قاعدة رسم تأثيرات الشاشة الكاملة.
-│   │       ├── fullscreen_triangle.vert.spv
-│   │       │   # النسخة المترجمة.
-│   │       ├── sprite.vert
-│   │       │   # تحويل رؤوس السبرايت للرسم.
-│   │       └── sprite.vert.spv
-│   │           # النسخة المترجمة.
-│   │
-│   └── sprite/
-│       ├── duck.png
-│       │   # الصورة المصدر الوحيدة لفريمات البطة.
-│       │   # عدّلها أو استبدلها عند تغيير شكل البطة أو ترتيب الفريمات.
-│       └── hunter_atlas.png
-│           # أطلس الصياد الكامل.
-│           # عدّله عند تغيير فريمات المشي أو الإطلاق.
-│
-└── src/
-    ├── main.cpp
-    │   # نقطة الدخول.
-    │   # عدّله فقط إذا تغيّر أسلوب إنشاء التطبيق أو إعدادات الإطلاق الأولى.
-    │
-    ├── audio/
-    │   ├── SoundEffectPlayer.h
-    │   │   # واجهة تشغيل المؤثرات الصوتية.
-    │   │   # عدّله عند إضافة API جديد مثل loop أو stop أو volume.
-    │   ├── SoundEffectPlayer.cpp
-    │   │   # تنفيذ تحميل وتشغيل وإيقاف وتكرار الصوت.
-    │   │   # عدّله عند تغيير سلوك الأصوات أو إضافة تحكم جديد.
-    │   ├── miniaudio_impl.cpp
-    │   │   # ملف تفعيل تنفيذ miniaudio.
-    │   │   # لا تعدّله إلا إذا كنت تغيّر دمج المكتبة نفسها.
-    │   └── third_party/miniaudio.h
-    │       # مكتبة خارجية للصوت.
-    │       # لا تعدّلها إلا عند ضرورة قصوى أو ترقية المكتبة.
-    │
-    ├── core/
-    │   ├── App.h
-    │   │   # تعريف حالة التطبيق ومكوناته.
-    │   │   # عدّله عند إضافة حالة جديدة مشتركة بين عدة ملفات App.
-    │   ├── App.cpp
-    │   │   # دورة الحياة: init / run / cleanup / اكتشاف اللغة.
-    │   │   # عدّله عند تغيير التهيئة العامة أو التحميل الأولي أو الإغلاق.
-    │   ├── AppGameplay.cpp
-    │   │   # منطق اللعبة الرئيسي.
-    │   │   # عدّله عند تغيير حركة الصياد أو البطة أو الإصابة أو الظهور أو منطق الإطلاق.
-    │   ├── AppRender.cpp
-    │   │   # تجهيز طبقات الرسم.
-    │   │   # عدّله عند تغيير طريقة رسم الصياد أو البطة أو الأرض أو العشب.
-    │   ├── HunterGameplay.h
-    │   │   # واجهة مساعدات الصياد.
-    │   │   # عدّله عند إضافة توابع مساعدة خاصة بالصياد.
-    │   ├── HunterGameplay.cpp
-    │   │   # تنفيذ مساعدات الصياد.
-    │   │   # عدّله عند تغيير قراءة المؤشر أو تحديد الاتجاه أو منطق تثبيت فريم الإطلاق.
-    │   ├── DuckGameplay.h
-    │   │   # ثوابت البطة ومساعداتها العامة.
-    │   │   # عدّله عند تغيير ثوابت الطيران أو السقوط أو API المساعدة.
-    │   ├── DuckGameplay.cpp
-    │   │   # تنفيذ منحنيات ومسارات البطة.
-    │   │   # عدّله عند تغيير Bezier أو phase أو منطق تثبيت فريم الإصابة.
-    │   ├── Input.h
-    │   │   # واجهة الإدخال.
-    │   │   # عدّله عند إضافة نوع إدخال جديد أو استعلام جديد.
-    │   ├── Input.cpp
-    │   │   # تنفيذ قراءة لوحة المفاتيح والفأرة.
-    │   │   # عدّله عند تغيير سلوك الإدخال.
-    │   ├── SceneLayout.h
-    │   │   # تعريف قياسات الشاشة وبناء quads للعناصر.
-    │   │   # عدّله عند إضافة أدوات تموضع جديدة.
-    │   ├── SceneLayout.cpp
-    │   │   # تحويل عناصر اللعبة إلى مواضع شاشة.
-    │   │   # عدّله عند تغيير محاذاة الصياد أو البطة أو الأرض أو آثار الأقدام.
-    │   ├── Timer.h
-    │   │   # واجهة المؤقت.
-    │   ├── Timer.cpp
-    │   │   # تنفيذ الزمن بين الإطارات.
-    │   ├── Window.h
-    │   │   # واجهة النافذة.
-    │   └── Window.cpp
-    │       # إنشاء النافذة والتحقق من البيئة الرسومية.
-    │       # عدّله عند تغيير إعدادات GLFW أو سلوك macOS عند التشغيل.
-    │
-    ├── game/
-    │   ├── SpriteAtlas.h
-    │   │   # تعريف الفريمات والكليبات وبيانات الأطلس.
-    │   │   # عدّله عند إضافة حقول جديدة مثل pivot أو alpha metadata.
-    │   ├── SpriteAnimation.h
-    │   │   # واجهة الأنيميشن المبني على الأطلس.
-    │   │   # عدّله عند إضافة قدرات للأنيميشن.
-    │   ├── SpriteAnimation.cpp
-    │   │   # تنفيذ تحديث الفريمات وتشغيل المقاطع.
-    │   │   # عدّله عند تغيير loop أو إنهاء المقاطع أو اختيار الفريم الحالي.
-    │   ├── DuckSpriteAtlas.h
-    │   │   # واجهة أطلس البطة.
-    │   ├── DuckSpriteAtlas.cpp
-    │   │   # بناء أطلس البطة من duck.png.
-    │   │   # عدّله عند تغيير ترتيب الفريمات أو مقاساتها أو تقسيم fly/hit.
-    │   ├── HunterSpriteAtlas.h
-    │   │   # واجهة أطلس الصياد.
-    │   ├── HunterSpriteAtlas.cpp
-    │   │   # توصيف فريمات الصياد ومقاطع المشي والإطلاق.
-    │   │   # عدّله عند تغيير الفريمات أو مددها أو المقاطع.
-    │   ├── HunterSpriteData.h
-    │   │   # تعريف توقيتات الصياد.
-    │   ├── HunterSpriteData.cpp
-    │   │   # مدد زمنية مثل إعادة التلقيم وفترة تثبيت الإطلاق.
-    │   │   # عدّله عند تغيير ثواني الانتظار أو الإيقاع الزمني للصياد.
-    │   ├── NatureSystem.h
-    │   │   # واجهة نظام البيئة.
-    │   └── NatureSystem.cpp
-    │       # توليد الغيوم والأشجار وتحديث بيانات البيئة.
-    │       # عدّله عند تغيير كثافة البيئة أو حركتها أو شفافية عناصرها.
-    │
-    ├── gfx/
-    │   ├── RenderTypes.h
-    │   │   # تعريف TexturedQuad والرؤوس والشفافية والدوران.
-    │   │   # عدّله عند إضافة حقول رسم جديدة.
-    │   ├── EnvironmentTypes.h
-    │   │   # تعريف أنواع بيانات البيئة للرسم.
-    │   ├── EnvironmentAtlas.h
-    │   │   # واجهة خامات البيئة.
-    │   ├── EnvironmentAtlas.cpp
-    │   │   # توليد خامات البيئة الإجرائية.
-    │   │   # عدّله عند تغيير شكل السحب أو الأشجار أو الدمج اللوني.
-    │   ├── AtmosphereRenderer.h
-    │   │   # واجهة مؤثرات الجو.
-    │   ├── AtmosphereRenderer.cpp
-    │   │   # تنفيذ الشمس والهالة والأشعة.
-    │   │   # عدّله عند تغيير شكل السماء أو الضوء الجوي.
-    │   ├── VulkanContext.h
-    │   │   # واجهة محرك Vulkan والطبقات.
-    │   ├── VulkanContext.cpp
-    │   │   # تنفيذ Vulkan والموارد والطبقات والرسم.
-    │   │   # عدّله عند تغيير آلية الرسم أو إدارة الطبقات أو الخامات.
-    │   └── stb_image.h
-    │       # مكتبة خارجية لتحميل الصور.
-    │       # لا تعدّلها إلا إذا كانت هناك ضرورة مرتبطة بالمكتبة نفسها.
-    │
-    ├── text/
-    │   ├── TextTypes.h
-    │   │   # الأنواع والعقود الأساسية للـ text subsystem.
-    │   ├── Utf8.h
-    │   ├── Utf8.cpp
-    │   │   # فك وترميز UTF-8 بشكل آمن.
-    │   ├── ArabicJoiner.h
-    │   ├── ArabicJoiner.cpp
-    │   │   # خصائص اتصال العربية والجداول الانتقالية للأشكال.
-    │   ├── BasicBidiResolver.h
-    │   ├── BasicBidiResolver.cpp
-    │   │   # محلل BiDi مبسط موجّه لواجهات اللعبة.
-    │   ├── BasicArabicShaper.h
-    │   ├── BasicArabicShaper.cpp
-    │   │   # تشكيل العربية إلى Presentation Forms بدون مكتبات خارجية.
-    │   ├── InternalGlyphProvider.h
-    │   ├── InternalGlyphProvider.cpp
-    │   │   # مزود قياسات داخلي placeholder قابل للاستبدال لاحقاً.
-    │   ├── TextLayouter.h
-    │   ├── TextLayouter.cpp
-    │   │   # تنسيق السطر وتجهيز PositionedGlyphs مع دعم المحاذاة.
-    │   ├── TextRendererTypes.h
-    │   ├── TextRendererBridge.h
-    │   ├── TextRendererBridge.cpp
-    │   │   # تحويل الـ layout إلى quads وvertices قابلة للتمرير إلى Vulkan.
-    │   ├── TextSystem.h
-    │   ├── TextSystem.cpp
-    │   │   # facade موحدة من UTF-8 حتى vertices الجاهزة.
-    │   └── README.md
-    │       # شرح معماري سريع ونقاط الدمج والاستبدال.
-    │
-    ├── examples/
-    │   └── text/
-    │       ├── README.md
-    │       ├── TextSystemQuickStart.cpp
-    │       └── VulkanHudIntegrationExample.cpp
-    │           # أمثلة مرجعية لا تُبنى مع التطبيق.
-    │
-    └── ui/
-        ├── TextAtlas.h
-        │   # واجهة أطلس النصوص المشترك للواجهة.
-        │   # عدّله عند إضافة رموز جديدة أو تغيير API الرسم النصي.
-        └── TextAtlas.cpp
-            # يبني أطلس النصوص وقت التشغيل ويعالج العربية عبر CoreText على macOS.
-            # عدّله عند إضافة كلمات جديدة أو تغيير أسلوب توليد النصوص.
-```
-
-## كيف تستخدم هذا الملف لتوجيه الذكاء الاصطناعي
-
-عند طلب تعديل:
-
-1. حدّد نوع المهمة أولاً:
-   - صياد
-   - بطة
-   - صوت
-   - رسم
-   - أطلس
-   - ترجمة
-2. انتقل إلى "خريطة توجيه سريعة"
-3. اختر الملف أو الملفات المذكورة فقط
-4. لا توسع القراءة إلى بقية المشروع إلا إذا كان التعديل يفرض ذلك
-
-## ملخص نهائي
-
-- `SKILL.md` الآن ملف توجيه مهام، لا مجرد وصف عام
-- كل ملف بجانبه مسؤوليته ومتى يجب تعديله
-- الهدف منه تقليل قراءة المشروع الكامل عند تنفيذ مهمة واضحة
+Avoid long theory unless the user asks for it.

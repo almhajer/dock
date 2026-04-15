@@ -1,3 +1,9 @@
+/**
+ * @file HunterSpriteData.h
+ * @brief بيانات أنيميشن الصياد.
+ * @details توقيتات وثوابت أنيميشن الصياد.
+ */
+
 #pragma once
 
 namespace game

@@ -1,3 +1,9 @@
+/**
+ * @file DockIcon.mm
+ * @brief تنفيذ أيقونة الـ Dock.
+ * @details إدارة أيقونة التطبيق في الـ Dock على macOS.
+ */
+
 #include "DockIcon.h"
 
 #include <iostream>

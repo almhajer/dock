@@ -1,0 +1,3 @@
+interface:
+  display_name: "DuckH Dev"
+  short_description: "Targeted development workflow for the DuckH C++/Vulkan project"

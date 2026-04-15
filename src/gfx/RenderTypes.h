@@ -1,3 +1,9 @@
+/**
+ * @file RenderTypes.h
+ * @brief أنواع البيانات للرسم.
+ * @details هياكل البيانات المستخدمة في عمليات الرسم.
+ */
+
 #pragma once
 
 #include <array>

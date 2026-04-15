@@ -1,6 +1,12 @@
+/**
+ * @file DuckGameplay.h
+ * @brief ثوابت ودوال سلوك البطة في اللعبة.
+ * @details يحتوي على ثوابت الحركة، الإصابة، والمسارات.
+ */
+
 #pragma once
 
-#include "../game/SpriteAnimation.h"
+#include "../assets/SpriteAnimation.h"
 
 namespace core::duckplay
 {

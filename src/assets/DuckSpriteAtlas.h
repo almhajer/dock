@@ -1,3 +1,9 @@
+/**
+ * @file DuckSpriteAtlas.h
+ * @brief واجهة أطلس البطة.
+ * @details بناء وإدارة أطلس البطة.
+ */
+
 #pragma once
 
 #include "SpriteAtlas.h"

@@ -1,6 +1,12 @@
+/**
+ * @file NatureSystem.h
+ * @brief واجهة نظام الطبيعة.
+ * @details إدارة العناصر الطبيعية مثل الأشجار والرياح.
+ */
+
 #pragma once
 
-#include "../core/SceneLayout.h"
+#include "../rendering/SceneLayout.h"
 #include "../gfx/EnvironmentAtlas.h"
 #include "../gfx/EnvironmentTypes.h"
 

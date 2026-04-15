@@ -1,3 +1,9 @@
+/**
+ * @file SkillAssessment.cpp
+ * @brief تنفيذ تقييم المهارة.
+ * @details حساب دقة الصياد ومهارته.
+ */
+
 #include "SkillAssessment.h"
 
 #include <algorithm>

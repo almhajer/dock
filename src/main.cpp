@@ -1,3 +1,9 @@
+/**
+ * @file main.cpp
+ * @brief نقطة دخول التطبيق.
+ * @details يقوم بتهيئة التطبيق وتشغيله.
+ */
+
 #include "core/App.h"
 
 #include <cstdlib>
@@ -114,6 +120,12 @@ void prepareWorkingDirectory()
 
 } // namespace
 
+/**
+ * @brief دالة الدخول الرئيسية للتطبيق.
+ * @param argc عدد معاملات سطر الأوامر.
+ * @param argv مصفوفة معاملات سطر الأوامر.
+ * @return 0 عند النجاح، 1 عند الفشل.
+ */
 int main()
 {
     try

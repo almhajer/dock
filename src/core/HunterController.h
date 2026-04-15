@@ -1,6 +1,12 @@
+/**
+ * @file HunterController.h
+ * @brief بيانات حالة الصياد.
+ * @details هياكل البيانات لحالة الصياد.
+ */
+
 #pragma once
 
-#include "../game/SpriteAnimation.h"
+#include "../assets/SpriteAnimation.h"
 
 namespace core::huntercontroller
 {

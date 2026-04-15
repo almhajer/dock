@@ -1,4 +1,10 @@
-#include "HunterGameplay.h"
+/**
+ * @file HunterController.cpp
+ * @brief تنفيذ تحكم الصياد.
+ * @details منطق التحكم في الصياد والإدخال.
+ */
+
+#include "HunterController.h"
 
 #include <GLFW/glfw3.h>
 

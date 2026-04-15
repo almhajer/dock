@@ -1,3 +1,9 @@
+/**
+ * @file Input.cpp
+ * @brief تنفيذ إدارة الإدخال.
+ * @details التقاط إدخال المستخدم من GLFW.
+ */
+
 #include "Input.h"
 
 #include <GLFW/glfw3.h>

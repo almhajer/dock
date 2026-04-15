@@ -1,3 +1,9 @@
+/**
+ * @file SceneLayout.cpp
+ * @brief تنفيذ تخطيط المشهد.
+ * @details حساب مواقع العناصر في المشهد.
+ */
+
 #include "SceneLayout.h"
 
 #include <algorithm>

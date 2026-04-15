@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../game/SpriteAtlas.h"
+#include "../assets/SpriteAtlas.h"
 #include "../gfx/RenderTypes.h"
 
 #include <cstddef>

@@ -1,3 +1,9 @@
+/**
+ * @file NatureSystem.cpp
+ * @brief تنفيذ نظام الطبيعة.
+ * @details إدارة العناصر الطبيعية مثل الأشجار والرياح.
+ */
+
 #include "NatureSystem.h"
 
 #include <algorithm>

@@ -1,3 +1,9 @@
+/**
+ * @file Input.h
+ * @brief واجهة إدارة الإدخال.
+ * @details يتتبع حالة لوحة المفاتيح والماوس.
+ */
+
 #pragma once
 
 #include <unordered_map>
@@ -8,50 +14,57 @@ struct GLFWwindow;
 namespace core
 {
 
-/*
- مدير الإدخال - يتتبع حالة لوحة المفاتيح والماوس
+/**
+ * @brief مدير الإدخال - يتتبع حالة لوحة المفاتيح والماوس.
  */
 class Input
 {
   public:
 #pragma region PublicInterface
-    /*
-     ينشئ مدير الإدخال بحالته الافتراضية.
+    /**
+     * @brief ينشئ مدير الإدخال بحالته الافتراضية.
      */
     Input() = default;
 
-    /*
-     تهيئة الاستماع لأحداث النافذة
+    /**
+     * @brief تهيئة الاستماع لأحداث النافذة.
+     * @param window مؤشر لنافذة GLFW.
      */
     void init(GLFWwindow* window);
 
-    /*
-     تحديث حالة الإدخال - يُستدعى بداية كل إطار
+    /**
+     * @brief تحديث حالة الإدخال - يُستدعى بداية كل إطار.
      */
     void update();
 
-    /*
-     قطع الاتصال مع GLFW وتنظيف البيانات
+    /**
+     * @brief قطع الاتصال مع GLFW وتنظيف البيانات.
      */
     void shutdown();
 
-    /*
-     هل المفتاح مضغوط حاليًا؟
+    /**
+     * @brief هل المفتاح مضغوط حاليًا؟
+     * @param key رمز المفتاح (GLFW_KEY_*).
+     * @return true إذا كان مضغوطًا، false خلاف ذلك.
      */
     [[nodiscard]] bool isKeyPressed(int key) const;
 
-    /*
-     هل المفتاح ضُغط في هذا الإطار فقط (لحظي)؟
+    /**
+     * @brief هل المفتاح ضُغط في هذا الإطار فقط (لحظي)؟
+     * @param key رمز المفتاح (GLFW_KEY_*).
+     * @return true إذا ضُغط حديثًا، false خلاف ذلك.
      */
     [[nodiscard]] bool isKeyJustPressed(int key) const;
 
-    /*
-     هل زر الماوس مضغوط؟ (0=أيسر، 1=أيمن، 2=أوسط)
+    /**
+     * @brief هل زر الماوس مضغوط؟ (0=أيسر، 1=أيمن، 2=أوسط).
+     * @param button رقم الزر.
+     * @return true إذا كان مضغوطًا، false خلاف ذلك.
      */
     [[nodiscard]] bool isMouseButtonPressed(int button) const;
 
-    /*
-     هل زر الماوس ضُغط في هذا الإطار فقط؟
+    /**
+     * @brief هل زر الماوس ضُغط في هذا الإطار فقط؟
      */
     [[nodiscard]] bool isMouseButtonJustPressed(int button) const;
 

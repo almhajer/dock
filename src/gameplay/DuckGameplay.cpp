@@ -1,3 +1,9 @@
+/**
+ * @file DuckGameplay.cpp
+ * @brief تنفيذ لعبة البط.
+ * @details منطق حركة البط وأنيميشنه.
+ */
+
 #include "DuckGameplay.h"
 
 #include <algorithm>

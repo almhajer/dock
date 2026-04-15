@@ -1,3 +1,9 @@
+/**
+ * @file DockIcon.h
+ * @brief واجهة أيقونة الdock.
+ * @details تعيين أيقونة التطبيق في شريط Dock على macOS.
+ */
+
 #pragma once
 
 #include <string>

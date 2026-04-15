@@ -1,5 +1,11 @@
+/**
+ * @file DuckPool.cpp
+ * @brief تنفيذ حوض البط.
+ * @details إدارة مجموعة البط النشطة.
+ */
+
 #include "DuckPool.h"
-#include "SceneLayout.h"
+#include "../rendering/SceneLayout.h"
 
 #include <algorithm>
 #include <cmath>

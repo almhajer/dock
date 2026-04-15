@@ -82,22 +82,67 @@ dock/
     ├── core/                                               # قلب التطبيق وتنظيم اللعب
     │   ├── App.cpp                                         # دورة الحياة: init / run / cleanup
     │   ├── App.h                                           # تعريف حالة التطبيق العامة ومكوناته
-    │   ├── AppGameplay.cpp                                 # منطق اللعبة: الصياد، البطة، الإصابة، إعادة الرحلة
-    │   ├── AppRender.cpp                                   # تجهيز طبقات الرسم: الأرض، العشب، الصياد، البطة
-    │   ├── DuckGameplay.cpp                                # تنفيذ مساعدات ومنحنيات حركة البطة
-    │   ├── DuckGameplay.h                                  # ثوابت البطة ودوالها المساعدة
-    │   ├── HunterGameplay.cpp                              # تنفيذ مساعدات الصياد: المؤشر، الاتجاه، تثبيت الإطلاق
-    │   ├── HunterGameplay.h                                # واجهة منطق الصياد المساعد
+    │   ├── AsmaulHusnaOverlay.cpp                          # تنفيذ تراكب أسماء الله الحسنى
+    │   ├── AsmaulHusnaOverlay.h                            # واجهة تراكب أسماء الله الحسنى
+    │   ├── DockIcon.cpp                                    # إدارة أيقونة الdock على macOS
+    │   ├── DockIcon.h                                      # واجهة أيقونة الdock
+    │   ├── DuckPool.cpp                                    # إدارة مجموعة البطات النشطة
+    │   ├── DuckPool.h                                      # واجهة مجموعة البطات
+    │   ├── HunterController.cpp                            # تنفيذ مساعدات الصياد: المؤشر، الاتجاه، تثبيت الإطلاق
+    │   ├── HunterController.h                              # واجهة منطق الصياد المساعد
     │   ├── Input.cpp                                       # تنفيذ التقاط إدخال المستخدم من GLFW
     │   ├── Input.h                                         # تعريف واجهة الإدخال
-    │   ├── SceneLayout.cpp                                 # حساب تموضع العناصر على الشاشة وآثار الأقدام
-    │   ├── SceneLayout.h                                   # تعريف قياسات الشاشة وبناء quads للعناصر
+    │   ├── StageDefinitions.h                              # تعريفات مراحل اللعبة
+    │   ├── StageObjectives.h                               # أهداف مراحل اللعبة
     │   ├── Timer.cpp                                       # حساب الزمن بين الإطارات
     │   ├── Timer.h                                         # تعريف المؤقت
     │   ├── Window.cpp                                      # إنشاء النافذة والتحقق من جلسة GUI على macOS
     │   └── Window.h                                        # تعريف واجهة النافذة
     │
-    ├── game/                                               # منطق بيانات اللعبة والأنيميشن والأطالس
+    ├── gameplay/                                           # منطق اللعبة والأحداث
+    │   ├── GameplayManager.cpp                             # منطق اللعبة: الصياد، البطة، الإصابة، إعادة الرحلة
+    │   ├── DuckGameplay.cpp                                # تنفيذ مساعدات ومنحنيات حركة البطة
+    │   ├── DuckGameplay.h                                  # ثوابت البطة ودوالها المساعدة
+    │   ├── HunterController.cpp                            # تنفيذ منطق تحكم الصياد
+    │   ├── HunterController.h                              # واجهة منطق تحكم الصياد
+    │   ├── RewardSystem.cpp                                # نظام المكافآت والتقييم
+    │   ├── RewardSystem.h                                  # واجهة نظام المكافآت
+    │   ├── SkillAssessment.cpp                             # تقييم مهارة اللاعب
+    │   ├── SkillAssessment.h                               # واجهة تقييم المهارة
+    │   └── WaveManager.cpp                                 # إدارة الدفعات والأمواج
+    │
+    ├── rendering/                                          # طبقة الرسم والعرض
+    │   ├── RenderManager.cpp                               # تجهيز طبقات الرسم: الأرض، العشب، الصياد، البطة
+    │   ├── SceneLayout.cpp                                 # حساب تموضع العناصر على الشاشة وآثار الأقدام
+    │   └── SceneLayout.h                                   # تعريف قياسات الشاشة وبناء quads للعناصر
+    │
+    ├── assets/                                             # بيانات الأصول والأنيميشن
+    │   ├── DuckSpriteAtlas.cpp                             # إدارة أطلس البطة
+    │   ├── DuckSpriteAtlas.h                               # واجهة أطلس البطة
+    │   ├── HunterSpriteAtlas.cpp                           # إدارة أطلس الصياد
+    │   ├── HunterSpriteAtlas.h                             # واجهة أطلس الصياد
+    │   ├── HunterSpriteData.cpp                            # بيانات أنيميشن الصياد
+    │   ├── HunterSpriteData.h                              # واجهة بيانات أنيميشن الصياد
+    │   ├── NatureSystem.cpp                                # نظام الطبيعة والبيئة
+    │   ├── NatureSystem.h                                  # واجهة نظام الطبيعة
+    │   ├── SpriteAnimation.cpp                             # إدارة الأنيميشن العامة
+    │   └── SpriteAtlas.h                                   # تعريفات الأطلس العامة
+    │
+    ├── gfx/                                                # الرسومات والمحرك
+    │   ├── AtmosphereRenderer.cpp                          # رسم الغلاف الجوي والأشعة
+    │   ├── AtmosphereRenderer.h                            # واجهة رسم الغلاف الجوي
+    │   ├── EnvironmentAtlas.cpp                            # أطلس البيئة
+    │   ├── EnvironmentAtlas.h                              # واجهة أطلس البيئة
+    │   ├── EnvironmentTypes.h                              # أنواع البيئة
+    │   ├── RenderTypes.h                                   # أنواع الرسم العامة
+    │   ├── VulkanContext.cpp                               # سياق Vulkan والإدارة
+    │   ├── VulkanContext.h                                 # واجهة سياق Vulkan
+    │   └── stb_image.h                                     # مكتبة تحميل الصور
+    │
+    ├── ui/                                                 # واجهة المستخدم والنصوص
+    │   └── TextAtlas.cpp                                   # أطلس النصوص والخطوط
+    │
+    └── utils/                                              # أدوات مساعدة (إذا أضيفت لاحقًا)
     │   ├── DuckSpriteAtlas.cpp                             # بناء أطلس البطة واستخراج 11 فريم من duck.png
     │   ├── DuckSpriteAtlas.h                               # واجهة أطلس البطة
     │   ├── HunterSpriteAtlas.cpp                           # توصيف فريمات الصياد ومقاطع الحركة والإطلاق

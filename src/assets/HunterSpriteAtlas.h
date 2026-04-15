@@ -1,3 +1,9 @@
+/**
+ * @file HunterSpriteAtlas.h
+ * @brief واجهة أطلس الصياد.
+ * @details بناء بيانات الأطلس للصياد.
+ */
+
 #pragma once
 
 #include "SpriteAtlas.h"

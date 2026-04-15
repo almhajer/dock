@@ -1,7 +1,13 @@
+/**
+ * @file RewardSystem.h
+ * @brief واجهة نظام المكافآت.
+ * @details حساب المكافآت بناءً على الأداء.
+ */
+
 #pragma once
 
 #include "SkillAssessment.h"
-#include "StageObjectives.h"
+#include "../core/StageObjectives.h"
 
 namespace core
 {

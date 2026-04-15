@@ -1,3 +1,9 @@
+/**
+ * @file SpriteAnimation.h
+ * @brief إدارة الأنيميشن للسبرايت.
+ * @details يحتوي على هياكل حالة الأنيميشن ودوال التحكم.
+ */
+
 #pragma once
 
 #include "SpriteAtlas.h"

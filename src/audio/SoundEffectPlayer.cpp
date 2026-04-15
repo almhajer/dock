@@ -1,3 +1,9 @@
+/**
+ * @file SoundEffectPlayer.cpp
+ * @brief تنفيذ مشغل المؤثرات الصوتية.
+ * @details تحميل وتشغيل المؤثرات باستخدام miniaudio.
+ */
+
 #include "SoundEffectPlayer.h"
 
 #include "third_party/miniaudio.h"

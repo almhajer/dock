@@ -1,3 +1,9 @@
+/**
+ * @file AtmosphereRenderer.h
+ * @brief واجهة رسم الغلاف الجوي.
+ * @details رسم الغيوم، الأشعة، والشمس.
+ */
+
 #pragma once
 
 #include <array>

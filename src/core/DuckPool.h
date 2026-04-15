@@ -1,9 +1,15 @@
+/**
+ * @file DuckPool.h
+ * @brief واجهة مجموعة البطات.
+ * @details إدارة مجموعة البطات النشطة.
+ */
+
 #pragma once
 
-#include "DuckGameplay.h"
-#include "../game/SpriteAnimation.h"
+#include "../gameplay/DuckGameplay.h"
+#include "../assets/SpriteAnimation.h"
 #include "../gfx/RenderTypes.h"
-#include "SceneLayout.h"
+#include "../rendering/SceneLayout.h"
 
 #include <random>
 #include <array>

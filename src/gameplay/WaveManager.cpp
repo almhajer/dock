@@ -1,3 +1,9 @@
+/**
+ * @file WaveManager.cpp
+ * @brief تنفيذ إدارة الدفعات.
+ * @details إدارة ظهور البط في دفعات.
+ */
+
 #include "WaveManager.h"
 
 #include <algorithm>

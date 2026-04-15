@@ -1,3 +1,9 @@
+/**
+ * @file EnvironmentTypes.h
+ * @brief أنواع البيانات للبيئة.
+ * @details ثوابت وهياكل البيئة.
+ */
+
 #pragma once
 
 #include "RenderTypes.h"

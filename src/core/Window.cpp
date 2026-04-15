@@ -1,3 +1,9 @@
+/**
+ * @file Window.cpp
+ * @brief تنفيذ النافذة.
+ * @details إدارة النافذة باستخدام GLFW.
+ */
+
 #include "Window.h"
 
 #include <GLFW/glfw3.h>

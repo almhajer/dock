@@ -1,3 +1,9 @@
+/**
+ * @file DuckSpriteAtlas.cpp
+ * @brief تنفيذ أطلس البطة.
+ * @details بناء وإدارة أطلس البطة من الصورة المصدر.
+ */
+
 #include "DuckSpriteAtlas.h"
 
 #include "../gfx/stb_image.h"

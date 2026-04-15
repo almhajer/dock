@@ -1,3 +1,9 @@
+/**
+ * @file Window.h
+ * @brief واجهة إدارة النافذة.
+ * @details تغليف لنافذة GLFW مع إدارة دورة الحياة.
+ */
+
 #pragma once
 
 #include <string>
@@ -8,30 +14,30 @@ struct GLFWwindow;
 namespace core
 {
 
-/*
- نافذة اللعبة - تغليف لنافذة GLFW مع إدارة دورة الحياة
+/**
+ * @brief نافذة اللعبة - تغليف لنافذة GLFW مع إدارة دورة الحياة.
  */
 class Window
 {
   public:
 #pragma region PublicTypes
-    /*
-     إعدادات النافذة
+    /**
+     * @brief إعدادات النافذة.
      */
     struct Config
     {
-        /*
-         عنوان النافذة الظاهر للمستخدم.
+        /**
+         * @brief عنوان النافذة الظاهر للمستخدم.
          */
         std::string title; // عنوان النافذة
 
-        /*
-         العرض المطلوب عند الإنشاء.
+        /**
+         * @brief العرض المطلوب عند الإنشاء.
          */
         uint32_t width; // العرض بالبكسل
 
-        /*
-         الارتفاع المطلوب عند الإنشاء.
+        /**
+         * @brief الارتفاع المطلوب عند الإنشاء.
          */
         uint32_t height; // الارتفاع بالبكسل
 
@@ -40,13 +46,13 @@ class Window
          */
         bool fullscreen; // ملء الشاشة
 
-        /*
-         هل يسمح بتغيير الحجم؟
+        /**
+         * @brief هل يسمح بتغيير الحجم؟
          */
         bool resizable; // قابلة لتغيير الحجم
 
-        /*
-         هل تُفعّل المزامنة العمودية؟
+        /**
+         * @brief هل تُفعّل المزامنة العمودية؟
          */
         bool vsync; // مزامنة عمودية
 
@@ -56,13 +62,15 @@ class Window
     };
 #pragma endregion PublicTypes
 
-    /*
-     ينشئ النافذة ويهيئ GLFW حسب الإعدادات.
+    /**
+     * @brief ينشئ النافذة ويهيئ GLFW حسب الإعدادات.
+     * @param config إعدادات النافذة.
+     * @throws std::runtime_error إذا فشل إنشاء النافذة.
      */
     explicit Window(const Config& config = {});
 
-    /*
-     يغلق النافذة ويحرر موارد GLFW المرتبطة بها.
+    /**
+     * @brief يغلق النافذة ويحرر موارد GLFW المرتبطة بها.
      */
     ~Window();
 
@@ -70,39 +78,48 @@ class Window
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
 
-    /*
-     هل النافذة مفتوحة ولم يُطلب إغلاقها؟
+    /**
+     * @brief هل النافذة مفتوحة ولم يُطلب إغلاقها؟
+     * @return true إذا كانت النافذة صالحة، false خلاف ذلك.
      */
     [[nodiscard]] bool isOpen() const;
 
-    /*
-     معالجة أحداث النافذة (إدخال، تغيير حجم...)
+    /**
+     * @brief معالجة أحداث النافذة (إدخال، تغيير حجم...).
      */
     void pollEvents();
 
-    /*
-     تعيين أيقونة نافذة GLFW من ملف صورة.
+    /**
+     * @brief تعيين أيقونة نافذة GLFW من ملف صورة.
+     * @param iconPath مسار ملف الأيقونة.
      */
     void setIcon(const std::string& iconPath);
 
-    /*
-     انتظار حتى يحين وقت الإطار التالي (إذا كان VSync مفعّلًا)
+    /**
+     * @brief انتظار حتى يحين وقت الإطار التالي (إذا كان VSync مفعّلًا).
      */
     void waitEvents();
 
-    /*
-     الحصول على مقبض GLFW الخام (للاستخدام مع Vulkan)
+    /**
+     * @brief الحصول على مقبض GLFW الخام (للاستخدام مع Vulkan).
+     * @return مؤشر لنافذة GLFW.
      */
     [[nodiscard]] GLFWwindow* getHandle() const;
 
-    /*
-     أبعاد النافذة الحالية
+    /**
+     * @brief أبعاد النافذة الحالية.
+     * @return العرض بالبكسل.
      */
     [[nodiscard]] uint32_t getWidth() const;
+    /**
+     * @brief أبعاد النافذة الحالية.
+     * @return الارتفاع بالبكسل.
+     */
     [[nodiscard]] uint32_t getHeight() const;
 
-    /*
-     هل تغيّر حجم النافذة منذ آخر فحص؟ (يُعاد ضبطه بعد القراءة)
+    /**
+     * @brief هل تغيّر حجم النافذة منذ آخر فحص؟ (يُعاد ضبطه بعد القراءة).
+     * @return true إذا تغير الحجم، false خلاف ذلك.
      */
     [[nodiscard]] bool wasResized();
 

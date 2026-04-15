@@ -1,3 +1,9 @@
+/**
+ * @file SpriteAnimation.cpp
+ * @brief تنفيذ الأنيميشن العام.
+ * @details إدارة الأنيميشن للسبرايت.
+ */
+
 #include "SpriteAnimation.h"
 
 #include <cmath>

@@ -1,3 +1,9 @@
+/**
+ * @file EnvironmentAtlas.cpp
+ * @brief تنفيذ أطلس البيئة.
+ * @details إنشاء وإدارة أطالس البيئة.
+ */
+
 #include "EnvironmentAtlas.h"
 
 #include <array>
