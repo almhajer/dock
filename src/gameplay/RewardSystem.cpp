@@ -11,11 +11,22 @@
 namespace core
 {
 
+/**
+ * @brief إعادة تعيين التقدم.
+ */
 void RewardSystem::reset()
 {
     mProgression = {};
 }
 
+/**
+ * @brief حساب المكافأة للمرحلة.
+ * @param config إعدادات المرحلة.
+ * @param extConfig إعدادات المرحلة الموسعة.
+ * @param result نتيجة المرحلة.
+ * @param skillLevel مستوى المهارة.
+ * @return المكافأة المحسوبة.
+ */
 StageReward RewardSystem::computeReward(
     const stage::StageConfig& /*config*/,
     const ExtendedStageConfig& extConfig,

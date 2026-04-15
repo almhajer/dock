@@ -106,6 +106,9 @@ bool Window::isOpen() const
     return mHandle && !glfwWindowShouldClose(mHandle);
 }
 
+/**
+ * @brief معالجة أحداث النافذة.
+ */
 void Window::pollEvents()
 {
     glfwPollEvents();
@@ -129,6 +132,10 @@ void Window::pollEvents()
     }
 }
 
+/**
+ * @brief تعيين أيقونة النافذة.
+ * @param iconPath مسار الأيقونة.
+ */
 void Window::setIcon(const std::string& iconPath)
 {
 #ifdef __APPLE__

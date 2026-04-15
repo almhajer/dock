@@ -25,6 +25,10 @@ Input* getInputForWindow(GLFWwindow* window)
 
 } // namespace
 
+/**
+ * @brief تهيئة الإدخال.
+ * @param window النافذة المرتبطة.
+ */
 void Input::init(GLFWwindow* window)
 {
     mWindow = window;
@@ -42,6 +46,9 @@ void Input::init(GLFWwindow* window)
     mMouseY = mMouseLastY = static_cast<float>(ypos);
 }
 
+/**
+ * @brief تحديث حالة الإدخال.
+ */
 void Input::update()
 {
     // نقل الحالة الحالية إلى السابقة
@@ -55,6 +62,9 @@ void Input::update()
     mMouseLastY = mMouseY;
 }
 
+/**
+ * @brief إيقاف الإدخال.
+ */
 void Input::shutdown()
 {
     // فصل callbacks عن GLFW قبل تدمير أي شيء
@@ -72,12 +82,22 @@ void Input::shutdown()
     mMouseButtonsPrevious.clear();
 }
 
+/**
+ * @brief التحقق من مفتاح مضغوط.
+ * @param key رمز المفتاح.
+ * @return صحيح إذا كان المفتاح مضغوطاً.
+ */
 bool Input::isKeyPressed(int key) const
 {
     auto it = mKeysCurrent.find(key);
     return it != mKeysCurrent.end() && it->second;
 }
 
+/**
+ * @brief التحقق من مفتاح للتو تم ضغطه.
+ * @param key رمز المفتاح.
+ * @return صحيح إذا تم الضغط على المفتاح للتو.
+ */
 bool Input::isKeyJustPressed(int key) const
 {
     bool current = mKeysCurrent.count(key) ? mKeysCurrent.at(key) : false;
@@ -85,12 +105,22 @@ bool Input::isKeyJustPressed(int key) const
     return current && !previous;
 }
 
+/**
+ * @brief التحقق من زر الماوس مضغوط.
+ * @param button رمز الزر.
+ * @return صحيح إذا كان الزر مضغوطاً.
+ */
 bool Input::isMouseButtonPressed(int button) const
 {
     auto it = mMouseButtonsCurrent.find(button);
     return it != mMouseButtonsCurrent.end() && it->second;
 }
 
+/**
+ * @brief التحقق من زر للتو تم الضغط عليه.
+ * @param button رمز الزر.
+ * @return صحيح إذا تم الضغط على الزر للتو.
+ */
 bool Input::isMouseButtonJustPressed(int button) const
 {
     bool current = mMouseButtonsCurrent.count(button) ? mMouseButtonsCurrent.at(button) : false;
@@ -98,18 +128,37 @@ bool Input::isMouseButtonJustPressed(int button) const
     return current && !previous;
 }
 
+/**
+ * @brief الحصول على إحداثي X للماوس.
+ * @return إحداثي X.
+ */
 float Input::getMouseX() const
 {
     return mMouseX;
 }
+
+/**
+ * @brief الحصول على إحداثي Y للماوس.
+ * @return إحداثي Y.
+ */
 float Input::getMouseY() const
 {
     return mMouseY;
 }
+
+/**
+ * @brief الحصول على تغيير X للماوس.
+ * @return تغيير X.
+ */
 float Input::getMouseDeltaX() const
 {
     return mMouseDeltaX;
 }
+
+/**
+ * @brief الحصول على تغيير Y للماوس.
+ * @return تغيير Y.
+ */
 float Input::getMouseDeltaY() const
 {
     return mMouseDeltaY;

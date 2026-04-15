@@ -13,6 +13,9 @@ Timer::Timer() : mStartTime(Clock::now()), mLastTime(Clock::now()), mLastFPSTime
 {
 }
 
+/**
+ * @brief تحديث المؤقت.
+ */
 void Timer::update()
 {
     auto currentTime = Clock::now();
@@ -36,16 +39,28 @@ void Timer::update()
     }
 }
 
+/**
+ * @brief الحصول على الوقت بين الإطارات.
+ * @return الوقت بين الإطارات بالثواني.
+ */
 float Timer::getDeltaTime() const
 {
     return mDeltaTime;
 }
 
+/**
+ * @brief الحصول على الوقت الإجمالي منذ البداية.
+ * @return الوقت الإجمالي بالثواني.
+ */
 float Timer::getTotalTime() const
 {
     return mTotalTime;
 }
 
+/**
+ * @brief الحصول على الإطارات في الثانية.
+ * @return عدد الإطارات في الثانية.
+ */
 int Timer::getFPS() const
 {
     return mFPS;

@@ -116,8 +116,8 @@ bool SoundEffectPlayer::load(const std::string& path)
 #pragma endregion Lifecycle
 
 #pragma region PlaybackControl
-/*
- @brief يشغل المؤثر مرة واحدة بدءاً من أول العينة.
+/**
+ * @brief تشغيل المؤثر مرة واحدة.
  */
 void SoundEffectPlayer::play()
 {
@@ -134,8 +134,8 @@ void SoundEffectPlayer::play()
     ma_sound_start(&state->sound);
 }
 
-/*
- @brief يشغل المؤثر على حلقة متكررة متزامنة مع بداية العنصر.
+/**
+ * @brief تشغيل المؤثر على حلقة متكررة.
  */
 void SoundEffectPlayer::playLooped()
 {
@@ -154,8 +154,8 @@ void SoundEffectPlayer::playLooped()
     ma_sound_start(&state->sound);
 }
 
-/*
- @brief يوقف التشغيل الحالي ويعيد المؤثر إلى البداية.
+/**
+ * @brief إيقاف التشغيل.
  */
 void SoundEffectPlayer::stop()
 {
@@ -169,8 +169,8 @@ void SoundEffectPlayer::stop()
     ma_sound_seek_to_pcm_frame(&state->sound, 0);
 }
 
-/*
- @brief يحرر الحالة الداخلية ويزيل المورد المحمل من الذاكرة.
+/**
+ * @brief إعادة تعيين المشغل.
  */
 void SoundEffectPlayer::reset()
 {
@@ -186,9 +186,9 @@ void SoundEffectPlayer::reset()
 #pragma endregion PlaybackControl
 
 #pragma region StateQueries
-/*
- @brief يحدد إن كان هناك ملف صوتي صالح محمّل داخل المشغل.
- @return true إذا كان هناك مؤثر محمل.
+/**
+ * @brief التحقق من وجود ملف صوتي محمّل.
+ * @return صحيح إذا كان هناك مؤثر محمل.
  */
 bool SoundEffectPlayer::isLoaded() const
 {
@@ -196,9 +196,9 @@ bool SoundEffectPlayer::isLoaded() const
     return state != nullptr && state->soundInitialized;
 }
 
-/*
- @brief يحدد إن كان المؤثر في حالة تشغيل لحظية الآن.
- @return true إذا كان المؤثر يعمل حالياً.
+/**
+ * @brief التحقق من تشغيل الصوت حالياً.
+ * @return صحيح إذا كان المؤثر قيد التشغيل.
  */
 bool SoundEffectPlayer::isPlaying() const
 {
@@ -211,9 +211,9 @@ bool SoundEffectPlayer::isPlaying() const
     return ma_sound_is_playing(&state->sound) == MA_TRUE;
 }
 
-/*
- @brief يغيّر شدة الصوت للمؤثر المحمل حالياً.
- @param volume الشدة بين 0.0 (صامت) و1.0 (كامل).
+/**
+ * @brief تعيين مستوى الصوت.
+ * @param volume شدة الصوت بين 0.0 و1.0.
  */
 void SoundEffectPlayer::setVolume(float volume)
 {

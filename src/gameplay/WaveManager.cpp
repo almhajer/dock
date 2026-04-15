@@ -12,6 +12,11 @@
 namespace core
 {
 
+/**
+ * @brief بدء مرحلة جديدة.
+ * @param config إعدادات المرحلة.
+ * @param difficultyMultiplier معامل الصعوبة.
+ */
 void WaveManager::startStage(const stage::StageConfig& config, float difficultyMultiplier)
 {
     mConfig = config;
@@ -25,6 +30,12 @@ void WaveManager::startStage(const stage::StageConfig& config, float difficultyM
     mPendingWaveSpawned = 0;
 }
 
+/**
+ * @brief تحديث إدارة الدفعات.
+ * @param deltaTime الوقت المنقضي.
+ * @param pool حوض البط.
+ * @param spawnCtx سياق الظهور.
+ */
 void WaveManager::update(float deltaTime, DuckPool& pool, const DuckSpawnContext& spawnCtx)
 {
     /*
@@ -84,11 +95,17 @@ void WaveManager::update(float deltaTime, DuckPool& pool, const DuckSpawnContext
     mWaitingForDespawn = false;
 }
 
+/**
+ * @brief تسجيل إصابة البطة.
+ */
 void WaveManager::onDuckHit()
 {
     ++mStats.ducksHit;
 }
 
+/**
+ * @brief تسجيل اختفاء البطة.
+ */
 void WaveManager::onDuckDespawned()
 {
     ++mStats.ducksDespawned;

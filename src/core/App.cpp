@@ -45,6 +45,9 @@ namespace core
         cleanup();
     }
 
+    /**
+     * @brief تهيئة التطبيق.
+     */
     void App::init()
     {
         if (mInitialized)
@@ -231,6 +234,9 @@ namespace core
         mRunning = true;
     }
 
+    /**
+     * @brief حلقة التطبيق الرئيسية.
+     */
     void App::run()
     {
         const std::string iconPath = mAssetsPath + "/macos/DuckHunterStarter.png";
@@ -255,6 +261,9 @@ namespace core
         mRunning = false;
     }
 
+    /**
+     * @brief طلب إيقاف التطبيق.
+     */
     void App::requestShutdown()
     {
         mRunning = false;
@@ -290,6 +299,9 @@ namespace core
         return mTimer;
     }
 
+    /**
+     * @brief تنظيف الموارد وإيقاف التطبيق.
+     */
     void App::cleanup()
     {
         if (!mInitialized)

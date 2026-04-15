@@ -12,11 +12,18 @@
 namespace core
 {
 
+/**
+ * @brief إعادة تعيين الإحصائيات.
+ */
 void SkillAssessment::reset()
 {
     mStats = {};
 }
 
+/**
+ * @brief تسجيل إطلاق نار.
+ * @param hit هل أصابت البطة.
+ */
 void SkillAssessment::onShotFired(bool hit)
 {
     ++mStats.shotsFired;
@@ -26,16 +33,27 @@ void SkillAssessment::onShotFired(bool hit)
     }
 }
 
+/**
+ * @brief تسجيل هرب بطة.
+ */
 void SkillAssessment::onDuckEscaped()
 {
     ++mStats.ducksEscaped;
 }
 
+/**
+ * @brief تحديث الوقت.
+ * @param deltaTime الوقت المنقضي.
+ */
 void SkillAssessment::update(float deltaTime)
 {
     mStats.stageTime += deltaTime;
 }
 
+/**
+ * @brief تقييم مستوى المهارة.
+ * @return مستوى المهارة.
+ */
 SkillLevel SkillAssessment::evaluate() const
 {
     if (mStats.shotsFired <= 0)
